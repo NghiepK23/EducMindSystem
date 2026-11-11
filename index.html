@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>EducMind | Prototype đa lớp</title>
+<title>EducMind</title>
 <meta name="color-scheme" content="light dark">
 <meta name="theme-color" content="#eef1f8" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#05070c" media="(prefers-color-scheme: dark)">
@@ -19,6 +19,7 @@
 <link rel="stylesheet" href="css/09-responsive-nav.css">
 <link rel="stylesheet" href="css/10-student-dashboard.css">
 <link rel="stylesheet" href="css/11-calendar.css">
+<link rel="stylesheet" href="css/12-db.css">
 </head>
 <body>
 <a class="skip" href="#pageTitle">Bỏ qua điều hướng</a>
@@ -105,6 +106,17 @@
 <script src="js/73-progress-report.js"></script>
 <script src="js/74-data-exchange.js"></script>
 <script src="js/75-revision-history.js"></script>
+<!-- Màn hình dữ liệu thật (đăng nhập bằng Supabase). Phải nạp sau các tệp ở trên và trước js/76-main.js. -->
+<script src="js/db/01-core.js"></script>
+<script src="js/db/02-shell.js"></script>
+<script src="js/db/03-classes.js"></script>
+<script src="js/db/04-content.js"></script>
+<script src="js/db/05-assignments.js"></script>
+<script src="js/db/06-questions.js"></script>
+<script src="js/db/07-assessments.js"></script>
+<script src="js/db/08-exam.js"></script>
+<script src="js/db/09-progress.js"></script>
+<script src="js/db/10-home.js"></script>
 <script src="js/76-main.js"></script>
 <script src="js/77-liquid-glass.js"></script>
 </body>

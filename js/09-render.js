@@ -20,7 +20,7 @@ addEventListener('resize',()=>requestAnimationFrame(placeSideToggle));
 addEventListener('scroll',()=>{if(window.innerWidth<=900)requestAnimationFrame(placeSideToggle)},{passive:true});
 function render(){authGuard();scanEvents();
   try{
-    if(logged&&sess?.backend){renderBackendHome()}
+    if(logged&&sess?.backend){dbRender()}
     else if(!logged&&authHtml()){}else if(!logged){
       document.title='Đăng nhập | EducMind';
       app.innerHTML=`<main class="login-wrap"><div class="login">

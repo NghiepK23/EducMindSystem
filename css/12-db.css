@@ -1,0 +1,124 @@
+/* EducMind · css/12-db.css
+   Kiểu bổ sung cho các màn hình dữ liệu thật (js/db/) và ô chọn vai trò ở màn hình đăng ký.
+   Lưu ý: Chỉ thêm những gì bộ CSS gốc chưa có; mọi lớp ở đây bắt đầu bằng "db-" (trừ .su-role của màn hình đăng ký). */
+
+/* ----- Đăng ký: chọn vai trò ----- */
+.su-role{border:0;padding:0;margin:14px 0;display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.su-role legend{font-size:.8125rem;color:var(--muted);font-weight:600;padding:0;margin-bottom:6px}
+.su-role label{display:flex;align-items:center;gap:8px;padding:10px 12px;border-radius:12px;background:var(--fill);cursor:pointer;font-weight:600}
+.su-role label:has(input:checked){background:var(--brand-soft);box-shadow:0 0 0 2px var(--brand)}
+.su-role input{flex:none;margin:0}
+
+/* ----- Biểu mẫu ----- */
+.db-form-row{display:flex;flex-wrap:wrap;align-items:flex-end;gap:12px;margin-top:8px}
+.db-form-row .field{margin:0;flex:1 1 180px;min-width:0}
+.db-form-row .field input,.db-form-row .field select{width:100%}
+.db-form-row>.btn{flex:none}
+.db-form-row>.db-form-error{flex:1 1 100%}
+.db-add-row{margin-top:14px;padding-top:14px;box-shadow:0 -.5px 0 var(--line)}
+.db-form-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:0 16px}
+.db-form-grid .field input,.db-form-grid .field select,.field textarea{width:100%}
+.db-form-actions{justify-content:flex-end;margin-top:18px}
+.db-label{display:block;font-size:.8125rem;color:var(--muted);font-weight:600;margin-bottom:6px}
+.db-hint{font-size:.78125rem;margin-top:2px}
+.db-check{display:inline-flex;align-items:center;gap:8px;font-weight:500;cursor:pointer;min-height:44px}
+.db-check input{flex:none;margin:0}
+.db-input-score{width:6.5rem!important}
+.db-input-code{max-width:7rem}
+.db-form-error{background:var(--err-bg);color:var(--err-ink);margin-top:12px}
+.db-form-error .ic{color:currentColor}
+.db-form-error[hidden]{display:none}
+.db-loading{min-height:120px}
+.db-empty{padding:18px 4px;color:var(--muted);font-size:.875rem}
+.db-off{visibility:hidden}
+
+/* ----- Liên kết dạng nút, mã lớp ----- */
+.db-link{border:0;background:none;padding:0;font:inherit;font-weight:600;color:var(--brand-ink,var(--brand));text-align:left;cursor:pointer}
+.db-link:hover{text-decoration:underline}
+.db-code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;letter-spacing:.06em}
+.db-codebox{display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:12px;background:var(--fill)}
+.db-codebox .db-code{font-size:1.05rem}
+.db-class-grid{grid-template-columns:repeat(auto-fill,minmax(240px,1fr))}
+.db-metrics{margin-bottom:16px}
+
+/* ----- Bảng ----- */
+.db-cell-actions{white-space:nowrap;text-align:right}
+.db-cell-actions .btn{margin-left:4px}
+.db-qtext{white-space:pre-wrap;overflow-wrap:anywhere;font-weight:500}
+.db-cell{display:inline-block;min-width:3.2rem;padding:3px 8px;border-radius:8px;text-align:center;font-weight:600;font-variant-numeric:tabular-nums}
+.db-cell.good{background:var(--good-soft);color:var(--good)}
+.db-cell.prog{background:var(--prog-soft);color:var(--prog)}
+.db-cell.need{background:var(--need-soft);color:var(--need)}
+.db-total th,.db-total td{font-weight:700}
+.db-filter{margin:6px 0 12px}
+.db-filter input{flex:1 1 220px}
+
+/* ----- Chủ đề, bài học, mục tiêu ----- */
+.db-topic-head{align-items:flex-start}
+.db-lesson{margin-top:14px;padding:16px;border-radius:16px;background:var(--fill)}
+.db-objectives{list-style:none;margin:10px 0 0;padding:0;display:grid;gap:6px}
+.db-objectives li{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:10px;background:var(--surface)}
+.db-obj-text{flex:1;min-width:0;overflow-wrap:anywhere}
+.db-obj-code{display:inline-block;padding:2px 8px;border-radius:8px;background:var(--brand-soft);color:var(--brand-ink,var(--brand));font:700 .75rem/1.5 var(--font-head);white-space:nowrap}
+.db-noobj{margin:10px 0 0;font-size:.8125rem}
+.db-objpick{display:grid;gap:10px;max-height:320px;overflow:auto;padding:2px}
+.db-objpick fieldset{border:0;padding:0;margin:0;display:grid;gap:6px}
+.db-objpick legend{font-weight:600;font-size:.8125rem;padding:0;margin-bottom:4px}
+.db-objlist{margin-top:14px}
+.db-objlist ul{margin:0;padding-left:18px}
+
+/* ----- Bài tập, bài kiểm tra ----- */
+.db-task{padding:14px 0;box-shadow:0 -.5px 0 var(--line)}
+.db-task:first-of-type{box-shadow:none}
+.db-task-title{font-size:1rem}
+.db-prose{white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.6;margin:12px 0}
+.db-work summary{cursor:pointer;font-weight:600;color:var(--brand-ink,var(--brand))}
+.db-work .db-prose{max-width:46ch;max-height:260px;overflow:auto;padding:10px 12px;border-radius:10px;background:var(--fill)}
+.db-grade{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.db-grade textarea{flex:1 1 100%;min-width:200px}
+.db-grade label:not(.sr){font-size:.8125rem;color:var(--muted);font-weight:600}
+.db-options{margin:8px 0 12px;padding-left:26px;display:grid;gap:4px}
+.db-answer{white-space:pre-wrap}
+.db-question h2{font-size:1.0625rem}
+.db-answers{display:grid;gap:8px;margin-top:10px}
+.db-answers input[type=text],.db-answers textarea{width:100%}
+
+/* ----- Làm bài kiểm tra ----- */
+.db-exam-bar{position:sticky;top:8px;z-index:5}
+.db-timer{font:700 1.5rem/1 var(--font-head);font-variant-numeric:tabular-nums;padding:8px 14px;border-radius:12px;background:var(--fill)}
+.db-timer.warn{background:var(--need-soft);color:var(--need)}
+.db-save-state{font-size:.75rem;font-weight:600;color:var(--muted);min-width:5.5rem;text-align:right}
+.db-save-state[data-state="saved"]{color:var(--good)}
+.db-save-state[data-state="error"]{color:var(--need)}
+/* Biểu mẫu câu hỏi: chỉ hiện phần đáp án đúng với dạng câu hỏi đang chọn (thuộc tính data-kind của biểu mẫu). */
+.db-qform .db-only{display:none}
+.db-qform[data-kind="SINGLE_CHOICE"] .db-only[data-for~="SINGLE_CHOICE"],
+.db-qform[data-kind="MULTIPLE_CHOICE"] .db-only[data-for~="MULTIPLE_CHOICE"],
+.db-qform[data-kind="TRUE_FALSE"] .db-only[data-for~="TRUE_FALSE"],
+.db-qform[data-kind="SHORT_ANSWER"] .db-only[data-for~="SHORT_ANSWER"],
+.db-qform[data-kind="ESSAY"] .db-only[data-for~="ESSAY"]{display:block}
+.db-option{display:flex;align-items:center;gap:10px;margin-top:8px}
+.db-option input[type=text],.db-option input:not([type]){flex:1;min-width:0}
+.db-option-letter{flex:none;width:1.6rem;text-align:center;font-weight:700;color:var(--muted)}
+
+/* ----- Mức nắm vững của học sinh ----- */
+.db-mrow{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(80px,1fr) auto;gap:12px;align-items:center;margin-top:10px;padding:8px 10px;border-radius:10px;background:var(--surface)}
+.db-mrow-val{white-space:nowrap}
+
+/* ----- Hộp thoại, thông báo ----- */
+.db-dlg-title{font-size:1.125rem;margin-bottom:8px}
+.db-dlg-actions{justify-content:flex-end;margin-top:16px}
+.db-dlg-wide{max-width:620px}
+.db-notifs{display:grid;gap:6px;max-height:60vh;overflow:auto;margin-top:8px}
+.db-notif{display:grid;gap:2px;text-align:left;border:0;border-radius:12px;padding:10px 12px;background:var(--fill);color:inherit;font:inherit;cursor:pointer}
+.db-notif:hover{background:var(--fill-2,var(--fill))}
+.db-notif.unread{box-shadow:inset 3px 0 0 var(--brand)}
+.db-notif .muted{font-size:.8125rem}
+.db-notif-time{font-size:.75rem!important}
+
+@media (max-width:700px){
+  .db-mrow{grid-template-columns:1fr}
+  .db-cell-actions{white-space:normal;text-align:left}
+  .db-exam-bar{top:4px}
+  .db-timer{font-size:1.25rem}
+}
