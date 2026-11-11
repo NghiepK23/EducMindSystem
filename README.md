@@ -1,1 +1,87 @@
-# EducMindSystem
+# EducMind — Hệ thống quản lý dạy và học
+
+Website quản lý lớp học, nội dung bài học, bài tập, câu hỏi, đề kiểm tra và tiến độ học tập.
+Giao diện viết bằng **JavaScript thuần** (không framework, không cần bước build), backend dùng **Supabase**
+(PostgreSQL + Auth + REST), toàn bộ mã nguồn lưu trong repository này.
+
+## Chạy website trên máy cá nhân
+
+Trang là tĩnh hoàn toàn, chỉ cần một máy chủ tệp nhỏ để trình duyệt nạp được các tệp JS:
+
+```bash
+# trong thư mục gốc của repository
+python3 -m http.server 5500
+# hoặc: npx serve -l 5500
+```
+
+Mở `http://localhost:5500/` trong trình duyệt.
+
+> Cổng 5500 hiện đang được khai báo trong cấu hình Auth của Supabase
+> (`site_url` và danh sách URL cho phép), nên hãy chạy đúng cổng này.
+> Muốn thay cổng hoặc đưa website lên Internet (GitHub Pages, Vercel, Netlify…),
+> cần cập nhật cấu hình Auth của Supabase theo URL mới trước.
+
+## Cấu trúc mã nguồn
+
+```
+index.html                 Trang duy nhất, nạp toàn bộ CSS/JS theo thứ tự số trong tên tệp
+css/
+  01-base.css … 12-db.css  Kiểu dáng; số càng lớn càng được nạp sau (ghi đè)
+js/
+  01-sample-data.js … 77-liquid-glass.js
+                           Mã giao diện và chế độ demo (dữ liệu mẫu trong bộ nhớ)
+  db/                      Màn hình dữ liệu thật (đăng nhập Supabase), nạp SAU js/75 và TRƯỚC js/76-main.js
+    01-core.js             Vào app, đăng xuất, phiên, đồng bộ chuông báo
+    02-shell.js            Vỏ ứng dụng cho chế độ dữ liệu thật
+    03-classes.js … 10-home.js   Lớp học, nội dung, bài tập, câu hỏi, thi, tiến độ, trang chủ
+supabase/
+  migrations/              21 migration SQL của backend — nguồn chuẩn cho cấu trúc cơ sở dữ liệu
+```
+
+Quy ước: tệp **số nhỏ nạp trước**, tệp số lớn có thể dùng hàm/định nghĩa của tệp số nhỏ.
+`js/03-supabase.js` chứa địa chỉ dự án Supabase, khóa công khai và `EducMindDB` —
+mọi lệnh đọc/ghi cơ sở dữ liệu đều đi qua đối tượng này (mỗi hàm = một lệnh tới Supabase).
+
+## Hai chế độ sử dụng
+
+| Chế độ | Cách vào | Dữ liệu |
+| --- | --- | --- |
+| **Demo** | Bấm nút “… · demo” ở màn hình đăng nhập | Dữ liệu mẫu trong bộ nhớ, không cần mạng |
+| **Supabase** | Đăng ký / đăng nhập bằng email | Lưu thật trên Supabase, có phân quyền giáo viên – học sinh |
+
+Đăng ký tài khoản cho phép chọn vai trò **Giáo viên (TEACHER)** hoặc **Học sinh (STUDENT)**.
+Học sinh vào lớp bằng mã lớp 8 ký tự do giáo viên tạo ra.
+
+## Thiết lập backend Supabase
+
+1. Tạo dự án Supabase (miễn phí là đủ).
+2. Chạy toàn bộ tệp trong `supabase/migrations/` theo thứ tự thời gian trong tên tệp
+   (dùng Supabase CLI `supabase db push`, hoặc mở SQL Editor và chạy tuần tự từng tệp).
+3. Sửa `js/03-supabase.js`: điền `SUPABASE_URL` và `SUPABASE_PUBLISHABLE_KEY`
+   (chỉ dùng **khóa công khai** publishable; mọi phân quyền do **RLS** trong cơ sở dữ liệu quyết định).
+4. Trong Authentication → URL Configuration của Supabase: đặt `site_url` là địa chỉ website
+   (mặc định `http://localhost:5500`) và thêm URL đó vào danh sách cho phép.
+
+Lưu ý bảo mật của backend:
+
+- Bảng do máy chủ tự ghi bằng trigger (`learning_evidence`, `mastery`, `knowledge_gaps`,
+  `content_revisions`, `notifications`): người dùng **chỉ được đọc**, mọi thay đổi được
+  trigger ghi lại (ví dụ `content_revisions` là nhật ký chỉnh sửa nội dung — chỉ máy chủ ghi).
+- Các thao tác nhiều bước (tạo lớp, vào lớp, bắt đầu/nộp bài kiểm tra…) gọi **RPC**
+  để máy chủ kiểm tra và ghi trong một giao dịch.
+- `public.server_now()` trả về giờ máy chủ để tính hạn nộp và đồng hồ làm bài,
+  không phụ thuộc đồng hồ trên máy người dùng.
+
+## Tính năng hiện có ở chế độ dữ liệu thật
+
+Giáo viên: tạo/lưu lớp (mã lớp tự sinh), thêm học sinh bằng email hoặc mã lớp,
+soạn chủ đề – bài học – mục tiêu, bài tập, ngân hàng câu hỏi, đề kiểm tra (cửa sổ mở/đóng),
+chấm điểm, xem tiến độ và khoảng trống kiến thức, đề xuất luyện tập, thông báo, nhật ký chỉnh sửa.
+
+Học sinh: vào lớp bằng mã, xem bài học và mục tiêu đã xuất bản, nộp/nộp lại bài tập,
+làm bài kiểm tra có đồng hồ đếm ngược (tự lưu, tự nộp khi hết giờ, cho phép làm nhiều lượt
+theo số lượt giáo viên đặt), xem tiến độ và đề xuất.
+
+Chưa có trong backend (chỉ chạy ở chế độ demo): tải tệp tài nguyên/nộp bài dạng tệp,
+rubric, sinh nội dung bằng AI, trò chơi, lịch, import/export, báo cáo in ảo,
+Realtime, khôi phục mục đã xóa, giáo viên tự tạo tài khoản cho học sinh.
