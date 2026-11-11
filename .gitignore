@@ -1,0 +1,24 @@
+# Phụ thuộc và sản phẩm build (nếu sau này có dùng công cụ Node)
+node_modules/
+dist/
+
+# Biến môi trường và khóa bí mật: KHÔNG đưa lên GitHub
+.env
+.env.*
+!.env.example
+
+# Supabase CLI (tệp tạm, thông tin liên kết dự án)
+supabase/.temp/
+supabase/.branches/
+
+# Hệ điều hành và trình soạn thảo
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+*.swp
+
+# Nhật ký
+*.log
