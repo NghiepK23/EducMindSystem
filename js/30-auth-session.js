@@ -7,6 +7,8 @@ Object.keys(ACCT).forEach(k=>{if(ACCT[k].pw===undefined)ACCT[k].pw=hashPw('demo1
 const acctName=()=>sess?((ACCT[sess.email]||{}).name||sess.email):'';
 const visClasses=()=>!sess?[]:role==='S'?classes.filter(x=>x.students.some(s=>s.email===sess.email)):classes.filter(x=>x.owner===sess.email);
 function authGuard(){
+  /* Mở liên kết đặt lại mật khẩu: luôn hiện màn hình đặt mật khẩu mới, kể cả khi phiên vừa được khôi phục từ liên kết. */
+  if(backendRecovery&&logged){logged=false;sess=null;role='T';dlg=null}
   if(!logged||!sess)return;
   if(sess.exp||Date.now()-sess.t>SESS_IDLE*60000){const wasBackend=!!sess.backend;logged=false;sess=null;role='T';dlg=null;taking=false;authMode='login';authMsg='';authErr='Phiên làm việc đã hết hạn do không hoạt động. Thao tác chưa lưu không được ghi nhận. Hãy đăng nhập lại.';
     /* Phiên Supabase: xóa dữ liệu khỏi bộ nhớ và đăng xuất khỏi Supabase, để tải lại trang không tự đăng nhập lại. */

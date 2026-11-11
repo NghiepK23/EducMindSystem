@@ -48,6 +48,8 @@ async function backendSignup(){
 }
 async function activateBackendSession(session){
   if(!session?.user){authErr='Không nhận được phiên đăng nhập.';render();return}
+  /* Liên kết đặt lại mật khẩu: không vào app, hiện màn hình đặt mật khẩu mới (doReset sẽ lưu và đăng xuất). */
+  if(backendRecovery){authMode='reset';render();return}
   /* Hồ sơ (bảng profiles) cho biết vai trò. Chỉ khi đọc được hồ sơ mới coi là đã đăng nhập. */
   const {data:profile,error}=await supabaseClient.from('profiles').select('id,email,full_name,role').eq('id',session.user.id).maybeSingle();
   if(error||!profile){
