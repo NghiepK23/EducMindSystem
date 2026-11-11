@@ -1,0 +1,49 @@
+/* EducMind · css/10-student-dashboard.css — Trang Tổng quan của học sinh và độ rõ chữ trên ảnh nền. */
+/* Student-specific overview dashboard */
+.student-dashboard{display:grid;gap:16px;max-width:1280px;margin:0 auto}
+.sd-welcome{display:flex;align-items:center;justify-content:space-between;gap:20px;padding:22px 24px;border:1px solid var(--line-strong);background:linear-gradient(125deg,color-mix(in srgb,var(--brand) 9%,var(--surface)),var(--surface) 68%)}
+.sd-welcome h2{margin:4px 0;font-size:clamp(22px,3vw,30px);letter-spacing:-.03em}
+.sd-welcome p{margin:0;color:var(--muted);max-width:760px}
+.sd-eyebrow{display:block;color:var(--brand-ink);font-size:10px;font-weight:850;letter-spacing:.11em}
+.sd-metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.sd-metric{display:grid;grid-template-columns:36px minmax(0,1fr);align-items:center;column-gap:10px;row-gap:2px;min-height:86px;padding:14px;border:1px solid var(--line-strong);border-radius:var(--radius-control);background:var(--surface);box-shadow:var(--shadow)}
+.sd-metric-icon{grid-row:span 2;display:grid;place-items:center;width:36px;height:36px;border-radius:12px;background:var(--brand-soft);color:var(--brand-ink)}
+.sd-metric-icon.is-warn{background:var(--need-soft);color:var(--need)}.sd-metric-icon.is-good{background:var(--good-soft);color:var(--good)}
+.sd-metric>b{font-size:21px;line-height:1.1;color:var(--ink);font-variant-numeric:tabular-nums}.sd-metric>b small{font-size:13px;color:var(--muted)}
+.sd-metric>span:last-child{font-size:11px;line-height:1.3;color:var(--muted);font-weight:650}
+.sd-dashboard-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;align-items:start}
+.sd-dashboard-grid>.panel{min-width:0;margin:0;padding:20px}
+.sd-section-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}.sd-section-head h3{margin:3px 0 0;font-size:17px;letter-spacing:-.015em}
+.sd-progress-summary{display:flex;gap:7px;flex-wrap:wrap;margin:0 0 12px}.sd-progress-summary span{padding:5px 9px;border:1px solid var(--line);border-radius:999px;background:var(--fill);color:var(--ink);font-size:10px;font-weight:750}
+.sd-goal-list{display:grid;gap:2px}.sd-goal-row,.sd-recent-row,.sd-gap-row,.sd-rec-row{display:grid;grid-template-columns:12px minmax(0,1fr) auto;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--line)}
+.sd-goal-row:last-child,.sd-recent-row:last-child{border-bottom:0}.sd-goal-row b,.sd-recent-row b,.sd-gap-row b,.sd-task b{display:block;color:var(--ink);font-size:12px;line-height:1.35}.sd-goal-row small,.sd-recent-row small,.sd-gap-row small,.sd-task small,.sd-rec-row small{display:block;margin-top:3px;color:var(--muted);font-size:10px;line-height:1.35}
+.sd-goal-dot,.sd-recent-mark{width:9px;height:9px;border-radius:50%;background:var(--line-strong)}.sd-goal-dot.good,.sd-recent-mark.good{background:var(--good)}.sd-goal-dot.prog,.sd-recent-mark.prog{background:var(--prog)}.sd-goal-dot.need,.sd-recent-mark.need{background:var(--need)}
+.sd-task{display:grid;grid-template-columns:34px minmax(0,1fr);align-items:center;gap:9px;padding:10px 4px;border:0;border-bottom:1px solid var(--line);border-radius:10px;background:transparent;color:var(--ink);font:inherit;text-align:left;cursor:pointer;transition:background .16s ease,transform .16s ease}.sd-task-icon{display:grid;place-items:center;width:32px;height:32px;border-radius:10px;background:var(--brand-soft);color:var(--brand-ink)}.sd-task.is-late .sd-task-icon{background:var(--need-soft);color:var(--need)}
+.sd-goal-row,.sd-recent-row,.sd-gap-row,.sd-rec-row{width:100%;border:0;border-bottom:1px solid var(--line);border-radius:10px;background:transparent;color:var(--ink);font:inherit;text-align:left;cursor:pointer;transition:background .16s ease,transform .16s ease}
+.sd-task:hover,.sd-goal-row:hover,.sd-recent-row:hover,.sd-gap-row:hover,.sd-rec-row:hover{background:color-mix(in srgb,var(--brand) 8%,var(--surface));transform:translateY(-1px)}
+.sd-task:focus-visible,.sd-goal-row:focus-visible,.sd-recent-row:focus-visible,.sd-gap-row:focus-visible,.sd-rec-row:focus-visible{outline:2px solid var(--brand);outline-offset:1px}
+.sd-quiz-card[role="link"]{cursor:pointer;transition:transform .16s ease,box-shadow .16s ease}.sd-quiz-card[role="link"]:hover{transform:translateY(-1px);box-shadow:var(--shadow-lg)}
+.sd-empty{padding:14px;border:1px dashed var(--line-strong);border-radius:12px;background:var(--fill);color:var(--muted);font-size:12px;line-height:1.5}
+.sd-activity-foot{margin-top:10px;color:var(--muted);font-size:10px}.sd-quiz-card{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:14px 0 0;padding:14px;border:1px solid var(--line-strong);border-radius:14px;background:var(--fill)}.sd-quiz-card h3{margin:3px 0;font-size:14px}.sd-quiz-card p{margin:0;color:var(--muted);font-size:11px}
+.sd-gap-row{grid-template-columns:minmax(0,1fr) auto}.sd-recommendations{display:grid;gap:3px;margin-top:14px;padding-top:12px;border-top:1px solid var(--line)}.sd-recommendations> b{font-size:11px}.sd-rec-row{grid-template-columns:minmax(0,1fr)}.sd-rec-row>span{display:grid;justify-items:start;gap:5px}.sd-rec-row>span>b{font-size:11px}
+@media(max-width:850px){.sd-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.sd-dashboard-grid{grid-template-columns:minmax(0,1fr)}}
+@media(max-width:560px){.sd-welcome{align-items:flex-start;flex-direction:column;padding:18px}.sd-welcome>.btn{width:100%}.sd-metrics{gap:8px}.sd-metric{grid-template-columns:30px minmax(0,1fr);min-height:74px;padding:10px}.sd-metric-icon{width:30px;height:30px}.sd-dashboard-grid>.panel{padding:15px}.sd-quiz-card{align-items:flex-start;flex-direction:column}.sd-quiz-card>.btn{width:100%}.sd-section-head{align-items:flex-start}}
+
+/* Readability over arbitrary layer-4 wallpapers: make shared text-bearing glass surfaces nearly opaque. */
+:root{
+  --lg-chrome-a:rgba(255,255,255,.96);--lg-chrome-b:rgba(255,255,255,.93);
+  --lg-content-a:rgba(255,255,255,.97);--lg-content-b:rgba(255,255,255,.94);
+  --lg-control-a:rgba(255,255,255,.96);--lg-control-b:rgba(255,255,255,.92);
+  --lg-control-hover-a:rgba(255,255,255,.99);--lg-control-hover-b:rgba(255,255,255,.96);
+  --lg-sheet-a:rgba(255,255,255,.985);--lg-sheet-b:rgba(255,255,255,.96);
+  --lg-nested-a:rgba(255,255,255,.95);--lg-nested-b:rgba(255,255,255,.92);
+}
+:root[data-theme="dark"]{
+  --lg-chrome-a:rgba(28,30,38,.97);--lg-chrome-b:rgba(20,22,28,.95);
+  --lg-content-a:rgba(28,30,38,.97);--lg-content-b:rgba(20,22,28,.95);
+  --lg-control-a:rgba(42,44,52,.96);--lg-control-b:rgba(30,32,40,.94);
+  --lg-control-hover-a:rgba(58,60,70,.98);--lg-control-hover-b:rgba(42,44,52,.96);
+  --lg-sheet-a:rgba(28,30,38,.985);--lg-sheet-b:rgba(20,22,28,.97);
+  --lg-nested-a:rgba(42,44,52,.94);--lg-nested-b:rgba(30,32,40,.92);
+}
+

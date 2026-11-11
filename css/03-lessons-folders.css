@@ -1,0 +1,115 @@
+/* EducMind · css/03-lessons-folders.css — Trang Bài học và mục tiêu, thẻ AI, thư mục Chủ đề > Bài học. */
+/* ---------- Bố cục master–detail cho trang Bài học và mục tiêu ---------- */
+.md{display:grid;grid-template-columns:minmax(250px,300px) minmax(0,1fr);gap:16px;align-items:start}
+.mdlist{background:var(--surface);border-radius:var(--radius);box-shadow:var(--shadow);padding:10px;position:sticky;top:80px;max-height:calc(100vh - 100px);overflow:auto}
+.mdgrp{margin:4px 0 2px}
+.mdgrp h3{display:flex;align-items:center;gap:8px;justify-content:space-between;font:600 .71875rem/1.25 var(--font-head);letter-spacing:.04em;text-transform:uppercase;color:var(--muted);padding:6px 10px;margin:0}
+.mdrow{display:flex;align-items:center;gap:9px;width:100%;border:0;background:transparent;text-align:left;padding:9px 10px;border-radius:10px;color:var(--ink);
+  font:500 .875rem/1.35 var(--font-body);transition:background-color .15s var(--ease)}
+.mdrow:hover{background:var(--fill)}
+.mdrow:active{background:var(--fill-2)}
+.mdrow.on{background:var(--brand-soft);color:var(--brand-ink);font-weight:600}
+.mdrow .dot{width:7px;height:7px;border-radius:50%;background:var(--good-bar);flex:none}
+.mdrow .dot.draft{background:var(--need-bar)}
+.mdrow .cnt{margin-left:auto;color:var(--subtle);font-size:.75rem;font-variant-numeric:tabular-nums;flex:none}
+.mddetail{min-width:0}
+.codebadge{display:inline-block;min-width:44px;text-align:center;padding:3px 8px;border-radius:8px;background:var(--brand-soft);color:var(--brand-ink);font:700 .75rem/1.2 var(--font-head);letter-spacing:.02em}
+.btn.mini{min-height:30px;padding:5px 10px;font-size:.75rem}
+@media(max-width:1000px){.md{grid-template-columns:minmax(0,1fr)}.mdlist{position:static;max-height:none}}
+
+/* ---------- Trạng thái đang xử lý và thẻ AI nhúng ---------- */
+.spin{display:inline-block;width:12px;height:12px;border-radius:50%;border:2px solid var(--track);border-top-color:var(--prog-bar);animation:spin .8s linear infinite;vertical-align:-2px}
+@keyframes spin{to{transform:rotate(360deg)}}
+@media(prefers-reduced-motion:reduce){.spin{animation:none}}
+.aicard{border-radius:16px;background:var(--fill);padding:14px 16px;margin:0 0 16px}
+.aicard>.item{padding:10px 0}
+.aicard .draft{background:var(--surface);border-radius:12px;padding:12px 14px;margin-top:8px;box-shadow:0 0 0 .5px var(--line)}
+.grtab td,.grtab th{padding:7px 10px;font-size:.8125rem}
+.grtab td.student{font-weight:600}
+.lesblk>summary{list-style:default}
+.dotmenu{position:relative;display:inline-block}
+.dotmenu>summary{list-style:none;cursor:pointer;display:inline-flex;align-items:center;justify-content:center}
+.dotmenu>summary::-webkit-details-marker{display:none}
+.dotmenu-pop{position:absolute;right:0;top:calc(100% + 4px);min-width:200px;background:var(--surface);border:1px solid var(--line);border-radius:12px;box-shadow:0 14px 34px rgba(0,0,0,.16);padding:6px;z-index:60;display:flex;flex-direction:column;gap:2px}
+.mitem{display:block;width:100%;text-align:left;background:none;border:0;color:var(--ink);font:500 .8125rem/1.4 var(--font-body);padding:8px 10px;border-radius:8px;cursor:pointer}
+.mitem:hover{background:var(--fill)}
+.lesblk{position:relative}
+.lesblk>.dotmenu{display:none;position:absolute;top:10px;right:12px;z-index:6}
+@media (max-width:1180px){.lesblk>.dotmenu{display:block}.lesblk .lesacts{display:none}.lesblk>summary{padding-right:46px}}
+
+/* ---------- Cập nhật UX: bài tập/kiểm tra theo khối, gọn và có phân cấp ---------- */
+
+#ab-tries{width:68px!important;max-width:68px!important;padding:8px 7px;text-align:center;font-variant-numeric:tabular-nums}
+#ab-scope{max-width:100%;overflow:hidden}
+#ab-scope option{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+.scope-group{background:var(--surface);border-radius:18px;padding:12px 16px;margin:0 0 12px;box-shadow:var(--shadow)}
+.scope-group>summary,.scope-lesson>summary,.work-card>summary{list-style:none;cursor:pointer}
+.scope-group>summary::-webkit-details-marker,.scope-lesson>summary::-webkit-details-marker,.work-card>summary::-webkit-details-marker{display:none}
+.scope-group>summary{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:4px 2px}
+.scope-lesson{margin:10px 0 0 10px;padding:9px 12px;background:var(--fill);border-radius:14px}
+.scope-lesson>summary{display:flex;align-items:center;gap:8px;padding:3px 0}
+.work-card{margin:8px 0 0;background:var(--surface);border-radius:14px;box-shadow:0 0 0 .5px var(--line);padding:11px 13px}
+.work-card>summary{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.work-card[open]>summary{padding-bottom:10px;box-shadow:0 .5px 0 var(--line);margin-bottom:10px}
+.work-card .work-detail{min-width:0}
+.work-card .work-actions{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+.analysis-fold{margin-top:12px;border-radius:14px;background:var(--fill);padding:12px 14px}
+.analysis-fold>summary{cursor:pointer;font-weight:650;color:var(--brand-ink)}
+.analysis-fold .panel{margin:12px 0 0}
+.gr-work{padding:0;border:0;background:transparent;box-shadow:none}
+.gr-work-head{background:var(--surface);border-radius:18px;padding:16px 20px;box-shadow:var(--shadow);margin-bottom:12px}
+
+
+/* ---------- Điều hướng dạng thư mục: Chủ đề > Bài học > chức năng ---------- */
+.folder-wrap{min-width:0}
+.folder-crumb{display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin:0 0 12px;color:var(--muted);font-size:.8125rem}
+.folder-crumb button{border:0;background:transparent;color:var(--brand-ink);font:600 .8125rem var(--font-body);padding:4px 6px;border-radius:8px}
+.folder-crumb button:hover{background:var(--brand-soft)}
+.folder-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.folder-tile{display:flex;gap:14px;align-items:flex-start;width:100%;padding:18px;border:0;border-radius:18px;background:var(--surface);color:var(--ink);text-align:left;box-shadow:var(--shadow);transition:transform .2s var(--ease),box-shadow .2s var(--ease),background .2s var(--ease)}
+.folder-tile:hover{transform:translateY(-2px);box-shadow:var(--shadow-lg);background:var(--surface)}
+.folder-icon{display:grid;place-items:center;flex:none;width:42px;height:42px;border-radius:13px;background:var(--brand-soft);color:var(--brand)}
+.folder-tile b{display:block;font:650 1rem/1.3 var(--font-head)}
+.folder-tile .muted{display:block;font-size:.8125rem;margin-top:5px;line-height:1.45}
+.folder-tabs{display:flex;gap:0;padding:0;margin:0 0 14px;border-radius:0;background:var(--fill);box-shadow:inset 0 0 0 .5px var(--line)}
+.folder-tabs button{flex:1;border:0;border-radius:0;padding:8px 6px;background:transparent;color:var(--muted);font:600 .8rem/1.2 var(--font-body);white-space:nowrap;text-align:center;border-right:1px solid var(--line)}
+.folder-tabs button:last-child{border-right:none}
+.folder-tabs button[aria-current="page"]{background:var(--surface);color:var(--brand-ink);box-shadow:inset 2px 0 0 var(--brand)}
+.folder-tabs button[aria-current="page"]{background:var(--surface);color:var(--brand-ink);box-shadow:0 1px 4px rgba(0,0,0,.12)}
+/* Dải tab chia đều thành các phần bằng nhau, chữ căn giữa */
+.folder-tabs.split-2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}
+.folder-tabs.split-2 button{width:100%;justify-content:center;text-align:center}
+.folder-tabs.split-3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+.folder-tabs.split-3 button{width:100%;justify-content:center;text-align:center}
+.folder-objective{display:grid;grid-template-columns:72px minmax(0,1fr);gap:12px;align-items:start;padding:13px 0;box-shadow:0 -.5px 0 var(--line)}
+.folder-objective:first-of-type{box-shadow:none}
+.folder-objective code{font:650 .78rem var(--font-body);color:var(--brand-ink);background:var(--brand-soft);padding:5px 8px;border-radius:8px}
+.folder-empty{padding:24px;text-align:center;color:var(--muted);border-radius:14px;background:var(--fill)}
+@media(max-width:650px){.folder-grid{grid-template-columns:minmax(0,1fr)}.folder-tabs{flex-wrap:nowrap;overflow-x:auto}.folder-objective{grid-template-columns:58px minmax(0,1fr)}}
+
+
+/* ---------- Thư mục chủ đề gọn: bài học nằm trong cùng một khối ---------- */
+.topic-folder{background:var(--surface);border-radius:17px;padding:0 14px;margin:0 0 10px;box-shadow:var(--shadow);overflow:hidden}
+.topic-folder>summary{list-style:none;display:flex;align-items:center;gap:10px;cursor:pointer;min-height:58px;padding:8px 2px}
+.topic-folder>summary::-webkit-details-marker{display:none}
+.topic-folder[open]>summary{box-shadow:0 .5px 0 var(--line)}
+.topic-folder .topic-mark{display:grid;place-items:center;width:30px;height:30px;border-radius:9px;background:var(--brand-soft);color:var(--brand);font:700 .75rem var(--font-head);flex:none}
+.topic-folder .topic-title{flex:1;min-width:0;font-weight:650;line-height:1.35;color:var(--ink);transition:color .18s ease}
+.topic-folder>summary:hover .topic-title,.topic-folder>summary:focus-visible .topic-title,.topic-folder>summary:active .topic-title{color:var(--brand)}
+.topic-folder>summary:focus-visible{outline:2px solid var(--brand);outline-offset:2px;border-radius:10px}
+.topic-folder .topic-actions{display:flex;gap:4px;align-items:center;flex:none}
+.topic-icon-btn{width:32px;height:32px;border:0;border-radius:9px;display:grid;place-items:center;color:var(--muted);background:var(--btn-light)}
+.topic-icon-btn:hover{background:var(--brand-soft);color:var(--brand)}
+.topic-lessons{padding:5px 0 10px 40px}
+.folder-lesson-row{display:flex;align-items:center;gap:10px;width:100%;border:0;border-radius:10px;padding:10px 12px;background:transparent;text-align:left;color:var(--ink);font:inherit}
+.folder-lesson-row+.folder-lesson-row{box-shadow:0 -.5px 0 var(--line)}
+.folder-lesson-row:hover{background:var(--fill)}
+.folder-lesson-row .lesson-name{flex:1;min-width:0}
+.folder-lesson-row .lesson-name b{display:block;font-weight:600}
+.folder-lesson-row .lesson-name small{display:block;color:var(--muted);font-size:.75rem;margin-top:2px}
+.topic-block-head{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:10px}
+@media(max-width:560px){.topic-lessons{padding-left:5px}.topic-folder{padding:0 10px}.topic-folder .topic-actions{gap:2px}}
+
+
+
+

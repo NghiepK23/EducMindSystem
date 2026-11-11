@@ -1,0 +1,262 @@
+/* EducMind · css/06-floating-nav.css — Thanh điều hướng nổi, tay nắm thu gọn, thứ tự lớp hiển thị, bo góc thống nhất, ảnh nền. */
+/* ===== Thanh điều hướng nổi: thẻ trôi trên nền trang, tách khỏi mép màn hình ===== */
+@media(min-width:901px){
+  /* chừa lề để thẻ nổi không dính mép, không dính header */
+  .layout.teacher-layout, .layout:not(.teacher-layout){
+    padding:0 0 28px;
+    align-items:start;
+    min-height:calc(100vh - 56px);
+  }
+  /* cột nội dung luôn cao bằng khung nhìn để thẻ điều hướng có chỗ trượt */
+  .layout>.main{min-height:calc(100vh - 84px)}
+  .layout.teacher-layout:not(.sidebar-collapsed),
+  .layout:not(.teacher-layout):not(.sidebar-collapsed){
+    grid-template-columns:calc(var(--sidebar-width,292px) + 18px) minmax(0,1fr)!important;
+    gap:0!important;
+  }
+  .layout.teacher-layout.sidebar-collapsed,
+  .layout:not(.teacher-layout).sidebar-collapsed{
+    grid-template-columns:96px minmax(0,1fr)!important;
+    gap:0!important;
+  }
+  /* khối thẻ nổi: ghim cố định bên trái, không trôi khi cuộn trang */
+  .layout>.side{
+    position:fixed;
+    top:72px;
+    left:18px;
+    bottom:16px;
+    width:var(--sidebar-width,292px);
+    height:auto;
+    min-height:0;
+    max-height:calc(100vh - 88px);
+    z-index:25;
+    align-self:auto;
+    margin:0;
+    padding:16px 14px 12px!important;
+    border-radius:26px;
+    background:linear-gradient(180deg,rgba(38,56,94,.96),rgba(26,41,71,.97));
+    border:1px solid rgba(255,255,255,.10);
+    box-shadow:
+      0 1px 1px rgba(12,22,44,.16),
+      0 10px 24px -12px rgba(12,22,44,.45),
+      0 28px 60px -28px rgba(12,22,44,.55),
+      inset 0 1px 0 rgba(255,255,255,.10);
+    -webkit-backdrop-filter:blur(24px) saturate(160%);
+    backdrop-filter:blur(24px) saturate(160%);
+    overflow-y:auto;
+    overflow-x:hidden;
+    color:#f5f7ff;
+    scrollbar-width:thin;
+    scrollbar-color:rgba(255,255,255,.28) transparent;
+  }
+  .layout>.side::-webkit-scrollbar{width:8px}
+  .layout>.side::-webkit-scrollbar-thumb{background:rgba(255,255,255,.22);border-radius:8px}
+  .layout>.side::-webkit-scrollbar-track{background:transparent}
+
+  /* nhãn nhóm gọn lại, không còn khối nền chữ nhật */
+  .layout>.side .grp{margin-top:16px}
+  .layout>.side .grp:first-child,.layout>.side .grp-bare:first-child{margin-top:0}
+  .layout>.side .grp h2{
+    font:700 .7rem/1.2 var(--font-head)!important;
+    letter-spacing:.09em;
+    text-transform:uppercase;
+    color:rgba(214,228,255,.58)!important;
+    padding:0 10px!important;
+    margin:0 0 6px!important;
+    background:none!important;
+    border:0!important;
+    border-radius:0!important;
+  }
+  /* mục điều hướng: viên thuốc bo tròn, icon + nhãn sát nhau */
+  .layout>.side .items{display:grid;gap:2px}
+  .layout>.side .items .nav{
+    display:grid!important;
+    grid-template-columns:18px minmax(0,1fr);
+    align-items:center;
+    justify-items:start;
+    gap:11px;
+    width:100%;
+    min-height:38px;
+    margin:0;
+    padding:8px 11px!important;
+    border-radius:12px;
+    color:rgba(233,240,255,.86)!important;
+    font-size:.875rem;
+    transition:background .18s var(--ease),color .18s var(--ease),transform .18s var(--ease);
+  }
+  .layout>.side .items .nav .ic{color:rgba(214,228,255,.62)!important;transition:color .18s var(--ease)}
+  .layout>.side .items .nav span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+  .layout>.side .items .nav:hover{background:rgba(255,255,255,.085)!important;color:#fff!important}
+  .layout>.side .items .nav:hover .ic{color:#fff!important}
+  .layout>.side .items .nav[aria-current="page"]{
+    background:rgba(255,255,255,.16)!important;
+    color:#fff!important;
+    box-shadow:inset 0 0 0 1px rgba(255,255,255,.14),0 1px 2px rgba(0,0,0,.12);
+  }
+  .layout>.side .items .nav[aria-current="page"] .ic{color:#fff!important}
+  .layout>.side .items .nav:focus-visible{outline:2px solid #8ab4ff;outline-offset:1px}
+
+  /* nút thu gọn nằm gọn trong thẻ */
+  .layout>.side .side-toggle{
+    margin:14px 2px 2px auto;
+    width:34px;height:34px;min-height:34px;
+    border-radius:11px;
+    border:1px solid rgba(255,255,255,.14);
+    background:rgba(255,255,255,.08);
+    color:rgba(233,240,255,.8);
+  }
+  .layout>.side .side-toggle:hover{background:rgba(255,255,255,.16);color:#fff}
+
+  /* phần nội dung luôn nằm ở cột 2 vì thẻ điều hướng đã ra khỏi luồng grid */
+  .layout>.main{grid-column:2 / -1;min-height:calc(100vh - 84px);padding:24px clamp(20px,3vw,40px) 40px clamp(22px,2.4vw,32px)}
+
+  /* thu gọn: thẻ hẹp, icon đúng tâm */
+  .layout.sidebar-collapsed>.side{
+    left:12px;
+    width:84px;
+    bottom:16px;
+    height:auto;
+    min-height:0;
+    max-height:calc(100vh - 88px);
+    padding:14px 8px 10px!important;
+    border-radius:22px;
+  }
+  .layout.sidebar-collapsed>.side .items .nav{
+    display:flex!important;
+    justify-content:center!important;
+    align-items:center!important;
+    min-height:40px;height:40px;
+    padding:0!important;
+  }
+}
+
+/* ===== Tay nắm thu gọn/mở rộng: cố định giữa cửa sổ, nổi trên mọi nội dung ===== */
+@media(min-width:901px){
+  .layout>.side-toggle{
+    position:fixed;
+    top:50vh;
+    left:var(--tog-x,308px);
+    transform:translateY(-50%);
+    z-index:90;
+    display:grid;
+    place-items:center;
+    width:30px;
+    height:44px;
+    min-height:44px;
+    margin:0;
+    padding:0;
+    border:1px solid var(--line-strong);
+    border-radius:12px;
+    background:var(--surface);
+    color:var(--ink);
+    font-size:15px;
+    line-height:1;
+    box-shadow:0 1px 2px rgba(0,0,0,.10),0 8px 20px -8px rgba(0,0,0,.28);
+    cursor:pointer;
+    transition:transform .18s var(--ease),box-shadow .18s var(--ease),background .18s var(--ease),left .22s var(--ease);
+  }
+  .layout>.side-toggle:hover{
+    background:var(--surface);
+    box-shadow:0 1px 2px rgba(0,0,0,.12),0 12px 26px -8px rgba(0,0,0,.34);
+    transform:translateY(-50%) scale(1.06);
+  }
+  .layout>.side-toggle:active{transform:translateY(-50%) scale(.96)}
+  .layout>.side-toggle:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
+}
+@media(max-width:900px){
+  .layout>.side-toggle{display:none!important}
+}
+/* Lớp phủ hộp thoại luôn nằm trên tay nắm; tay nắm nhường chỗ khi có hộp thoại */
+.ov{z-index:120!important}
+
+/* Chỉ cố định thanh tab bar (.side + nút thu gọn .side-toggle); header và mọi phần nội dung khác cuộn bình thường theo trang */
+.top{position:fixed!important;top:0!important;left:0!important;right:0!important;z-index:2147483647!important}
+.cdbar,.asgbar{position:static!important;top:auto!important;bottom:auto!important;max-height:none!important}
+@media(max-width:900px){
+  .layout>.side,.teacher-layout .side,.layout:not(.teacher-layout) .side{top:0!important}
+}
+
+/* Cuộn theo tài liệu như bản tham chiếu: trang giữ luồng tự nhiên,
+   nội dung chính cuộn theo cửa sổ; sidebar riêng chỉ sticky. */
+.layout{height:auto!important;min-height:calc(100vh - 56px);overflow:visible!important}
+.layout>.main,.main,.view{height:auto!important;overflow:visible!important}
+.layout>.main{min-height:calc(100vh - 84px)}
+@media(min-width:901px){
+  .layout>.side{position:fixed!important;top:50%!important;left:18px!important;right:auto!important;bottom:auto!important;transform:translateY(-50%)!important;width:fit-content!important;height:max-content!important;min-height:0!important;max-width:min(360px,calc(100vw - 36px))!important;max-height:none!important;align-self:auto;margin:0!important;z-index:2147483646!important;overflow:visible!important}
+  .layout.sidebar-collapsed>.side{left:12px!important}
+}
+@media(max-width:900px){
+  .layout>.side,.teacher-layout .side,.layout:not(.teacher-layout) .side{position:sticky!important;top:56px!important;left:auto!important;bottom:auto!important;width:100%!important;height:fit-content!important;min-height:0!important;max-height:none!important;overflow:visible!important}
+}
+
+/* Layer order: fixed header > navigation > page content. Keep the original
+   56px header space in flow so fixing the header does not shift #main. */
+#app>.layout{margin-top:56px!important}
+#app .layout>.side{z-index:2147483646!important}
+#app .layout>.main,#main{position:relative;z-index:0!important}
+
+/* Unified corner system for all interactive controls and form fields. */
+:root{--radius-control:12px}
+button,.btn,
+input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]):not([type="file"]),
+select,textarea,.selectbox{
+  border-radius:var(--radius-control)!important;
+}
+/* Separated tab buttons get the same radius; joined tab strips keep square inner seams,
+   with a consistent rounded outer container. */
+.folder-tabs.split-2>button,.folder-tabs.split-3>button,
+.seg:not(.seg-page)>button{border-radius:var(--radius-control)!important}
+.folder-tabs:not(.split-2):not(.split-3){border-radius:var(--radius-control)!important}
+.folder-tabs:not(.split-2):not(.split-3)>button{border-radius:0!important}
+.folder-tabs:not(.split-2):not(.split-3)>button:first-child{border-radius:var(--radius-control) 0 0 var(--radius-control)!important}
+.folder-tabs:not(.split-2):not(.split-3)>button:last-child{border-radius:0 var(--radius-control) var(--radius-control) 0!important}
+.seg.seg-page{border-radius:var(--radius-control)!important}
+.seg.seg-page>button{border-radius:0!important}
+.seg.seg-page>button:first-child{border-radius:var(--radius-control) 0 0 var(--radius-control)!important}
+.seg.seg-page>button:last-child{border-radius:0 var(--radius-control) var(--radius-control) 0!important}
+
+/* On compact screens the navigation moves above #main and keeps its paired toggle. */
+@media(max-width:900px){
+  #app .layout:not(.sidebar-collapsed)>.side{padding-left:clamp(52px,8vw,64px)!important;padding-right:clamp(52px,8vw,64px)!important}
+  #app .layout>.side-toggle{
+    display:grid!important;position:fixed!important;top:var(--tog-y,64px)!important;right:12px!important;left:auto!important;
+    z-index:2147483646!important;place-items:center;width:40px;height:40px;min-height:40px;margin:0!important;
+    transform:none!important;border-radius:12px;background:var(--surface);color:var(--ink);
+    box-shadow:0 1px 2px rgba(0,0,0,.12),0 8px 20px -8px rgba(0,0,0,.24)
+  }
+  #app .layout.sidebar-collapsed>.side{
+    display:flex!important;flex-direction:row!important;flex-wrap:wrap!important;align-items:center!important;justify-content:center!important;align-content:center!important;
+    gap:6px!important;width:100%!important;height:auto!important;min-height:56px!important;max-height:none!important;
+    overflow:visible!important;padding:10px clamp(52px,8vw,64px)!important
+  }
+  #app .layout.sidebar-collapsed>.side .grp,
+  #app .layout.sidebar-collapsed>.side .items{display:contents!important}
+  #app .layout.sidebar-collapsed>.side .grp h2{display:none!important}
+  #app .layout.sidebar-collapsed>.side .nav{
+    display:flex!important;flex:0 0 44px!important;flex-direction:column!important;align-items:center!important;justify-content:center!important;
+    width:44px!important;min-width:44px!important;height:44px!important;min-height:44px!important;padding:0!important;margin:0!important;gap:0!important
+  }
+  #app .layout.sidebar-collapsed>.side .nav span{display:none!important}
+}
+
+/* Solid, theme-aware text backplates keep important labels legible over any layer-4 image. */
+#main .head>div:first-child{
+  max-width:100%;padding:12px 16px;border:1px solid var(--line);border-radius:var(--radius-control);
+  background:var(--surface);color:var(--ink);box-shadow:var(--shadow)
+}
+#main .head>div:first-child h1{color:var(--ink)}
+#main .head>div:first-child .sub{color:var(--muted)}
+#main .folder-crumb{
+  width:fit-content;max-width:100%;padding:8px 12px;margin:0 0 12px;
+  border:1px solid var(--line);border-radius:var(--radius-control);
+  background:var(--surface);color:var(--muted);box-shadow:var(--shadow)
+}
+#main .folder-crumb b{color:var(--ink)}
+
+/* The layer-4 image is viewport-fixed and independent of #main's content size. */
+#app .layout{position:relative;isolation:isolate;background:transparent!important}
+#app .layout::before{
+  content:"";position:fixed;inset:56px 0 0;z-index:-1;pointer-events:none;
+  background-image:var(--layer4-bg-image,none);background-size:cover;background-position:center;background-repeat:no-repeat
+}
+
