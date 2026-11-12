@@ -12,7 +12,8 @@ const PMODE={both:'Cả hai điều kiện',avg:'Chỉ điểm trung bình bài 
 const PMODEK=Object.keys(PMODE),PMODEV=PMODEK.map(k=>PMODE[k]);
 function PR(c){return c.prac||(c.prac={on:false,mode:'both',avg:70,mas:70})}
 classes.forEach(PR);
-(classes.find(c=>c.id==='10A1')||classes[0]).prac.on=true;   /* lớp mẫu để xem ngay cơ chế */
+/* Lớp mẫu demo đã gỡ bỏ — chỉ bật khi còn dữ liệu demo (hiện classes rỗng). */
+{const _demoPrac=classes.find(c=>c.id==='10A1')||classes[0];if(_demoPrac)_demoPrac.prac.on=true;}
 
 /* --- Quy tắc tính --- */
 const pAvgMin=(c,l)=>l.pa!=null?l.pa:PR(c).avg;

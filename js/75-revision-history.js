@@ -5,7 +5,9 @@
 let REVISION_HISTORY=[];
 let revisionClass='all',revisionType='all',revisionSearch='';
 const REVISION_KEY='educmind.revisions.v1';
-try{const saved=localStorage.getItem(REVISION_KEY);if(saved)REVISION_HISTORY=JSON.parse(saved)||[]}catch(e){REVISION_HISTORY=[]}
+/* Chế độ demo đã gỡ bỏ: xóa nhật ký demo cũ còn lưu trên trình duyệt này. */
+try{localStorage.removeItem(REVISION_KEY)}catch(e){}
+REVISION_HISTORY=[]
 function revisionId(){return 'REV-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,7)}
 function revisionScope(c,sc){if(!sc)return 'Cả lớp';if(typeof sc==='string')return sc;if(sc.type==='topic'){const t=(c.topics||[]).find(x=>x.id===sc.id);return t?'Chủ đề: '+t.title:'Chủ đề'}if(sc.type==='lesson')return sc.ref?'Bài học: '+sc.ref.name:'Bài học';return 'Cả lớp'}
 function revisionSnapshot(c){

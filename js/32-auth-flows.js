@@ -1,10 +1,6 @@
 /* EducMind · js/32-auth-flows.js
    Luồng đăng nhập demo, quên mật khẩu và đặt lại mật khẩu. */
-function quickLogin(i){
-  const q=quickList()[i];if(!q){authErr='Không tìm thấy tài khoản thử nghiệm.';render();return}
-  if(!ACCT[q.email]){authErr='Tài khoản '+q.email+' chưa được khởi tạo. Hãy tải lại trang để tạo tài khoản demo.';render();return}
-  doLogin(q.email,'demo123');
-}
+/* quickLogin (đăng nhập demo) đã gỡ bỏ. */
 let mailFor='';
 function goLogin(){authMode='login';authErr='';authMsg='';mailFor='';render()}
 function goForgot(){authMode='forgot';authErr='';authMsg='';mailFor='';render()}

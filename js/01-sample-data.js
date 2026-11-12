@@ -1,13 +1,10 @@
 /* EducMind · js/01-sample-data.js
-   Dữ liệu mẫu ban đầu: lớp 10A1, học sinh, bài học, bài tập (chỉ dùng cho chế độ demo). */
+   Dữ liệu mẫu demo đã gỡ bỏ (chỉ dùng cho chế độ demo đã ngừng hoạt động). */
 /* ===== Dữ liệu mẫu ===== */
 const DAY0=100;
 let today=DAY0,LOG=[],gradeAi=0;
 const HL=30,T_OPEN=.5,T_CLOSE=.65;
-const classSeed=[
- /* Chỉ còn lớp 10A1 với một học sinh thật là Lan Anh (dữ liệu mẫu của các lớp/học sinh khác đã được xoá). */
- {id:'10A1',grade:10,count:1,topic:'Mạng máy tính',lessons:['Mạng máy tính và Internet','Giao thức mạng'],goals:['Nhận biết mạng LAN, MAN, WAN','Phân biệt mô hình TCP/IP','Cấu hình địa chỉ IP'],scores:[.72,.48,.61]}
-];
+const classSeed=[];
 const first=['Minh','Lan Anh','Đức Duy','Gia Hân','Hoàng Nam','Khánh Linh','Tuấn Kiệt','Ngọc Mai'];
 const surnames=['Nguyễn','Trần','Lê','Phạm','Võ','Đặng','Bùi','Hoàng'];
 function jitter(a,b){return (a*3+b*5)%5}

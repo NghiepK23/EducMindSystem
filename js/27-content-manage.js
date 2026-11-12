@@ -2,7 +2,8 @@
    Quản lý nội dung: tài khoản mẫu, chủ đề, tạo lớp, thêm / xóa học sinh, tài liệu chung. */
 /* ===== Đợt 7: quản lý nội dung (US-T00, T01, T02A, T02, T03) ===== */
 let TID=1;
-const ACCT={'co.lan@educmind.vn':{role:'TEACHER',name:'Cô Lan'},'thay.minh@educmind.vn':{role:'TEACHER',name:'Thầy Minh'}};
+/* Tài khoản demo đã gỡ bỏ: hệ thống chỉ dùng tài khoản thật đăng ký qua Supabase. */
+const ACCT={};
 const topicOf=(c,l)=>c.topics.find(t=>t.id===l.tid)||{title:c.topic,status:'Đã xuất bản'};
 const topicLive=(c,l)=>{const t=c.topics.find(x=>x.id===l.tid);return !!t&&t.status==='Đã xuất bản'};
 const hasData=(c,j)=>c.students.some(s=>s.mastery[j]!=null);

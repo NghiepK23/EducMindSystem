@@ -23,15 +23,7 @@ function render(){authGuard();scanEvents();
     if(logged&&sess?.backend){dbRender()}
     else if(!logged&&authHtml()){}else if(!logged){
       document.title='Đăng nhập | EducMind';
-      app.innerHTML=`<main class="login-wrap"><div class="login">
-        ${brandLogoHtml()}
-        <h1 id="pageTitle" tabindex="-1">Đăng nhập giáo viên</h1>
-        
-        <div class="field"><label for="em">Email</label><input id="em" value="co.lan@educmind.vn" readonly></div>
-        <div class="field"><label for="pw">Mật khẩu demo</label><input id="pw" value="demo123" readonly></div>
-        <button class="btn" id="loginBtn" onclick="login()">Đăng nhập với cô Lan</button>
-        ${note('Tài khoản duy nhất: cô Lan · Giáo viên Tin học. Dữ liệu 8 lớp là dữ liệu mẫu để kiểm tra luồng chuyển lớp.')}
-      </div></main>`;
+      app.innerHTML=`<main class="login-wrap"><div class="login">${brandLogoHtml()}<h1 id="pageTitle" tabindex="-1">Đăng nhập EducMind</h1><p class="sub">Hệ thống chỉ dùng tài khoản thật được đăng ký qua email. Nếu màn hình này xuất hiện, hãy tải lại trang.</p><button class="btn" onclick="location.reload()">Tải lại trang</button></div></main>`;
     }else{
       const content=role==='S'?studentPage():(role==='T'&&page==='dashboard'?dashboardPage():(role==='T'&&!STANDALONE_PAGES.includes(page)?folderWorkspace():({calendar:calendarPage,history:revisionPage,report:progressReportPage,data:dataExchangePage,overview,classes:()=>classPage2(),students,lessons:lessonsPage,assignments:assignmentsPage,grading:gradingPage,questions:questionsPage,mastery:assessPage,gaps:assessPage,recommend:assessPage})[page]()));
       shell(content);
