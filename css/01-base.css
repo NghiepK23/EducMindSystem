@@ -82,7 +82,7 @@ button{font:inherit;cursor:pointer;-webkit-tap-highlight-color:transparent;touch
 .logo-mark svg{display:block;width:29px;height:29px}
 .logo-word{display:inline-flex;align-items:baseline;gap:0;font-size:1.02em;letter-spacing:-.04em}
 .logo-word strong{font-weight:760}.logo-word i{color:var(--brand-ink);font-style:normal;font-weight:620}
-.login .logo{justify-content:center;gap:14px;width:100%;margin:0 auto 8px;padding-top:20px}.login .logo-mark{width:54px;height:54px;border-radius:16px}.login .logo-mark svg{width:43px;height:43px}.login .logo-word{font-size:1.55rem;letter-spacing:-.045em}.login h1{margin-top:18px}
+.login .logo{justify-content:center;gap:10px;width:100%;margin:0 auto 2px;padding-top:2px}.login .logo-mark{width:40px;height:40px;border-radius:12px}.login .logo-mark svg{width:32px;height:32px}.login .logo-word{font-size:1.3rem;letter-spacing:-.045em}.login h1{margin-top:10px}
 .spacer{flex:1}
 .user{display:flex;align-items:center;gap:10px;color:var(--muted);font-size:.8125rem;letter-spacing:.005em}
 .avatar{display:grid;place-items:center;width:30px;height:30px;border-radius:50%;background:var(--brand-soft);color:var(--brand-ink);font:700 .6875rem var(--font-head);letter-spacing:.02em;overflow:hidden}
@@ -216,7 +216,7 @@ td{font-size:.84375rem}
 .notice .ic{color:var(--brand);margin-top:2px}
 .login-wrap{position:relative;isolation:isolate;z-index:0;min-height:100vh;min-height:100svh;display:grid;place-items:center;padding:20px;background-color:var(--bg);background-position:center;background-size:cover;background-repeat:no-repeat}
 .login-wrap::before{content:'';position:absolute;inset:0;z-index:-1;pointer-events:none;background:linear-gradient(135deg,rgba(11,22,40,.10),rgba(11,22,40,.02))}
-.login{position:relative;z-index:2;width:100%;max-width:440px;color-scheme:light;--bg:#f5f5f7;--surface:#fff;--fill:#f5f5f7;--ink:#1d1d1f;--muted:#6e6e73;--subtle:#6e6e73;--line:rgba(0,0,0,.08);--line-strong:rgba(0,0,0,.18);--brand:#0071e3;--brand-ink:#005bb8;--brand-soft:#e8f2fd;--btn-light:rgba(0,0,0,.055);--btn-light-hover:rgba(0,0,0,.09);--err-bg:#fdecec;--err-ink:#9b1c1c;--shadow:0 0 0 .5px var(--line),0 1px 2px rgba(0,0,0,.03),0 8px 24px -12px rgba(0,0,0,.08);--shadow-lg:0 0 0 .5px rgba(0,0,0,.08),0 24px 64px -16px rgba(0,0,0,.28);background:var(--surface);background:color-mix(in srgb,var(--surface) 90%,transparent);border:1px solid var(--line-strong);padding:36px 32px;border-radius:28px;box-shadow:var(--shadow-lg);-webkit-backdrop-filter:saturate(160%) blur(20px);backdrop-filter:saturate(160%) blur(20px);color:var(--ink)}
+.login{position:relative;z-index:2;width:100%;max-width:400px;color-scheme:light;--bg:#f5f5f7;--surface:#fff;--fill:#f5f5f7;--ink:#1d1d1f;--muted:#6e6e73;--subtle:#6e6e73;--line:rgba(0,0,0,.08);--line-strong:rgba(0,0,0,.18);--brand:#0071e3;--brand-ink:#005bb8;--brand-soft:#e8f2fd;--btn-light:rgba(0,0,0,.055);--btn-light-hover:rgba(0,0,0,.09);--err-bg:#fdecec;--err-ink:#9b1c1c;--shadow:0 0 0 .5px var(--line),0 1px 2px rgba(0,0,0,.03),0 8px 24px -12px rgba(0,0,0,.08);--shadow-lg:0 0 0 .5px rgba(0,0,0,.08),0 24px 64px -16px rgba(0,0,0,.28);background:var(--surface);background:color-mix(in srgb,var(--surface) 90%,transparent);border:1px solid var(--line-strong);padding:18px 22px;border-radius:22px;box-shadow:var(--shadow-lg);-webkit-backdrop-filter:saturate(160%) blur(20px);backdrop-filter:saturate(160%) blur(20px);color:var(--ink)}
 .login.login-dark{color-scheme:dark;--bg:#2c2c2e;--surface:#1c1c1e;--fill:#2c2c2e;--ink:#f5f5f7;--muted:#a1a1a6;--subtle:#a1a1a6;--line:rgba(255,255,255,.1);--line-strong:rgba(255,255,255,.22);--brand:#0a84ff;--brand-ink:#6cb4ff;--brand-soft:rgba(10,132,255,.2);--btn-light:rgba(255,255,255,.1);--btn-light-hover:rgba(255,255,255,.16);--err-bg:rgba(255,69,58,.18);--err-ink:#ff9a92;--shadow:0 0 0 .5px var(--line);--shadow-lg:0 24px 64px -16px rgba(0,0,0,.72)}
 .login-theme-toggle{position:absolute;top:14px;right:14px;z-index:4;display:grid;place-items:center;width:40px;height:40px;padding:0;border:1px solid var(--line-strong);border-radius:13px;background:var(--fill);color:var(--ink);box-shadow:0 2px 8px rgba(0,0,0,.08);transition:transform .18s ease,background .18s ease}
 .login-theme-toggle:hover{transform:translateY(-1px);background:var(--brand-soft);color:var(--brand-ink)}.login-theme-toggle svg{width:20px;height:20px}
@@ -231,13 +231,16 @@ td{font-size:.84375rem}
 .login-bg-actions{display:flex;gap:8px;margin-top:10px}.login-bg-actions .btn{flex:1;width:auto;min-height:38px;margin:0;padding:8px 10px;font-size:12px}
 .login-bg-links{display:flex;gap:12px;flex-wrap:wrap;margin-top:9px;font-size:12px}.login-bg-links a{color:var(--brand-ink);font-weight:650;text-decoration:none}.login-bg-links a:hover{text-decoration:underline}
 .login-bg-status{min-height:18px;margin:8px 0 0;color:var(--muted);font-size:11px}
-.login h1{font-size:1.75rem;letter-spacing:-.028em;line-height:1.1;margin:26px 0 6px}
+.login h1{font-size:1.45rem;letter-spacing:-.028em;line-height:1.15;margin:8px 0 3px}
 .field{display:grid;gap:6px;margin:14px 0}
+.login .field{gap:4px;margin:7px 0}
+.login .field input{padding:9px 12px}
+.login .sub{margin:2px 0 4px;font-size:.875rem;line-height:1.45}
 .field label{font-size:.8125rem;color:var(--muted);font-weight:600}
-.login .btn{width:100%;margin-top:6px;min-height:44px;font-size:.9375rem}.login .login-quick-actions>.btn{width:auto;flex:1 1 145px;margin-top:0}
+.login .btn{width:100%;margin-top:4px;min-height:38px;font-size:.9rem}.login .login-quick-actions>.btn{width:auto;flex:1 1 145px;margin-top:0}
 /* Nút đăng nhập và quên mật khẩu gọn hơn, căn giữa */
-.login form #loginBtn{width:auto;min-width:148px;padding-inline:22px;margin:6px auto 0;display:flex}
-.login>button.btn.light{width:auto!important;min-width:148px;padding-inline:18px;min-height:40px;margin:8px auto 0!important;display:flex}
+.login form #loginBtn{width:auto;min-width:148px;padding-inline:22px;margin:8px auto 0;display:flex}
+.login>button.btn.light{width:auto!important;min-width:148px;padding-inline:18px;min-height:34px;margin:6px auto 0!important;display:flex}
 .hide{display:none!important}
 
 /* Thông báo nhanh: viên thuốc nổi, chất liệu đậm */

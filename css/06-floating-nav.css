@@ -182,7 +182,7 @@
 .layout>.main,.main,.view{height:auto!important;overflow:visible!important}
 .layout>.main{min-height:calc(100vh - 84px)}
 @media(min-width:901px){
-  .layout>.side{position:fixed!important;top:50%!important;left:18px!important;right:auto!important;bottom:auto!important;transform:translateY(-50%)!important;width:fit-content!important;height:max-content!important;min-height:0!important;max-width:min(360px,calc(100vw - 36px))!important;max-height:none!important;align-self:auto;margin:0!important;z-index:2147483646!important;overflow:visible!important}
+  .layout>.side{position:fixed!important;top:50%!important;left:18px!important;right:auto!important;bottom:auto!important;transform:translateY(-50%)!important;width:fit-content!important;height:max-content!important;min-height:0!important;max-width:min(360px,calc(100vw - 36px))!important;max-height:calc(100vh - 128px)!important;max-height:calc(100svh - 128px)!important;align-self:auto;margin:0!important;z-index:2147483646!important;overflow-y:auto!important;overflow-x:hidden!important;overscroll-behavior:contain;scrollbar-width:thin}
   .layout.sidebar-collapsed>.side{left:12px!important}
 }
 @media(max-width:900px){

@@ -19,7 +19,12 @@ button.notif-btn .nb{position:absolute;top:-5px;right:-5px;min-width:18px;height
 
 /* Thanh sidebar giáo viên: 4 mục chia đều toàn chiều ngang, nội dung căn giữa */
 .teacher-layout{grid-template-columns:minmax(0,1fr)!important;gap:16px}
-.teacher-layout .side{position:sticky;top:64px;display:block;width:100%;padding:10px!important;border-radius:18px;background:var(--surface);box-shadow:var(--shadow);overflow:visible;z-index:6}
+.teacher-layout .side{position:sticky;top:64px;display:block;width:100%;padding:10px!important;border-radius:18px;background:var(--surface);box-shadow:var(--shadow);overflow-y:auto;overflow-x:hidden;z-index:6}
+/* Màn hình hẹp về chiều cao: thanh điều hướng tự cuộn để xem hết các chức năng (máy tính). */
+@media(min-width:901px){
+  .side{max-height:calc(100vh - 100px);max-height:calc(100svh - 100px);overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;scrollbar-width:thin}
+  .teacher-layout .side{max-height:calc(100vh - 88px);max-height:calc(100svh - 88px)}
+}
 .teacher-navgrid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;width:100%;align-items:stretch;justify-items:stretch}
 .teacher-navgrid .nav{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;width:100%;height:64px;min-width:0;padding:7px 5px!important;margin:0;text-align:center;white-space:normal;font-size:.8rem!important;line-height:1.2;border-radius:13px;justify-self:stretch}
 .teacher-navgrid .nav .ic{width:18px;height:18px;flex:none}

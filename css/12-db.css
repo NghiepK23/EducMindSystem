@@ -3,9 +3,9 @@
    Lưu ý: Chỉ thêm những gì bộ CSS gốc chưa có; mọi lớp ở đây bắt đầu bằng "db-" (trừ .su-role của màn hình đăng ký). */
 
 /* ----- Đăng ký: chọn vai trò ----- */
-.su-role{border:0;padding:0;margin:14px 0;display:grid;grid-template-columns:1fr 1fr;gap:8px}
-.su-role legend{font-size:.8125rem;color:var(--muted);font-weight:600;padding:0;margin-bottom:6px}
-.su-role label{display:flex;align-items:center;gap:8px;padding:10px 12px;border-radius:12px;background:var(--fill);cursor:pointer;font-weight:600}
+.su-role{border:0;padding:0;margin:6px 0;display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.su-role legend{font-size:.8125rem;color:var(--muted);font-weight:600;padding:0;margin-bottom:4px}
+.su-role label{display:flex;align-items:center;gap:7px;padding:8px 10px;border-radius:11px;background:var(--fill);cursor:pointer;font-weight:600;font-size:.92rem}
 .su-role label:has(input:checked){background:var(--brand-soft);box-shadow:0 0 0 2px var(--brand)}
 .su-role input{flex:none;margin:0}
 
