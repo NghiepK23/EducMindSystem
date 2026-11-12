@@ -147,7 +147,7 @@ function dbAssignmentTeacherDetail(d, a) {
     return `<tr>
       <th scope="row">${h(dbName(p))}<div class="muted">${dbDateTime(s.submitted_at)}${s.is_edited ? ' · đã sửa' : ''}</div></th>
       <td>${s.score != null ? dbPill('Đã chấm', 'good') : s.status === 'LATE' ? dbPill('Nộp muộn', 'need') : dbPill('Chờ chấm', 'prog')}</td>
-      <td><details class="db-work"><summary>Xem bài làm</summary><div class="db-prose">${h(s.text_content || '(không có nội dung văn bản)')}</div>${s.storage_path ? `<div class="db-file"><span class="db-file-name">${ic('overview', 14)} ${h(dbSubName(s))}</span>${dbBtn('Xem trước', 'previewSubmission', { path: s.storage_path, name: dbSubName(s) }, 'light mini')}${dbBtn('Tải tệp bài nộp', 'downloadSubmission', { path: s.storage_path, name: dbSubName(s) }, 'light mini')}</div>` : ''}</details></td>
+      <td><details class="db-work"><summary>Xem bài làm</summary><div class="db-prose">${h(s.text_content || '(không có nội dung văn bản)')}</div>${s.storage_path ? `<div class="db-file"><span class="db-file-name">${ic('overview', 14)}<span class="db-file-title">${h(dbSubName(s))}</span></span><span class="row db-file-actions">${dbBtn('Xem trước', 'previewSubmission', { path: s.storage_path, name: dbSubName(s) }, 'light mini')}${dbBtn('Tải tệp bài nộp', 'downloadSubmission', { path: s.storage_path, name: dbSubName(s) }, 'light mini')}</span></div>` : ''}</details></td>
       <td>${dbGradeCell(d, a, p, s)}</td>
     </tr>`;
   });
@@ -292,7 +292,7 @@ function dbAssignmentStudentDetail(d, a) {
   else form = `<form data-act="submitAssignment" data-id="${h(a.id)}" novalidate>
       ${dbField(s ? 'Bài làm của em (có thể sửa và nộp lại)' : 'Bài làm của em', 'db-sub-text', `<textarea id="db-sub-text" name="text" rows="10" maxlength="20000">${h(s ? s.text_content || '' : '')}</textarea>`, w === 'LATE' ? 'Đã quá hạn nộp: bài nộp hoặc sửa lúc này được ghi là nộp muộn.' : '')}
       <div class="field"><span class="db-label">Tệp đính kèm (không bắt buộc, tối đa 20 MB)</span>
-        ${s && s.storage_path ? `<div class="db-file"><span class="db-file-name">${ic('overview', 14)} ${h(dbSubName(s))}</span>${dbBtn('Xem trước', 'previewSubmission', { path: s.storage_path, name: dbSubName(s) }, 'light mini')}${dbBtn('Tải xuống', 'downloadSubmission', { path: s.storage_path, name: dbSubName(s) }, 'light mini')}<span class="muted">Chọn tệp khác để thay tệp này.</span></div>` : ''}
+        ${s && s.storage_path ? `<div class="db-file"><span class="db-file-name">${ic('overview', 14)}<span class="db-file-title">${h(dbSubName(s))}</span></span><span class="muted db-file-meta">Chọn tệp khác để thay tệp này.</span><span class="row db-file-actions">${dbBtn('Xem trước', 'previewSubmission', { path: s.storage_path, name: dbSubName(s) }, 'light mini')}${dbBtn('Tải xuống', 'downloadSubmission', { path: s.storage_path, name: dbSubName(s) }, 'light mini')}</span></div>` : ''}
         <input type="file" id="db-sub-file" name="file" class="db-input-file" aria-label="Chọn tệp bài làm">
       </div>
       ${dbFormError()}
@@ -306,7 +306,7 @@ function dbAssignmentStudentDetail(d, a) {
       <div class="facts"><div><span>Điểm</span><b>${dbNum(s.score)} / ${dbNum(a.max_score)}</b></div><div><span>Chấm lúc</span><b>${dbDateTime(s.graded_at)}</b></div>${dbRubricResult(d, s)}</div>
       ${s.feedback ? `<div class="db-prose"><b>Nhận xét của giáo viên:</b> ${h(s.feedback)}</div>` : ''}</section>` : ''}
   <section class="panel" aria-labelledby="db-h-sw"><h2 id="db-h-sw">Bài làm</h2>
-    ${graded || w === 'CLOSED' ? (s ? `<div class="db-prose">${h(s.text_content || '')}</div>${s.storage_path ? `<div class="db-file"><span class="db-file-name">${ic('overview', 14)} ${h(dbSubName(s))}</span>${dbBtn('Xem trước', 'previewSubmission', { path: s.storage_path, name: dbSubName(s) }, 'light mini')}${dbBtn('Tải xuống', 'downloadSubmission', { path: s.storage_path, name: dbSubName(s) }, 'light mini')}</div>` : ''}` : '') : ''}${form}
+    ${graded || w === 'CLOSED' ? (s ? `<div class="db-prose">${h(s.text_content || '')}</div>${s.storage_path ? `<div class="db-file"><span class="db-file-name">${ic('overview', 14)}<span class="db-file-title">${h(dbSubName(s))}</span></span><span class="row db-file-actions">${dbBtn('Xem trước', 'previewSubmission', { path: s.storage_path, name: dbSubName(s) }, 'light mini')}${dbBtn('Tải xuống', 'downloadSubmission', { path: s.storage_path, name: dbSubName(s) }, 'light mini')}</span></div>` : ''}` : '') : ''}${form}
   </section>`;
 }
 /* Điểm từng tiêu chí rubric trong trang kết quả của học sinh. */

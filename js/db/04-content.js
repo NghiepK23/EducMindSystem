@@ -138,9 +138,9 @@ function dbLessonResources(l, resources) {
     const yt = isLink ? dbYoutubeId(r.url) : '';
     const meta = isLink ? (yt ? 'YouTube' : 'Liên kết') : (r.file_size_bytes == null ? '' : dbFileSize(r.file_size_bytes));
     return `<li class="db-file">
-    <span class="db-file-name">${ic(isLink && yt ? 'play' : 'overview', 14)} ${h(r.file_name)}${isLink ? `<span class="muted db-file-url">${h(String(r.url || '').replace(/^https?:\/\//, '').slice(0, 60))}</span>` : ''}</span>
-    <span class="muted">${meta}</span>
-    <span class="row">${dbBtn('Xem trước', 'previewResource', { kind: isLink ? 'LINK' : 'FILE', path: r.storage_path || '', url: r.url || '', name: r.file_name, mime: r.mime_type || '' }, 'light mini')}${isLink
+    <span class="db-file-name">${ic(isLink && yt ? 'play' : 'overview', 14)}<span class="db-file-title">${h(r.file_name)}</span>${isLink ? `<span class="muted db-file-url">${h(String(r.url || '').replace(/^https?:\/\//, '').slice(0, 60))}</span>` : ''}</span>
+    <span class="muted db-file-meta">${meta}</span>
+    <span class="row db-file-actions">${dbBtn('Xem trước', 'previewResource', { kind: isLink ? 'LINK' : 'FILE', path: r.storage_path || '', url: r.url || '', name: r.file_name, mime: r.mime_type || '' }, 'light mini')}${isLink
       ? dbBtn('Mở', 'openResourceLink', { url: r.url }, 'light mini')
       : dbBtn('Tải xuống', 'downloadResource', { path: r.storage_path, name: r.file_name }, 'light mini')}${dbIsTeacher() ? dbBtn('Xóa', 'deleteResource', { id: r.id, name: r.file_name }, 'light mini danger-soft') : ''}</span>
   </li>`;
