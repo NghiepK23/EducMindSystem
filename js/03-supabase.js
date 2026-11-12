@@ -26,6 +26,20 @@ const EducMindDB=(()=>{
   const rpc=(fn,args)=>supabaseClient.rpc(fn,args);
   const now=()=>new Date().toISOString();
   const me=()=>sess?.userId;
+  /* Tải tệp lên kho bằng thân nhị phân thô (Supabase Storage nhận body nguyên bản; tránh multipart
+     để giữ nguyên từng byte tệp). Trả về { data, error } như supabase-js để dbCall dùng chung. */
+  const storageUpload=async(bucket,path,file,contentType,upsert)=>{
+    try{
+      const { data: s } = await supabaseClient.auth.getSession();
+      const r = await fetch(SUPABASE_URL + '/storage/v1/object/' + bucket + '/' + path.split('/').map(encodeURIComponent).join('/'), {
+        method: 'POST',
+        headers: { 'Authorization': 'Bearer ' + (s?.session?.access_token || SUPABASE_PUBLISHABLE_KEY), 'apikey': SUPABASE_PUBLISHABLE_KEY, 'content-type': contentType || file.type || 'application/octet-stream', 'x-upsert': String(!!upsert) },
+        body: await file.arrayBuffer(),
+      });
+      if (!r.ok) { let m = 'HTTP ' + r.status; try { m = (await r.json()).message || m; } catch (_) {} return { data: null, error: { message: m } }; }
+      return { data: await r.json(), error: null };
+    } catch (e) { return { data: null, error: { message: String(e && e.message || e) } }; }
+  };
   return {
     /* ----- Giờ máy chủ (để tính hạn nộp và đồng hồ làm bài không phụ thuộc đồng hồ của máy người dùng) ----- */
     serverNow:()=>rpc('server_now',{}),
@@ -36,7 +50,7 @@ const EducMindDB=(()=>{
     renameMe:(fullName)=>from('profiles').update({full_name:fullName}).eq('id',me()).select('id,email,full_name,role').single(),
 
     /* ----- Lớp học ----- */
-    listClasses:()=>from('classes').select('id,name,grade,school_year,owner_teacher_id,created_at').order('created_at',{ascending:false}),
+    listClasses:()=>from('classes').select('id,name,grade,school_year,owner_teacher_id,created_at').is('deleted_at',null).order('created_at',{ascending:false}),
     createClass:(name,grade,year)=>rpc('create_class_with_code',{n:name,g:grade||null,y:year||null}),
     updateClass:(id,row)=>from('classes').update(row).eq('id',id).select('id,name,grade,school_year,owner_teacher_id,created_at').single(),
     archiveClass:(id)=>from('classes').update({deleted_at:now()}).eq('id',id).select('id'),
@@ -45,6 +59,10 @@ const EducMindDB=(()=>{
     listMembers:(classIds)=>from('class_members').select('class_id,student_id,joined_at').in('class_id',classIds).order('joined_at'),
     addStudentByEmail:(classId,email)=>rpc('add_student_by_email',{p_class:classId,p_email:email}),
     removeMember:(classId,studentId)=>from('class_members').delete().eq('class_id',classId).eq('student_id',studentId).select('student_id'),
+    /* Mã lớp: tạo mã mới (máy chủ thu hồi mọi mã cũ trong cùng giao dịch) và mở lại lớp đã lưu trữ. */
+    regenClassCode:(classId)=>rpc('regen_class_code',{p_class:classId}),
+    listArchivedClasses:()=>from('classes').select('id,name,grade,school_year,owner_teacher_id,created_at,deleted_at').not('deleted_at','is',null).order('deleted_at',{ascending:false}),
+    restoreClass:(id)=>rpc('restore_class',{p_class:id}),
 
     /* ----- Khóa học (mỗi lớp dùng một khóa học chứa toàn bộ nội dung) ----- */
     listCourses:(classId)=>from('courses').select('id,class_id,title,description,created_at').eq('class_id',classId).is('deleted_at',null).order('created_at'),
@@ -62,6 +80,22 @@ const EducMindDB=(()=>{
     updateObjective:(id,row)=>from('learning_objectives').update(row).eq('id',id).select().single(),
     deleteObjective:(id)=>from('learning_objectives').delete().eq('id',id).select('id'),
 
+    /* ----- Tài liệu đính kèm bài học (resources + kho educmind-resources) -----
+       Đường dẫn tệp: <mã lớp>/<thời gian>-<tên tệp>. Máy chủ kiểm tra quyền đọc/ghi theo đường dẫn. */
+    listResources:(courseId)=>from('resources').select('id,course_id,lesson_id,file_name,storage_path,file_size_bytes,mime_type,created_at').eq('course_id',courseId).is('deleted_at',null).order('created_at'),
+    createResource:(row)=>from('resources').insert(row).select().single(),
+    /* Xóa hẳn dòng và tệp trong kho (tệp đã xóa không khôi phục được). */
+    deleteResource:(id)=>from('resources').delete().eq('id',id).select('id,storage_path'),
+    uploadResourceFile:(path,file,contentType)=>storageUpload('educmind-resources',path,file,contentType,false),
+    removeResourceFile:(path)=>supabaseClient.storage.from('educmind-resources').remove([path]),
+    resourceFileUrl:(path)=>supabaseClient.storage.from('educmind-resources').createSignedUrl(path,3600),
+
+    /* ----- Tệp bài nộp của học sinh (kho educmind-submissions) -----
+       Đường dẫn: <mã lớp>/<mã bài tập>/<mã học sinh>/<tên tệp> (máy chủ xác nhận đúng cấu trúc này). */
+    uploadSubmissionFile:(path,file)=>storageUpload('educmind-submissions',path,file,file.type,true),
+    removeSubmissionFile:(path)=>supabaseClient.storage.from('educmind-submissions').remove([path]),
+    submissionFileUrl:(path)=>supabaseClient.storage.from('educmind-submissions').createSignedUrl(path,3600),
+
     /* ----- Bài tập và bài nộp ----- */
     listAssignments:(courseId)=>from('assignments').select('id,course_id,topic_id,lesson_id,title,description,due_at,allow_late,late_close_at,max_score,status,created_at').eq('course_id',courseId).is('deleted_at',null).order('due_at'),
     createAssignment:(row)=>from('assignments').insert({...row,created_by:me()}).select().single(),
@@ -73,6 +107,26 @@ const EducMindDB=(()=>{
     /* Học sinh nộp hoặc sửa bài: một bài nộp cho mỗi (bài tập, học sinh). status: SUBMITTED trước hạn, LATE sau hạn (khi bài cho nộp muộn). */
     submitAssignment:(row)=>from('assignment_submissions').upsert({...row,student_id:me()},{onConflict:'assignment_id,student_id'}).select().single(),
     gradeSubmission:(id,row)=>from('assignment_submissions').update({...row,graded_by:me(),graded_at:now()}).eq('id',id).select().single(),
+
+    /* ----- Rubric (thang điểm chi tiết của bài tập) -----
+       Giáo viên đặt các tiêu chí; khi chấm, điểm mỗi tiêu chí được lưu vào rubric_scores
+       và tổng điểm rubric chính là điểm bài nộp. */
+    listRubricCriteria:(assignmentIds)=>from('rubric_criteria').select('id,assignment_id,title,description,max_score,display_order').in('assignment_id',assignmentIds).order('display_order'),
+    createRubricCriterion:(row)=>from('rubric_criteria').insert(row).select().single(),
+    updateRubricCriterion:(id,row)=>from('rubric_criteria').update(row).eq('id',id).select().single(),
+    deleteRubricCriterion:(id)=>from('rubric_criteria').delete().eq('id',id).select('id'),
+    listRubricScores:(submissionIds)=>from('rubric_scores').select('submission_id,criterion_id,score,feedback,updated_at').in('submission_id',submissionIds),
+    saveRubricScores:(rows)=>from('rubric_scores').upsert(rows.map((r)=>({...r,graded_by:me()})),{onConflict:'submission_id,criterion_id'}).select(),
+
+    /* ----- Thùng rác: mục đã xóa mềm (deleted_at) chờ khôi phục ----- */
+    listDeletedTopics:(courseId)=>from('course_topics').select('id,title,deleted_at').eq('course_id',courseId).not('deleted_at','is',null),
+    listDeletedLessons:(courseId)=>from('lessons').select('id,topic_id,title,deleted_at').eq('course_id',courseId).not('deleted_at','is',null),
+    listDeletedAssignments:(courseId)=>from('assignments').select('id,title,deleted_at').eq('course_id',courseId).not('deleted_at','is',null),
+    listDeletedQuestions:(courseId)=>from('questions').select('id,content,deleted_at').eq('course_id',courseId).not('deleted_at','is',null),
+    restoreTopic:(id)=>from('course_topics').update({deleted_at:null}).eq('id',id).select('id'),
+    restoreLesson:(id)=>from('lessons').update({deleted_at:null}).eq('id',id).select('id'),
+    restoreAssignment:(id)=>from('assignments').update({deleted_at:null}).eq('id',id).select('id'),
+    restoreQuestion:(id)=>from('questions').update({deleted_at:null}).eq('id',id).select('id'),
 
     /* ----- Ngân hàng câu hỏi -----
        options: mảng chuỗi lựa chọn. correct_answer: SINGLE_CHOICE = số thứ tự lựa chọn (từ 0); MULTIPLE_CHOICE = mảng số thứ tự;

@@ -11,8 +11,8 @@ DB_PAGES.classes = {
     const ids = DB.classes.map((c) => c.id);
     const members = await dbCallIn(EducMindDB.listMembers, ids);
     if (dbIsTeacher()) {
-      const [invites, profiles] = await Promise.all([dbCallIn(EducMindDB.listInvites, ids), dbCallIn(EducMindDB.listProfiles, members.map((m) => m.student_id))]);
-      return { members, invites, profiles: dbById(profiles) };
+      const [invites, profiles, archived] = await Promise.all([dbCallIn(EducMindDB.listInvites, ids), dbCallIn(EducMindDB.listProfiles, members.map((m) => m.student_id)), dbCall(EducMindDB.listArchivedClasses())]);
+      return { members, invites, profiles: dbById(profiles), archived };
     }
     const teachers = await dbCallIn(EducMindDB.listProfiles, DB.classes.map((c) => c.owner_teacher_id));
     return { members, profiles: dbById(teachers) };
@@ -58,7 +58,20 @@ function dbClassesTeacher(d) {
       ${dbFormError()}
     </form>
   </section>
-  ${cur ? dbClassMembersPanel(cur, d) : ''}`;
+  ${cur ? dbClassMembersPanel(cur, d) : ''}${dbArchivedClassesPanel(d)}`;
+}
+
+/* Lớp đã lưu trữ (deleted_at khác rỗng): chỉ giáo viên thấy, bấm “Mở lại” để khôi phục. */
+function dbArchivedClassesPanel(d) {
+  const list = d.archived || [];
+  if (!list.length) return '';
+  const rows = list.map((c) => `<tr><th scope="row">${h(c.name)}</th><td>${dbClassMeta(c) || '—'}</td><td>${dbDateTime(c.deleted_at)}</td><td class="db-cell-actions">${dbBtn('Mở lại', 'restoreClass', { id: c.id }, 'mini')}</td></tr>`);
+  return `
+  <section class="panel" aria-labelledby="db-h-archived">
+    <h2 id="db-h-archived">Lớp đã lưu trữ</h2>
+    <p class="lead">Lớp đã xóa vẫn được giữ trong cơ sở dữ liệu. Bấm “Mở lại” để lớp xuất hiện trở lại với giáo viên và học sinh.</p>
+    ${dbTable(['Lớp', 'Khối · năm học', 'Đã lưu trữ lúc', '<span class="sr">Thao tác</span>'], rows, 'Lớp đã lưu trữ')}
+  </section>`;
 }
 
 function dbClassMembersPanel(c, d) {
@@ -72,7 +85,7 @@ function dbClassMembersPanel(c, d) {
   <section class="panel" aria-labelledby="db-h-members">
     <div class="row between">
       <div><h2 id="db-h-members">Học sinh lớp ${h(c.name)}</h2><p class="lead">${list.length} học sinh</p></div>
-      <div class="db-codebox"><span class="muted">Mã lớp</span><b class="db-code" id="db-join-code">${h(code || '—')}</b>${code ? dbBtn('Sao chép', 'copyCode', { code }, 'light mini') : ''}</div>
+      <div class="db-codebox"><span class="muted">Mã lớp</span><b class="db-code" id="db-join-code">${h(code || '—')}</b>${code ? dbBtn('Sao chép', 'copyCode', { code }, 'light mini') : ''}${dbBtn('Tạo mã mới', 'regenCode', { id: c.id }, 'light mini')}</div>
     </div>
     <form data-act="addStudent" class="db-form-row" novalidate>
       ${dbField('Thêm học sinh bằng email', 'db-add-email', `<input id="db-add-email" name="email" type="email" placeholder="email học sinh đã đăng ký" autocomplete="off" required>`)}
@@ -112,6 +125,19 @@ DB_ACT.copyCode = async (el) => {
   try { await navigator.clipboard.writeText(el.dataset.code); toast('Đã sao chép mã lớp ' + el.dataset.code + '.'); }
   catch (_) { toast('Không sao chép tự động được. Mã lớp: ' + el.dataset.code); }
 };
+DB_ACT.regenCode = (el) => {
+  const c = DB.classes.find((x) => x.id === el.dataset.id);
+  if (!c) return;
+  dbConfirm('Tạo mã lớp mới cho ' + h(c.name) + '?', 'Mã lớp hiện tại sẽ ngừng dùng ngay: học sinh chưa vào lớp sẽ cần mã mới. Học sinh đã vào lớp không bị ảnh hưởng.', 'Tạo mã mới', async () => {
+    const code = await dbCall(EducMindDB.regenClassCode(c.id));
+    toast('Mã lớp mới: ' + code + '. Mã cũ không dùng được nữa.');
+  });
+};
+DB_ACT.restoreClass = (el) => dbRun(el, async () => {
+  const c = (DB.data.archived || []).find((x) => x.id === el.dataset.id);
+  if (!c) throw new Error('Không tìm thấy lớp cần mở lại.');
+  await dbCall(EducMindDB.restoreClass(c.id));
+}, 'Đã mở lại lớp.');
 function dbReadClassForm(v) {
   const name = (v.name || '').trim();
   if (!name) throw new Error('Nhập tên lớp.');

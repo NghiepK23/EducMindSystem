@@ -3,13 +3,29 @@
 
 /* Nạp cây nội dung của lớp đang chọn. Dùng chung cho nhiều trang (bài tập, câu hỏi, đánh giá) để hiện tên bài học / mục tiêu. */
 async function dbLoadContent() {
-  if (!DB.course) return { topics: [], lessons: [], objectives: [] };
-  const [topics, lessons] = await Promise.all([dbCall(EducMindDB.listTopics(DB.course.id)), dbCall(EducMindDB.listLessons(DB.course.id))]);
+  if (!DB.course) return { topics: [], lessons: [], objectives: [], resources: [] };
+  const [topics, lessons, resources] = await Promise.all([dbCall(EducMindDB.listTopics(DB.course.id)), dbCall(EducMindDB.listLessons(DB.course.id)), dbCall(EducMindDB.listResources(DB.course.id))]);
   const topicIds = new Set(topics.map((t) => t.id));
   const live = lessons.filter((l) => topicIds.has(l.topic_id));
   const objectives = await dbCallIn(EducMindDB.listObjectives, live.map((l) => l.id));
-  return { topics, lessons: live, objectives };
+  return { topics, lessons: live, objectives, resources };
 }
+/* Thùng rác của lớp: chủ đề / bài học / bài tập / câu hỏi đã xóa mềm, chờ khôi phục. */
+async function dbLoadTrash() {
+  if (!DB.course) return { trash: [] };
+  const [topics, lessons, assignments, questions] = await Promise.all([
+    dbCall(EducMindDB.listDeletedTopics(DB.course.id)), dbCall(EducMindDB.listDeletedLessons(DB.course.id)),
+    dbCall(EducMindDB.listDeletedAssignments(DB.course.id)), dbCall(EducMindDB.listDeletedQuestions(DB.course.id)),
+  ]);
+  return { trash: [
+    ...topics.map((x) => ({ ...x, type: 'topic', label: 'Chủ đề' })),
+    ...lessons.map((x) => ({ ...x, type: 'lesson', label: 'Bài học' })),
+    ...assignments.map((x) => ({ ...x, type: 'assignment', label: 'Bài tập' })),
+    ...questions.map((x) => ({ ...x, type: 'question', label: 'Câu hỏi', title: x.content })),
+  ] };
+}
+/* Dung lượng tệp dạng dễ đọc: 1,2 MB / 340 KB. */
+const dbFileSize = (n) => (n >= 1048576 ? (n / 1048576).toFixed(1) + ' MB' : Math.max(1, Math.round(n / 1024)) + ' KB');
 /* Nhãn mục tiêu: "MT1 · Nhận biết mạng LAN" */
 const dbObjLabel = (o) => (o ? `${h(o.code)} · ${h(o.description)}` : 'Mục tiêu đã xóa');
 /* Danh sách ô chọn mục tiêu, nhóm theo bài học. name là tên trường của biểu mẫu, picked là tập mã mục tiêu đang chọn. */
@@ -32,9 +48,10 @@ async function dbSyncLinks(current, wanted, add, remove) {
 DB_PAGES.content = {
   title: 'Bài học & mục tiêu',
   sub: 'Học sinh chỉ thấy bài học khi cả chủ đề và bài học đều đã xuất bản.',
-  load: dbLoadContent,
+  load: async () => ({ ...(await dbLoadContent()), ...(await dbLoadTrash()) }),
   view(d) {
     const lessonsBy = dbGroup(d.lessons, 'topic_id'), objBy = dbGroup(d.objectives, 'lesson_id');
+    const resBy = dbGroup(d.resources || [], 'lesson_id');
     const topics = d.topics.map((t) => {
       const lessons = lessonsBy[t.id] || [];
       const pub = t.status === 'PUBLISHED';
@@ -43,7 +60,7 @@ DB_PAGES.content = {
           <div><h2 id="db-t-${h(t.id)}">${h(t.title)}</h2><p class="lead">${dbStatusPill(t.status)} · ${lessons.length} bài học${t.description ? ' · ' + h(t.description) : ''}</p></div>
           <div class="row">${dbBtn(pub ? 'Gỡ xuất bản' : 'Xuất bản', 'toggleTopic', { id: t.id }, pub ? 'light mini' : 'mini')}${dbBtn('Sửa', 'editTopic', { id: t.id }, 'light mini')}${dbBtn('Xóa', 'deleteTopic', { id: t.id }, 'light mini danger-soft')}</div>
         </div>
-        ${lessons.map((l) => dbLessonBlock(l, objBy[l.id] || [])).join('') || dbEmpty('Chủ đề chưa có bài học.')}
+        ${lessons.map((l) => dbLessonBlock(l, objBy[l.id] || [], resBy[l.id] || [])).join('') || dbEmpty('Chủ đề chưa có bài học.')}
         <form data-act="createLesson" data-topic="${h(t.id)}" class="db-form-row db-add-row" novalidate>
           ${dbField('Thêm bài học vào chủ đề này', 'db-nl-' + h(t.id), `<input id="db-nl-${h(t.id)}" name="title" maxlength="200" placeholder="Tên bài học" required>`)}
           <button type="submit" class="btn light">Thêm bài học</button>${dbFormError()}
@@ -58,10 +75,42 @@ DB_PAGES.content = {
         ${dbField('Tên chủ đề mới', 'db-new-topic', `<input id="db-new-topic" name="title" maxlength="200" placeholder="Ví dụ: Mạng máy tính" required>`)}
         <button type="submit" class="btn">Thêm chủ đề</button>${dbFormError()}
       </form>
-    </section>${topics}`;
+    </section>${topics}${dbTrashPanel(d)}`;
   },
 };
-function dbLessonBlock(l, objectives) {
+/* Tài liệu đính kèm bài học: giáo viên tải lên / xóa; cả hai vai trò đều tải xuống được. */
+function dbLessonResources(l, resources) {
+  const items = (resources || []).map((r) => `<li class="db-file">
+    <span class="db-file-name">${ic('overview', 14)} ${h(r.file_name)}</span>
+    <span class="muted">${dbFileSize(r.file_size_bytes)}</span>
+    <span class="row">${dbBtn('Tải xuống', 'downloadResource', { path: r.storage_path, name: r.file_name }, 'light mini')}${dbIsTeacher() ? dbBtn('Xóa', 'deleteResource', { id: r.id, path: r.storage_path, name: r.file_name }, 'light mini danger-soft') : ''}</span>
+  </li>`).join('');
+  return `<div class="db-files"><span class="db-label">Tài liệu${dbIsTeacher() ? '' : ' của bài học'}</span>
+    ${items ? `<ul class="db-filelist">${items}</ul>` : '<p class="muted">Chưa có tài liệu nào.</p>'}
+    ${dbIsTeacher() ? `<form data-act="uploadResource" data-lesson="${h(l.id)}" class="db-form-row db-add-row" novalidate>
+      <input type="file" id="db-rf-${h(l.id)}" name="file" class="db-input-file" aria-label="Chọn tệp tài liệu cho bài học ${h(l.title)}">
+      <button type="submit" class="btn light">Tải tài liệu lên</button>${dbFormError()}
+    </form>` : ''}
+  </div>`;
+}
+/* Thùng rác của lớp (chỉ giáo viên): mục đã xóa mềm, bấm Khôi phục để đưa trở lại. */
+function dbTrashPanel(d) {
+  const list = d.trash || [];
+  const rows = list.map((x) => `<tr>
+    <th scope="row">${h(String(x.title || '').slice(0, 90))}</th>
+    <td>${x.label}</td>
+    <td>${dbDateTime(x.deleted_at)}</td>
+    <td class="db-cell-actions">${dbBtn('Khôi phục', 'restoreItem', { id: x.id }, 'mini')}</td>
+  </tr>`);
+  return `
+  <section class="panel" aria-labelledby="db-h-trash">
+    <h2 id="db-h-trash">Thùng rác</h2>
+    <p class="lead">Mục đã xóa vẫn được giữ trong cơ sở dữ liệu. Bấm “Khôi phục” để đưa trở lại. Lớp đã lưu trữ được khôi phục ở trang “Lớp học phụ trách”.</p>
+    ${rows.length ? dbTable(['Mục', 'Loại', 'Đã xóa lúc', '<span class="sr">Thao tác</span>'], rows, 'Mục đã xóa') : dbEmpty('Thùng rác trống.')}
+  </section>`;
+}
+
+function dbLessonBlock(l, objectives, resources) {
   const pub = l.status === 'PUBLISHED';
   return `<div class="db-lesson" id="db-l-${h(l.id)}">
     <div class="row between">
@@ -75,6 +124,7 @@ function dbLessonBlock(l, objectives) {
       ${dbField('Mục tiêu mới', 'db-od-' + h(l.id), `<input id="db-od-${h(l.id)}" name="description" maxlength="500" placeholder="Ví dụ: Phân biệt mạng LAN và WAN" required>`)}
       <button type="submit" class="btn light">Thêm mục tiêu</button>${dbFormError()}
     </form>
+    ${dbLessonResources(l, resources)}
   </div>`;
 }
 /* Mã gợi ý cho mục tiêu tiếp theo của bài học: MT1, MT2, … (mã không trùng trong cùng một bài học). */
@@ -182,6 +232,56 @@ DB_ACT.deleteObjective = (el) => {
   }, true);
 };
 
+/* ===== Tài liệu ===== */
+DB_ACT.uploadResource = (form) => dbRun(form, async () => {
+  const input = form.querySelector('input[type="file"]');
+  const file = input && input.files[0];
+  if (!file) throw new Error('Chọn tệp tài liệu trước khi tải lên.');
+  if (file.size > 50 * 1048576) throw new Error('Tệp tài liệu tối đa 50 MB.');
+  const course = await dbEnsureCourse();
+  const safe = String(file.name).replace(/[\/\\]/g, '_').slice(-120);
+  const path = DB.classId + '/' + Date.now() + '-' + safe;
+  await dbCall(EducMindDB.uploadResourceFile(path, file, file.type || 'application/octet-stream'));
+  try {
+    await dbCall(EducMindDB.createResource({ course_id: course.id, lesson_id: form.dataset.lesson, file_name: String(file.name).slice(0, 200), storage_path: path, file_size_bytes: file.size, mime_type: file.type || 'application/octet-stream', uploaded_by: sess.userId }));
+  } catch (e) {
+    try { await EducMindDB.removeResourceFile(path); } catch (_) {}
+    throw e;
+  }
+}, 'Đã tải tài liệu lên.');
+DB_ACT.deleteResource = (el) => {
+  const r = (DB.data.resources || []).find((x) => x.id === el.dataset.id);
+  if (!r) return;
+  dbConfirm('Xóa tài liệu?', `Tệp “${h(r.file_name)}” sẽ bị xóa vĩnh viễn và không khôi phục được.`, 'Xóa tài liệu', async () => {
+    try { await EducMindDB.removeResourceFile(r.storage_path); } catch (_) {}
+    await dbCall(EducMindDB.deleteResource(r.id));
+    toast('Đã xóa tài liệu.');
+  }, true);
+};
+DB_ACT.downloadResource = async (el) => {
+  const { data, error } = await EducMindDB.resourceFileUrl(el.dataset.path);
+  if (error) return toast('Không tạo được liên kết tải xuống: ' + (error.message || ''));
+  window.open(data.signedUrl, '_blank');
+};
+DB_ACT.downloadSubmission = async (el) => {
+  const { data, error } = await EducMindDB.submissionFileUrl(el.dataset.path);
+  if (error) return toast('Không tạo được liên kết tải xuống: ' + (error.message || ''));
+  window.open(data.signedUrl, '_blank');
+};
+
+/* ===== Thùng rác ===== */
+DB_ACT.restoreItem = (el) => dbRun(el, async () => {
+  const it = (DB.data.trash || []).find((x) => x.id === el.dataset.id);
+  if (!it) throw new Error('Không tìm thấy mục cần khôi phục.');
+  const fn = { topic: EducMindDB.restoreTopic, lesson: EducMindDB.restoreLesson, assignment: EducMindDB.restoreAssignment, question: EducMindDB.restoreQuestion }[it.type];
+  await dbCall(fn(it.id));
+  if (it.type === 'lesson' && (DB.data.trash || []).some((x) => x.type === 'topic' && x.id === it.topic_id)) {
+    await dbReload();
+    toast('Đã khôi phục bài học. Chủ đề của bài học cũng đang bị xóa — hãy khôi phục cả chủ đề để học sinh thấy được.');
+    return false;
+  }
+}, 'Đã khôi phục mục này.');
+
 /* ===== Học sinh: Bài học ===== */
 DB_PAGES.lessons = {
   title: 'Bài học',
@@ -194,11 +294,13 @@ DB_PAGES.lessons = {
   view(d) {
     if (!d.topics.length) return `<section class="panel">${dbEmpty('Giáo viên chưa xuất bản bài học nào cho lớp này.')}</section>`;
     const lessonsBy = dbGroup(d.lessons, 'topic_id'), objBy = dbGroup(d.objectives, 'lesson_id');
+    const resBy = dbGroup(d.resources || [], 'lesson_id');
     return d.topics.map((t) => `<section class="panel db-topic" aria-labelledby="db-st-${h(t.id)}">
       <h2 id="db-st-${h(t.id)}">${h(t.title)}</h2>${t.description ? `<p class="lead">${h(t.description)}</p>` : ''}
       ${(lessonsBy[t.id] || []).map((l) => `<div class="db-lesson" id="db-l-${h(l.id)}">
         <b>${h(l.title)}</b>${l.description ? `<div class="muted">${h(l.description)}</div>` : ''}
         ${(objBy[l.id] || []).length ? `<ul class="db-objectives">${objBy[l.id].map((o) => `<li><span class="db-obj-code">${h(o.code)}</span><span class="db-obj-text">${h(o.description)}</span><span>${dbMasteryPill(d.mastery[o.id] ? d.mastery[o.id].mastery_score : null)}</span></li>`).join('')}</ul>` : ''}
+        ${dbLessonResources(l, resBy[l.id] || [])}
       </div>`).join('') || dbEmpty('Chủ đề chưa có bài học được xuất bản.')}
     </section>`).join('');
   },

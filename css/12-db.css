@@ -116,9 +116,23 @@
 .db-notif .muted{font-size:.8125rem}
 .db-notif-time{font-size:.75rem!important}
 
+/* ----- Tài liệu và tệp bài nộp ----- */
+.db-files{margin-top:12px;display:grid;gap:6px}
+.db-filelist{list-style:none;margin:0;padding:0;display:grid;gap:6px}
+.db-file{display:flex;flex-wrap:wrap;gap:10px;align-items:center;padding:6px 10px;border-radius:10px;background:var(--fill);font-size:.9375rem}
+.db-file-name{display:inline-flex;align-items:center;gap:6px;font-weight:600;word-break:break-all}
+.db-input-file{font:inherit;font-size:.875rem;padding:6px 8px;border-radius:10px;border:1px dashed var(--line,var(--brand));background:var(--surface);max-width:100%}
+
+/* ----- Thang điểm chi tiết (rubric) ----- */
+.db-rubric{display:grid;gap:6px;margin:4px 0}
+.db-rubric-row{display:flex;justify-content:space-between;align-items:center;gap:10px;font-size:.9375rem}
+.db-rubric-row .db-input-score{width:84px}
+.db-rubric-result{margin-top:8px}
+
 @media (max-width:700px){
   .db-mrow{grid-template-columns:1fr}
   .db-cell-actions{white-space:normal;text-align:left}
   .db-exam-bar{top:4px}
   .db-timer{font-size:1.25rem}
+  .db-rubric-row{flex-wrap:wrap}
 }

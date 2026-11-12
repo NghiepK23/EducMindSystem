@@ -26,8 +26,9 @@ DB_PAGES.assignments = {
     const assignments = DB.course ? await dbCall(EducMindDB.listAssignments(DB.course.id)) : [];
     const ids = assignments.map((a) => a.id);
     const [links, submissions] = await Promise.all([dbCallIn(EducMindDB.listAssignmentObjectives, ids), dbCallIn(EducMindDB.listSubmissions, ids)]);
+    const [criteria, rubricScores] = await Promise.all([dbCallIn(EducMindDB.listRubricCriteria, ids), dbCallIn(EducMindDB.listRubricScores, submissions.map((s) => s.id))]);
     const roster = dbIsTeacher() ? await dbLoadRoster() : { members: [], profiles: {} };
-    return { ...content, assignments, links, submissions, ...roster };
+    return { ...content, assignments, links, submissions, criteria, rubricScores, ...roster };
   },
   view(d) {
     const T = dbIsTeacher();
@@ -146,14 +147,8 @@ function dbAssignmentTeacherDetail(d, a) {
     return `<tr>
       <th scope="row">${h(dbName(p))}<div class="muted">${dbDateTime(s.submitted_at)}${s.is_edited ? ' · đã sửa' : ''}</div></th>
       <td>${s.score != null ? dbPill('Đã chấm', 'good') : s.status === 'LATE' ? dbPill('Nộp muộn', 'need') : dbPill('Chờ chấm', 'prog')}</td>
-      <td><details class="db-work"><summary>Xem bài làm</summary><div class="db-prose">${h(s.text_content || '(không có nội dung văn bản)')}</div></details></td>
-      <td><form data-act="gradeSubmission" data-id="${h(s.id)}" class="db-grade" novalidate>
-        <label class="sr" for="db-gs-${h(s.id)}">Điểm của ${h(dbName(p))}</label>
-        <input id="db-gs-${h(s.id)}" name="score" type="number" min="0" max="${h(a.max_score)}" step="0.25" value="${h(s.score == null ? '' : s.score)}" placeholder="Điểm" class="db-input-score" required><span class="muted">/ ${dbNum(a.max_score)}</span>
-        <label class="sr" for="db-gf-${h(s.id)}">Nhận xét cho ${h(dbName(p))}</label>
-        <textarea id="db-gf-${h(s.id)}" name="feedback" rows="2" maxlength="2000" placeholder="Nhận xét">${h(s.feedback || '')}</textarea>
-        <button type="submit" class="btn mini">${s.score != null ? 'Cập nhật điểm' : 'Lưu điểm'}</button>${dbFormError()}
-      </form></td>
+      <td><details class="db-work"><summary>Xem bài làm</summary><div class="db-prose">${h(s.text_content || '(không có nội dung văn bản)')}</div>${s.storage_path ? `<div class="db-file"><span class="db-file-name">${ic('overview', 14)} ${h(dbFileName(s.storage_path))}</span>${dbBtn('Tải tệp bài nộp', 'downloadSubmission', { path: s.storage_path }, 'light mini')}</div>` : ''}</details></td>
+      <td>${dbGradeCell(d, a, p, s)}</td>
     </tr>`;
   });
   const n = Object.keys(subs).length, graded = Object.values(subs).filter((s) => s.score != null).length;
@@ -166,16 +161,106 @@ function dbAssignmentTeacherDetail(d, a) {
     <h2 id="db-h-subs">Bài nộp</h2>
     <p class="lead">Điểm từ 0 đến ${dbNum(a.max_score)}. Lưu điểm xong, học sinh nhận thông báo và mức nắm vững được tính lại.</p>
     ${rows.length ? dbTable(['Học sinh', 'Trạng thái', 'Bài làm', 'Điểm và nhận xét'], rows, 'Bài nộp của học sinh') : dbEmpty('Lớp chưa có học sinh.')}
+  </section>
+  ${dbRubricPanel(d, a)}`;
+}
+
+/* Tên tệp từ đường dẫn lưu trữ: bỏ phần mã số thời gian phía trước. */
+const dbFileName = (p) => decodeURIComponent(String(p).split('/').pop() || '').replace(/^\d+-/, '');
+/* Ô chấm điểm: có rubric thì nhập điểm từng tiêu chí (tổng là điểm bài nộp); không thì nhập điểm trực tiếp. */
+function dbGradeCell(d, a, p, s) {
+  const crits = (d.criteria || []).filter((c) => c.assignment_id === a.id);
+  const scores = (d.rubricScores || []).filter((x) => x.submission_id === s.id);
+  const scoreBox = crits.length
+    ? `<div class="db-rubric">${crits.map((c) => { const rs = scores.find((x) => x.criterion_id === c.id); return `<label class="db-rubric-row"><span>${h(c.title)} <span class="muted">/ ${dbNum(c.max_score)}</span></span><input name="rc-${h(c.id)}" type="number" min="0" max="${h(c.max_score)}" step="0.25" value="${h(rs == null ? '' : rs.score)}" class="db-input-score" required></label>`; }).join('')}<p class="muted">Tổng điểm các tiêu chí là điểm bài nộp.</p></div>`
+    : `<label class="sr" for="db-gs-${h(s.id)}">Điểm của ${h(dbName(p))}</label><input id="db-gs-${h(s.id)}" name="score" type="number" min="0" max="${h(a.max_score)}" step="0.25" value="${h(s.score == null ? '' : s.score)}" placeholder="Điểm" class="db-input-score" required><span class="muted">/ ${dbNum(a.max_score)}</span>`;
+  return `<form data-act="gradeSubmission" data-id="${h(s.id)}" class="db-grade" novalidate>
+    ${scoreBox}
+    <label class="sr" for="db-gf-${h(s.id)}">Nhận xét cho ${h(dbName(p))}</label>
+    <textarea id="db-gf-${h(s.id)}" name="feedback" rows="2" maxlength="2000" placeholder="Nhận xét">${h(s.feedback || '')}</textarea>
+    <button type="submit" class="btn mini">${s.score != null ? 'Cập nhật điểm' : 'Lưu điểm'}</button>${dbFormError()}
+  </form>`;
+}
+/* Thang điểm chi tiết (rubric) của bài tập: giáo viên đặt tiêu chí trước khi chấm. */
+function dbRubricPanel(d, a) {
+  const crits = (d.criteria || []).filter((c) => c.assignment_id === a.id);
+  const rows = crits.map((c) => `<tr>
+    <th scope="row">${h(c.title)}${c.description ? `<div class="muted">${h(c.description)}</div>` : ''}</th>
+    <td>${dbNum(c.max_score)}</td>
+    <td class="db-cell-actions">${dbBtn('Sửa', 'editCriterion', { id: c.id }, 'light mini')}${dbBtn('Xóa', 'deleteCriterion', { id: c.id }, 'light mini danger-soft')}</td>
+  </tr>`);
+  return `<section class="panel" aria-labelledby="db-h-rub">
+    <h2 id="db-h-rub">Thang điểm chi tiết (rubric)</h2>
+    <p class="lead">Đặt các tiêu chí chấm (ví dụ: Nội dung, Trình bày). Khi chấm, tổng điểm các tiêu chí là điểm bài nộp và học sinh thấy điểm từng tiêu chí.</p>
+    ${rows.length ? dbTable(['Tiêu chí', 'Điểm tối đa', '<span class="sr">Thao tác</span>'], rows, 'Tiêu chí chấm') : dbEmpty('Chưa có tiêu chí nào. Thêm tiêu chí nếu muốn chấm điểm chi tiết.')}
+    <form data-act="addCriterion" data-id="${h(a.id)}" class="db-form-row db-add-row" novalidate>
+      ${dbField('Tiêu chí mới', 'db-rc-title', `<input id="db-rc-title" name="title" maxlength="200" placeholder="Ví dụ: Nội dung" required>`)}
+      ${dbField('Mô tả', 'db-rc-desc', `<input id="db-rc-desc" name="description" maxlength="500" placeholder="Yêu cầu của tiêu chí">`)}
+      ${dbField('Điểm tối đa', 'db-rc-max', `<input id="db-rc-max" name="max_score" type="number" min="0.5" step="0.5" value="5" required>`)}
+      <button type="submit" class="btn light">Thêm tiêu chí</button>${dbFormError()}
+    </form>
   </section>`;
 }
 DB_ACT.gradeSubmission = (form) => dbRun(form, async (v) => {
   const a = DB.data.assignments.find((x) => x.id === DB.arg.id);
-  if (v.score === '') throw new Error('Nhập điểm.');
-  const score = Number(String(v.score).replace(',', '.'));
-  if (!Number.isFinite(score) || score < 0) throw new Error('Điểm phải là số không âm.');
-  if (a && score > Number(a.max_score)) throw new Error('Điểm tối đa của bài này là ' + dbNum(a.max_score) + '.');
+  const crits = (DB.data.criteria || []).filter((c) => a && c.assignment_id === a.id);
+  let score, rubricRows = null;
+  if (crits.length) {
+    /* Có rubric: điểm từng tiêu chí bắt buộc nhập; tổng điểm tiêu chí là điểm bài nộp. */
+    rubricRows = crits.map((c) => {
+      const raw = v['rc-' + c.id];
+      if (raw === '' || raw == null) throw new Error('Nhập điểm cho tiêu chí “' + c.title + '”.');
+      const n = Number(String(raw).replace(',', '.'));
+      if (!Number.isFinite(n) || n < 0 || n > Number(c.max_score)) throw new Error('Điểm tiêu chí “' + c.title + '” phải từ 0 đến ' + dbNum(c.max_score) + '.');
+      return { submission_id: form.dataset.id, criterion_id: c.id, score: n, feedback: '' };
+    });
+    score = rubricRows.reduce((s, r) => s + Number(r.score), 0);
+    if (a && score > Number(a.max_score)) throw new Error('Tổng điểm rubric (' + dbNum(score) + ') vượt điểm tối đa của bài tập (' + dbNum(a.max_score) + '). Hãy giảm điểm tối đa của các tiêu chí.');
+  } else {
+    if (v.score === '') throw new Error('Nhập điểm.');
+    score = Number(String(v.score).replace(',', '.'));
+    if (!Number.isFinite(score) || score < 0) throw new Error('Điểm phải là số không âm.');
+    if (a && score > Number(a.max_score)) throw new Error('Điểm tối đa của bài này là ' + dbNum(a.max_score) + '.');
+  }
+  if (rubricRows) await dbCall(EducMindDB.saveRubricScores(rubricRows));
   await dbCall(EducMindDB.gradeSubmission(form.dataset.id, { score, feedback: v.feedback || '' }));
 }, 'Đã lưu điểm và nhận xét.');
+
+/* ===== Thang điểm chi tiết (rubric) ===== */
+DB_ACT.addCriterion = (form) => dbRun(form, async (v) => {
+  const a = DB.data.assignments.find((x) => x.id === form.dataset.id);
+  if (!v.title) throw new Error('Nhập tên tiêu chí.');
+  const max = Number(String(v.max_score).replace(',', '.'));
+  if (!(max > 0)) throw new Error('Điểm tối đa của tiêu chí phải lớn hơn 0.');
+  const crits = (DB.data.criteria || []).filter((c) => a && c.assignment_id === a.id);
+  await dbCall(EducMindDB.createRubricCriterion({ assignment_id: a.id, title: v.title, description: v.description || '', max_score: max, display_order: crits.reduce((m, x) => Math.max(m, x.display_order || 0), 0) + 1 }));
+}, 'Đã thêm tiêu chí chấm.');
+DB_ACT.editCriterion = (el) => {
+  const c = (DB.data.criteria || []).find((x) => x.id === el.dataset.id);
+  if (!c) return;
+  dbOpenDialog({
+    title: 'Sửa tiêu chí', okLabel: 'Lưu thay đổi',
+    body: dbField('Tên tiêu chí', 'db-ec-title', `<input id="db-ec-title" name="title" maxlength="200" value="${h(c.title)}" required>`)
+      + dbField('Mô tả', 'db-ec-desc', `<input id="db-ec-desc" name="description" maxlength="500" value="${h(c.description)}">`)
+      + dbField('Điểm tối đa', 'db-ec-max', `<input id="db-ec-max" name="max_score" type="number" min="0.5" step="0.5" value="${h(c.max_score)}" required>`, 'Điểm tối đa mới không được nhỏ hơn điểm đã chấm.'),
+    onOk: async (v) => {
+      if (!v.title) throw new Error('Nhập tên tiêu chí.');
+      const max = Number(String(v.max_score).replace(',', '.'));
+      if (!(max > 0)) throw new Error('Điểm tối đa của tiêu chí phải lớn hơn 0.');
+      await dbCall(EducMindDB.updateRubricCriterion(c.id, { title: v.title, description: v.description || '', max_score: max }));
+      toast('Đã lưu tiêu chí.');
+    },
+  });
+};
+DB_ACT.deleteCriterion = (el) => {
+  const c = (DB.data.criteria || []).find((x) => x.id === el.dataset.id);
+  if (!c) return;
+  if ((DB.data.rubricScores || []).some((x) => x.criterion_id === c.id)) return toast('Tiêu chí đã có điểm chấm nên không xóa được.');
+  dbConfirm('Xóa tiêu chí?', `Tiêu chí “${h(c.title)}” sẽ bị xóa khỏi thang điểm của bài tập.`, 'Xóa tiêu chí', async () => {
+    await dbCall(EducMindDB.deleteRubricCriterion(c.id));
+    toast('Đã xóa tiêu chí.');
+  }, true);
+};
 
 /* ===== Học sinh ===== */
 function dbSubmissionPill(a, s) {
@@ -203,7 +288,11 @@ function dbAssignmentStudentDetail(d, a) {
   if (graded) form = `<div class="notice">${ic('info', 16)}<div>Bài đã được chấm nên không sửa được nữa.</div></div>`;
   else if (w === 'CLOSED') form = `<div class="notice">${ic('info', 16)}<div>${s ? 'Đã hết hạn nên không sửa được bài nộp.' : 'Đã hết hạn nộp bài.'}</div></div>`;
   else form = `<form data-act="submitAssignment" data-id="${h(a.id)}" novalidate>
-      ${dbField(s ? 'Bài làm của em (có thể sửa và nộp lại)' : 'Bài làm của em', 'db-sub-text', `<textarea id="db-sub-text" name="text" rows="10" maxlength="20000" required>${h(s ? s.text_content || '' : '')}</textarea>`, w === 'LATE' ? 'Đã quá hạn nộp: bài nộp hoặc sửa lúc này được ghi là nộp muộn.' : '')}
+      ${dbField(s ? 'Bài làm của em (có thể sửa và nộp lại)' : 'Bài làm của em', 'db-sub-text', `<textarea id="db-sub-text" name="text" rows="10" maxlength="20000">${h(s ? s.text_content || '' : '')}</textarea>`, w === 'LATE' ? 'Đã quá hạn nộp: bài nộp hoặc sửa lúc này được ghi là nộp muộn.' : '')}
+      <div class="field"><span class="db-label">Tệp đính kèm (không bắt buộc, tối đa 20 MB)</span>
+        ${s && s.storage_path ? `<div class="db-file"><span class="db-file-name">${ic('overview', 14)} ${h(dbFileName(s.storage_path))}</span>${dbBtn('Tải xuống', 'downloadSubmission', { path: s.storage_path }, 'light mini')}<span class="muted">Chọn tệp khác để thay tệp này.</span></div>` : ''}
+        <input type="file" id="db-sub-file" name="file" class="db-input-file" aria-label="Chọn tệp bài làm">
+      </div>
       ${dbFormError()}
       <div class="row db-form-actions"><button type="submit" class="btn">${s ? 'Nộp lại' : 'Nộp bài'}</button></div>
     </form>`;
@@ -212,17 +301,37 @@ function dbAssignmentStudentDetail(d, a) {
     ${dbAssignmentFacts(d, a)}
   </section>
   ${graded ? `<section class="panel" aria-labelledby="db-h-res"><h2 id="db-h-res">Kết quả</h2>
-      <div class="facts"><div><span>Điểm</span><b>${dbNum(s.score)} / ${dbNum(a.max_score)}</b></div><div><span>Chấm lúc</span><b>${dbDateTime(s.graded_at)}</b></div></div>
+      <div class="facts"><div><span>Điểm</span><b>${dbNum(s.score)} / ${dbNum(a.max_score)}</b></div><div><span>Chấm lúc</span><b>${dbDateTime(s.graded_at)}</b></div>${dbRubricResult(d, s)}</div>
       ${s.feedback ? `<div class="db-prose"><b>Nhận xét của giáo viên:</b> ${h(s.feedback)}</div>` : ''}</section>` : ''}
   <section class="panel" aria-labelledby="db-h-sw"><h2 id="db-h-sw">Bài làm</h2>
-    ${graded || w === 'CLOSED' ? (s ? `<div class="db-prose">${h(s.text_content || '')}</div>` : '') : ''}${form}
+    ${graded || w === 'CLOSED' ? (s ? `<div class="db-prose">${h(s.text_content || '')}</div>${s.storage_path ? `<div class="db-file"><span class="db-file-name">${ic('overview', 14)} ${h(dbFileName(s.storage_path))}</span>${dbBtn('Tải xuống', 'downloadSubmission', { path: s.storage_path }, 'light mini')}</div>` : ''}` : '') : ''}${form}
   </section>`;
+}
+/* Điểm từng tiêu chí rubric trong trang kết quả của học sinh. */
+function dbRubricResult(d, s) {
+  const rows = (d.rubricScores || []).filter((x) => x.submission_id === s.id);
+  if (!rows.length) return '';
+  const crit = dbById(d.criteria || []);
+  return rows.map((r) => { const c = crit[r.criterion_id]; return c ? `<div><span>${h(c.title)}</span><b>${dbNum(r.score)} / ${dbNum(c.max_score)}</b></div>` : ''; }).join('');
 }
 DB_ACT.submitAssignment = (form) => dbRun(form, async (v) => {
   const a = DB.data.assignments.find((x) => x.id === form.dataset.id);
-  if (!v.text) throw new Error('Nhập nội dung bài làm trước khi nộp.');
+  const prev = (DB.data.submissions || []).find((x) => x.assignment_id === a.id);
+  /* Tệp đính kèm (không bắt buộc): tải lên kho bài nộp rồi lưu đường dẫn vào bài nộp. */
+  const input = form.querySelector('input[type="file"]');
+  const file = input && input.files[0];
+  let storagePath = prev ? prev.storage_path : null;
+  if (file) {
+    if (file.size > 20 * 1048576) throw new Error('Tệp bài làm tối đa 20 MB.');
+    const safe = String(file.name).replace(/[\/\\]/g, '_').slice(-120);
+    const path = DB.classId + '/' + a.id + '/' + sess.userId + '/' + Date.now() + '-' + safe;
+    await dbCall(EducMindDB.uploadSubmissionFile(path, file));
+    if (storagePath && storagePath !== path) { try { await EducMindDB.removeSubmissionFile(storagePath); } catch (_) {} }
+    storagePath = path;
+  }
+  if (!v.text && !storagePath) throw new Error('Nhập nội dung bài làm trước khi nộp.');
   const first = dbAssignmentWindow(a) === 'OPEN' ? 'SUBMITTED' : 'LATE';
-  const send = (status) => EducMindDB.submitAssignment({ assignment_id: a.id, text_content: v.text, status });
+  const send = (status) => EducMindDB.submitAssignment({ assignment_id: a.id, text_content: v.text || null, storage_path: storagePath, status });
   let r = await send(first);
   /* Đồng hồ của máy người dùng có thể lệch vài giây so với máy chủ quanh thời điểm hết hạn: thử lại với trạng thái còn lại. */
   if (r.error && /Submission status is not valid/i.test(r.error.message || '')) r = await send(first === 'SUBMITTED' ? 'LATE' : 'SUBMITTED');
