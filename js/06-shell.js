@@ -25,6 +25,7 @@ function shell(content){
     </nav>
     <button type="button" class="side-toggle" onclick="toggleSidebar()" aria-label="${sidebarCollapsed?'Mở rộng':'Thu gọn'} thanh điều hướng" title="${sidebarCollapsed?'Mở rộng':'Thu gọn'} thanh điều hướng" aria-expanded="${!sidebarCollapsed}"><span aria-hidden="true">${sidebarCollapsed?'»':'«'}</span></button>
     <main class="main" id="main">
+      ${sess&&!sess.backend?`<div class="notice" role="status" style="background:#fef3c7;color:#92400e;border:1px solid #f59e0b;margin-bottom:10px"><b>⚠️ Dữ liệu mẫu — chỉ trong phiên này</b><div>Bạn đang dùng tài khoản thử nghiệm: mọi thao tác chỉ nằm trong bộ nhớ và <b>mất khi tải lại trang</b>. Muốn lưu dữ liệu thật, hãy Đăng xuất rồi bấm “Tạo tài khoản”.</div></div>`:''}
       <div class="head">
         <div>
           <h1 id="pageTitle" tabindex="-1">${title()}</h1>
