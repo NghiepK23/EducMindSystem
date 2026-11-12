@@ -19,7 +19,23 @@ DB_PAGES.report = {
       dbCallIn(EducMindDB.listMastery, objIds), dbCallIn(EducMindDB.listGaps, objIds), dbCallIn(EducMindDB.listEvidence, objIds),
       dbIsTeacher() ? dbLoadRoster() : { members: [], profiles: {} },
     ]);
-    return { ...content, assignments, assessments, submissions, attempts, mastery, gaps, evidence, ...roster };
+    /* Điểm tối đa mỗi bài kiểm tra = tổng điểm các câu trong đề (bảng assessments không lưu max_score).
+       Giáo viên đọc từ assessment_questions; học sinh tính từ lượt làm của chính mình (reviewAttempt). */
+    const maxBy = {};
+    if (dbIsTeacher()) {
+      const aq = await dbCallIn(EducMindDB.listAssessmentQuestions, assessments.map((e) => e.id));
+      for (const x of aq) maxBy[x.assessment_id] = (maxBy[x.assessment_id] || 0) + Number(x.weight);
+    } else {
+      for (const e of assessments) {
+        const t = attempts.find((x) => x.assessment_id === e.id && x.status !== 'IN_PROGRESS');
+        if (!t) continue;
+        try {
+          const rev = await dbCall(EducMindDB.reviewAttempt(t.id));
+          if (rev && rev.length) maxBy[e.id] = rev.reduce((s, r) => s + Number(r.weight), 0);
+        } catch (_) { /* lượt chưa xem được thì để trống */ }
+      }
+    }
+    return { ...content, assignments, assessments, submissions, attempts, mastery, gaps, evidence, maxBy, ...roster };
   },
   view(d) {
     if (!DB.classId) return `<section class="panel">${dbEmpty('Hãy chọn một lớp để xem báo cáo.')}</section>`;
@@ -44,14 +60,14 @@ function dbReportData(d, stuId) {
   const now30 = dbNow() - 30 * 86400000;
   return {
     stuId, assignments: d.assignments, assessments: d.assessments, topics: d.topics, lessons: d.lessons, objectives: d.objectives,
-    subs, atts, mast, gaps, evs, evs30: evs.filter((e) => new Date(e.observed_at).getTime() >= now30), profiles: d.profiles, members: d.members,
+    subs, atts, mast, gaps, evs, evs30: evs.filter((e) => new Date(e.observed_at).getTime() >= now30), profiles: d.profiles, members: d.members, maxBy: d.maxBy || {},
   };
 }
 /* Các số tiêu chí của một học sinh (hoặc cả lớp khi id rỗng) — dùng cho bảng tổng hợp và tệp xuất. */
 function dbRepNums(d, id) {
   const r = dbReportData(d, id || null);
   const asgPct = r.assignments.map((a) => { const sub = r.subs.find((x) => x.assignment_id === a.id); return sub && sub.score != null ? (Number(sub.score) / Number(a.max_score || 10)) * 100 : null; }).filter((x) => x != null);
-  const exPct = r.assessments.map((e) => { const best = Math.max(-1, ...r.atts.filter((t) => t.assessment_id === e.id && t.total_score != null).map((t) => Number(t.total_score))); return best >= 0 ? (best / Number(e.max_score || 10)) * 100 : null; }).filter((x) => x != null);
+  const exPct = r.assessments.map((e) => { const max = r.maxBy[e.id], best = Math.max(-1, ...r.atts.filter((t) => t.assessment_id === e.id && t.total_score != null).map((t) => Number(t.total_score))); return best >= 0 && max ? (best / max) * 100 : null; }).filter((x) => x != null);
   return {
     r, submitted: r.subs.length, totalAsg: r.assignments.length,
     asgAvg: asgPct.length ? dbMean(asgPct) : null, exAvg: exPct.length ? dbMean(exPct) : null,
@@ -84,7 +100,7 @@ DB_ACT.reportPick = (el) => { DB_REPORT_STU = el.dataset.id; render(); };
 function dbReportDetail(r) {
   const byObj = dbById(r.objectives), byLesson = dbById(r.lessons);
   const asgRows = r.assignments.map((a) => { const sub = r.subs.find((x) => x.assignment_id === a.id); return `<tr><th scope="row">${h(a.title)}</th><td>${dbDate(a.due_at)}</td><td>${sub ? (sub.score == null ? 'Chưa chấm' : sub.score + '/' + a.max_score) : 'Chưa nộp'}</td></tr>`; });
-  const exRows = r.assessments.map((e) => { const att = r.atts.filter((t) => t.assessment_id === e.id); const best = Math.max(-1, ...att.map((t) => t.total_score == null ? -1 : Number(t.total_score))); return `<tr><th scope="row">${h(e.title)}</th><td>${att.length}</td><td>${best >= 0 ? best + '/' + e.max_score : '—'}</td></tr>`; });
+  const exRows = r.assessments.map((e) => { const att = r.atts.filter((t) => t.assessment_id === e.id); const best = Math.max(-1, ...att.map((t) => t.total_score == null ? -1 : Number(t.total_score))); const max = r.maxBy[e.id]; return `<tr><th scope="row">${h(e.title)}</th><td>${att.length}</td><td>${best >= 0 ? dbNum(best) + (max ? '/' + dbNum(max) : '') : '—'}</td></tr>`; });
   const topicRows = r.topics.map((tp) => {
     const objs = r.objectives.filter((o) => (byLesson[o.lesson_id] || {}).topic_id === tp.id);
     const ms = objs.map((o) => (r.mast.find((m) => m.objective_id === o.id) || {}).mastery_score).filter((x) => x != null).map(Number);
@@ -112,10 +128,21 @@ function dbReportSheets(d, stuId) {
     return [((d.profiles || {})[id] || {}).full_name || '—', n.submitted + '/' + n.totalAsg, dbRepPct(n.asgAvg), dbRepPct(n.exAvg),
       n.masteryAvg == null ? '' : Math.round(n.masteryAvg * 100) + '%', n.mastered + '/' + n.objTotal, n.openGaps, n.evs30];
   }) }];
+  /* Bảng điểm lớp: mỗi học sinh một dòng, mỗi bài tập / bài kiểm tra một cột (điểm cao nhất của lượt đã chấm). */
+  sheets.push({
+    name: 'Bảng điểm',
+    headers: ['Học sinh', ...r0.assignments.map((a) => a.title + ' (' + dbNum(a.max_score) + 'đ)'), ...r0.assessments.map((e) => e.title + (r0.maxBy[e.id] ? ' (' + dbNum(r0.maxBy[e.id]) + 'đ)' : ''))],
+    rows: ids.map((id) => {
+      const x = dbReportData(d, id || null);
+      return [((d.profiles || {})[id] || {}).full_name || '—',
+        ...r0.assignments.map((a) => { const sub = x.subs.find((s) => s.assignment_id === a.id); return sub && sub.score != null ? String(sub.score) : ''; }),
+        ...r0.assessments.map((e) => { const best = Math.max(-1, ...x.atts.filter((t) => t.assessment_id === e.id && t.total_score != null).map((t) => Number(t.total_score))); return best >= 0 ? String(best) : ''; })];
+    }),
+  });
   if (stuId) {
     const r = r0;
     sheets.push({ name: 'Bài tập', headers: ['Bài tập', 'Hạn nộp', 'Điểm'], rows: r.assignments.map((a) => { const sub = r.subs.find((s) => s.assignment_id === a.id); return [a.title, dbDate(a.due_at), sub ? (sub.score == null ? 'Chưa chấm' : sub.score + '/' + a.max_score) : 'Chưa nộp']; }) });
-    sheets.push({ name: 'Kiểm tra', headers: ['Bài kiểm tra', 'Số lượt làm', 'Điểm cao nhất'], rows: r.assessments.map((e) => { const att = r.atts.filter((t) => t.assessment_id === e.id); const best = Math.max(-1, ...att.map((t) => t.total_score == null ? -1 : Number(t.total_score))); return [e.title, att.length, best >= 0 ? best + '/' + e.max_score : '']; }) });
+    sheets.push({ name: 'Kiểm tra', headers: ['Bài kiểm tra', 'Số lượt làm', 'Điểm cao nhất'], rows: r.assessments.map((e) => { const att = r.atts.filter((t) => t.assessment_id === e.id); const best = Math.max(-1, ...att.map((t) => t.total_score == null ? -1 : Number(t.total_score))); const max = r.maxBy[e.id]; return [e.title, att.length, best >= 0 ? dbNum(best) + (max ? '/' + dbNum(max) : '') : '']; }) });
     sheets.push({ name: 'Nắm vững', headers: ['Mã mục tiêu', 'Mục tiêu', 'Mức nắm vững'], rows: r.objectives.map((o) => { const m = r.mast.find((x) => x.objective_id === o.id); return [o.code, o.description, m && m.mastery_score != null ? Number(m.mastery_score).toFixed(2) : '']; }) });
     sheets.push({ name: 'Lỗ hổng', headers: ['Mã mục tiêu', 'Mục tiêu', 'Nguyên nhân'], rows: r.gaps.filter((g) => g.status === 'OPEN').map((g) => [(byObj[g.objective_id] || {}).code || '', (byObj[g.objective_id] || {}).description || '', g.reason || 'Mức nắm vững dưới 0,8']) });
   }
