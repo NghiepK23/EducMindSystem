@@ -187,3 +187,12 @@
 .db-game-opt.right{border-color:#27ae60;background:#e9f7ef}
 .db-game-opt.wrong{border-color:#c0392b;background:#fdecea}
 .db-game-opt:disabled{cursor:default;opacity:.85}
+
+/* ===== Bản in báo cáo (in ảo): chỉ giữ nội dung, ẩn nút/bộ lọc/thanh công cụ ===== */
+@media print{
+  .btn,.chip,.seg,.pill,.selectbox,.db-filter,.db-cell-actions,.db-form-actions,.toast,.db-live-dot{display:none!important}
+  .panel,.card{break-inside:avoid;box-shadow:none!important;border:1px solid #ddd!important}
+  thead{display:table-header-group}
+  tr{break-inside:avoid}
+  h1,h2,h3{break-after:avoid}
+}
