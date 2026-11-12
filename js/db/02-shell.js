@@ -5,13 +5,13 @@
 /* Danh mục điều hướng: [tên nhóm, [[khóa trang, nhãn, biểu tượng], …]] */
 const DB_NAV_T = [
   ['', [['home', 'Tổng quan', 'dashboard'], ['schedule', 'Lịch & cần làm', 'calendar']]],
-  ['Dạy học', [['content', 'Bài học & mục tiêu', 'lessons'], ['assignments', 'Bài tập', 'navAsg'], ['questions', 'Ngân hàng câu hỏi', 'questions'], ['assessments', 'Bài kiểm tra', 'assessments']]],
+  ['Dạy học', [['content', 'Bài học & mục tiêu', 'lessons'], ['assignments', 'Bài tập', 'navAsg'], ['questions', 'Ngân hàng câu hỏi', 'questions'], ['assessments', 'Bài kiểm tra', 'assessments'], ['ai', 'AI tạo câu hỏi', 'spark'], ['games', 'Trò chơi', 'play']]],
   ['Đánh giá học tập', [['progress', 'Mức độ nắm vững', 'mastery'], ['gaps', 'Lỗ hổng kiến thức', 'gaps'], ['recommend', 'Gợi ý học tập', 'recommend'], ['report', 'Báo cáo tiến bộ', 'trend']]],
   ['Quản lý', [['classes', 'Lớp học phụ trách', 'classes'], ['history', 'Lịch sử chỉnh sửa', 'calendar']]],
 ];
 const DB_NAV_S = [
   ['', [['home', 'Tổng quan', 'dashboard'], ['schedule', 'Lịch & cần làm', 'calendar']]],
-  ['Học tập', [['lessons', 'Bài học', 'lessons'], ['assignments', 'Bài tập', 'assignments'], ['assessments', 'Bài kiểm tra', 'assessments']]],
+  ['Học tập', [['lessons', 'Bài học', 'lessons'], ['assignments', 'Bài tập', 'assignments'], ['assessments', 'Bài kiểm tra', 'assessments'], ['games', 'Trò chơi', 'play']]],
   ['Kết quả', [['progress', 'Mức nắm vững', 'mastery'], ['gaps', 'Lỗ hổng kiến thức', 'gaps'], ['recommend', 'Gợi ý học tập', 'recommend'], ['report', 'Báo cáo tiến bộ', 'trend']]],
   ['Lớp học', [['classes', 'Lớp của em', 'classes']]],
 ];
@@ -79,6 +79,8 @@ function dbPaintBell() {
 function dbStartNotifications() {
   dbLoadNotifications();
   DB.timers.push(setInterval(dbLoadNotifications, DB_NOTIF_EVERY));
+  /* Realtime: chuông tự cập nhật khi có thông báo mới; dự phòng tự nạp lại định kỳ. */
+  if (typeof dbLiveStart === 'function') dbLiveStart();
 }
 /* Thông báo do máy chủ tạo, payload.page cho biết nên mở trang nào. */
 function dbNotifTarget(n) {
@@ -90,6 +92,7 @@ function dbNotifTarget(n) {
     assignments: ['assignments', p.assignment_id ? { id: p.assignment_id } : {}],
     assessments: ['assessments', p.assessment_id ? { id: p.assessment_id } : {}],
     recommend: ['recommend', {}],
+    ai: ['ai', {}],
     students: ['classes', {}],
     dashboard: ['home', {}],
   };

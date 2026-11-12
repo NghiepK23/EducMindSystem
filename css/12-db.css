@@ -166,3 +166,24 @@
 
 /* ===== Bảng rộng (13-report) ===== */
 .db-scroll{overflow-x:auto}
+
+/* ===== AI tạo câu hỏi nháp (14-ai) ===== */
+.db-ai-form .db-ai-objs{display:grid;gap:4px;margin:6px 0 10px;padding:10px;border:1px solid var(--line,#d8dde5);border-radius:10px}
+.db-ai-row{display:flex;align-items:flex-start;gap:12px;padding:12px;border:1px solid var(--line,#d8dde5);border-radius:10px;margin:8px 0}
+.db-ai-row .db-ai-main{flex:1 1 auto;min-width:0;display:grid;gap:4px}
+
+/* ===== Trò chơi ôn tập (15-games) ===== */
+.db-game-modes{grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;margin:10px 0 16px}
+.db-game-mode{display:grid;gap:4px;justify-items:start;padding:14px;border:2px solid var(--line,#d8dde5);border-radius:12px;background:var(--bg,#fff);cursor:pointer;font:inherit;text-align:left}
+.db-game-mode:hover{border-color:#2e7dd1}
+.db-game-mode.chosen{border-color:#2e7dd1;background:#eef4fd}
+.db-game-panel .db-game-bar{margin-bottom:12px;padding-bottom:10px;border-bottom:1px solid var(--line,#d8dde5)}
+.db-game-score b{color:#2e7dd1}
+.db-game-clock{font-weight:700;font-variant-numeric:tabular-nums;background:#eef1f6;border-radius:999px;padding:3px 10px}
+.db-game-lives{letter-spacing:2px;color:#c0392b;font-size:1.05rem}
+.db-game-opts{display:grid;gap:8px;margin:12px 0}
+.db-game-opt{display:flex;gap:10px;align-items:center;padding:12px 14px;border:1.5px solid var(--line,#d8dde5);border-radius:10px;background:var(--bg,#fff);cursor:pointer;font:inherit;text-align:left}
+.db-game-opt:hover:not(:disabled){border-color:#2e7dd1}
+.db-game-opt.right{border-color:#27ae60;background:#e9f7ef}
+.db-game-opt.wrong{border-color:#c0392b;background:#fdecea}
+.db-game-opt:disabled{cursor:default;opacity:.85}

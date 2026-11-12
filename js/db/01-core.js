@@ -365,6 +365,7 @@ async function dbStart(profile) {
 /* Xóa mọi dữ liệu của phiên khỏi bộ nhớ (đăng xuất, hết phiên). */
 function dbReset() {
   DB.timers.forEach((t) => clearInterval(t));
+  if (typeof dbLiveStop === 'function') dbLiveStop();
   Object.assign(DB, { me: null, classes: [], classId: '', course: null, page: 'home', arg: {}, data: null, loading: false, loadError: '', dialog: null, notifs: [], timers: [], resetForms: true, _routeKey: '' });
   DB.seq++;
   if (typeof dbExamStop === 'function') dbExamStop();
