@@ -59,7 +59,7 @@ js/
   vendor/
     supabase-js.min.js     Thư viện Supabase ghim sẵn trong repo — không phụ thuộc CDN
 supabase/
-  migrations/              30 migration SQL của backend — nguồn chuẩn cho cấu trúc cơ sở dữ liệu
+  migrations/              32 migration SQL của backend — nguồn chuẩn cho cấu trúc cơ sở dữ liệu
 ```
 
 Quy ước: tệp **số nhỏ nạp trước**, tệp số lớn có thể dùng hàm/định nghĩa của tệp số nhỏ.
@@ -75,8 +75,9 @@ mọi lệnh đọc/ghi cơ sở dữ liệu đều đi qua đối tượng này
    (chỉ dùng **khóa công khai** publishable; mọi phân quyền do **RLS** trong cơ sở dữ liệu quyết định).
 4. Trong Authentication → URL Configuration của Supabase: đặt `site_url` là địa chỉ website
    (mặc định `http://localhost:5500`) và thêm URL đó vào danh sách cho phép.
-5. Tạo **Storage bucket** `educmind-resources` (chứa tệp tài liệu và bài nộp); các policy
-   đọc/ghi của bucket đã được khai báo trong migration.
+5. Hai **Storage bucket** `educmind-resources` (tài liệu bài học) và `educmind-submissions`
+   (bài nộp của học sinh) đã được migration tạo sẵn kèm policy đọc/ghi; nếu tự tạo lại thì
+   để trống `allowed_mime_types` để nhận mọi định dạng tệp.
 
 Lưu ý bảo mật của backend:
 
@@ -96,9 +97,12 @@ Lưu ý bảo mật của backend:
 
 - Tạo/lưu lớp (mã lớp tự sinh), thêm học sinh bằng email, mã lớp,
   hoặc **tự tạo tài khoản cho học sinh** (tự đặt mật khẩu).
-- Soạn chủ đề – bài học – mục tiêu; **tải tệp tài nguyên** (tài liệu, video, liên kết) theo bài học.
+- Soạn chủ đề – bài học – mục tiêu; **tải tệp tài nguyên** (mọi định dạng: doc, docx, xlsx, pptx,
+  PDF, ảnh, video, âm thanh, tệp code `.h/.cpp/.py/…` — tối đa 50 MB) và **liên kết**
+  (YouTube, Canva, trang web) theo bài học; **xem trước** ảnh/PDF/video/âm thanh/tệp mã
+  ngay trong trình duyệt — tệp Office và liên kết khác bấm là tải xuống hoặc mở trang web.
 - Bài tập: giao đề, **rubric nhiều tiêu chí**, chấm điểm theo tiêu chí, cho phép nộp lại,
-  thêm **lượt làm bù** cho từng học sinh.
+  thêm **lượt làm bù** cho từng học sinh; **xem trước tệp bài nộp** của học sinh ngay khi chấm.
 - Ngân hàng câu hỏi (5 dạng, theo độ khó và cấp Bloom, gắn mục tiêu) — nhập/xuất **Excel**.
 - Đề kiểm tra: chọn câu từ ngân hàng, cửa sổ mở/đóng, chấm tự động và chấm tay,
   tự cộng dồn điểm từng câu (không cần nhập tổng).
@@ -114,7 +118,8 @@ Lưu ý bảo mật của backend:
 ### Học sinh
 
 - Vào lớp bằng mã lớp; xem bài học, mục tiêu và tài liệu đã xuất bản.
-- Nộp/nộp lại bài tập bằng **tệp đính kèm** hoặc văn bản; xem điểm, nhận xét, rubric.
+- Nộp/nộp lại bài tập bằng **tệp đính kèm** hoặc văn bản; **xem trước** tệp đã nộp; xem điểm,
+  nhận xét, rubric.
 - Làm bài kiểm tra có đồng hồ đếm ngược (tự lưu, tự nộp khi hết giờ, làm nhiều lượt
   theo số lượt giáo viên đặt — kể cả lượt bù).
 - **Trò chơi ôn tập** 3 chế độ: Nhanh (60 giây), Đua tốc độ (10 câu × 20 giây),

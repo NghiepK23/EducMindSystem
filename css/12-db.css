@@ -196,3 +196,15 @@
   tr{break-inside:avoid}
   h1,h2,h3{break-after:avoid}
 }
+
+/* ===== Xem trước tài liệu: ảnh/PDF/video/âm thanh/tệp mã trong hộp thoại ===== */
+.db-preview{display:grid;gap:10px;justify-items:center}
+.db-preview img{display:block;max-width:100%;max-height:58vh;border-radius:12px;object-fit:contain}
+.db-preview-frame{width:100%;height:min(58vh,560px);border:1px solid var(--line);border-radius:12px;background:var(--fill)}
+.db-preview-video{height:min(58vh,420px)}
+.db-preview-media{width:100%;max-height:52vh;border-radius:12px;background:var(--fill)}
+.db-preview .muted{margin:0;text-align:center}
+.db-preview-code{width:100%;max-height:56vh;overflow:auto;white-space:pre-wrap;word-break:break-word;margin:0;padding:12px;border-radius:12px;background:var(--fill);font:400 .78rem/1.5 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;text-align:left}
+.db-link-card{display:flex;gap:12px;align-items:center;width:100%;padding:14px;border:1px solid var(--line);border-radius:12px;background:var(--fill);text-align:left}
+.db-link-card .muted{font-size:.78rem;word-break:break-all;text-align:left}
+.db-file-url{margin-left:6px;font-size:.74rem;opacity:.85}

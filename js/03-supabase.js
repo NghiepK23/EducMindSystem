@@ -89,7 +89,7 @@ const EducMindDB=(()=>{
 
     /* ----- Tài liệu đính kèm bài học (resources + kho educmind-resources) -----
        Đường dẫn tệp: <mã lớp>/<thời gian>-<tên tệp>. Máy chủ kiểm tra quyền đọc/ghi theo đường dẫn. */
-    listResources:(courseId)=>from('resources').select('id,course_id,lesson_id,file_name,storage_path,file_size_bytes,mime_type,created_at').eq('course_id',courseId).is('deleted_at',null).order('created_at'),
+    listResources:(courseId)=>from('resources').select('id,course_id,lesson_id,kind,url,file_name,storage_path,file_size_bytes,mime_type,created_at').eq('course_id',courseId).is('deleted_at',null).order('created_at'),
     createResource:(row)=>from('resources').insert(row).select().single(),
     /* Xóa hẳn dòng và tệp trong kho (tệp đã xóa không khôi phục được). */
     deleteResource:(id)=>from('resources').delete().eq('id',id).select('id,storage_path'),

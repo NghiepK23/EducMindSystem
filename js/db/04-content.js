@@ -79,18 +79,82 @@ DB_PAGES.content = {
     </section>${topics}${dbTrashPanel(d)}`;
   },
 };
-/* Tài liệu đính kèm bài học: giáo viên tải lên / xóa; cả hai vai trò đều tải xuống được. */
+/* ===== Xem trước tài liệu =====
+   Nhận dạng nhóm tệp theo ĐUÔI TỆP trước (trình duyệt hay để trống MIME với .h, .cpp, .py…),
+   rồi mới tới MIME. Nhóm 'office' và 'other' không xem trước được trong trình duyệt → tải xuống. */
+const DB_FILE_KINDS = {
+  image: 'png jpg jpeg gif webp avif bmp svg',
+  pdf: 'pdf',
+  video: 'mp4 webm ogv mov m4v',
+  audio: 'mp3 wav ogg oga m4a aac flac opus',
+  code: 'txt csv md json js ts jsx tsx html htm css scss less py java c cpp cc cxx h hpp hh cs php rb go rs sql xml yml yaml sh bat ps1 ini toml cfg lua kt swift r pl vue dart gradle log env',
+  office: 'doc docx xls xlsx ppt pptx docm xlsm pptm odt ods odp rtf epub',
+};
+function dbFileKind(name, mime) {
+  const ext = (String(name || '').split('.').pop() || '').toLowerCase();
+  const m = String(mime || '').toLowerCase();
+  for (const k of ['image', 'pdf', 'video', 'audio', 'office']) {
+    if (DB_FILE_KINDS[k].split(' ').includes(ext)) return k;
+  }
+  if (DB_FILE_KINDS.code.split(' ').includes(ext)) return 'code';
+  if (m.startsWith('image/')) return 'image';
+  if (m === 'application/pdf') return 'pdf';
+  if (m.startsWith('video/')) return 'video';
+  if (m.startsWith('audio/')) return 'audio';
+  if (m.startsWith('text/')) return 'code';
+  return 'other';
+}
+/* Mã video YouTube từ nhiều dạng liên kết: watch?v=, youtu.be/, shorts/, embed/, live/. */
+function dbYoutubeId(url) {
+  const m = String(url || '').match(/(?:youtube\.com\/(?:watch\?(?:.*&)?v=|shorts\/|embed\/|live\/)|youtu\.be\/)([A-Za-z0-9_-]{6,20})/);
+  return m ? m[1] : '';
+}
+/* Thân hộp thoại xem trước cho tệp đã có URL (đã ký) hoặc không xem trước được. */
+function dbPreviewBody(kind, url, name, dlAct, path) {
+  const dl = dbBtn('Tải xuống', dlAct, { path, name }, 'light');
+  const cap = `<p class="muted">${h(name)}</p>`;
+  if (kind === 'image') return `<div class="db-preview"><img src="${h(url)}" alt="${h(name)}">${cap}<div class="row">${dl}</div></div>`;
+  if (kind === 'pdf') return `<div class="db-preview"><iframe class="db-preview-frame" src="${h(url)}" title="${h(name)}"></iframe>${cap}<div class="row">${dl}</div></div>`;
+  if (kind === 'video') return `<div class="db-preview"><video class="db-preview-media" controls src="${h(url)}"></video>${cap}<p class="muted">Nếu trình duyệt không phát được định dạng này, hãy tải xuống và mở bằng phần mềm máy tính.</p><div class="row">${dl}</div></div>`;
+  if (kind === 'audio') return `<div class="db-preview"><audio class="db-preview-media" controls src="${h(url)}"></audio>${cap}<div class="row">${dl}</div></div>`;
+  if (kind === 'code') return `<div class="db-preview"><pre class="db-preview-code" id="db-preview-code">Đang tải nội dung tệp…</pre>${cap}<div class="row">${dl}</div></div>`;
+  return `<div class="db-preview"><div class="db-link-card">${ic('overview', 18)}<div><b>Không xem trước được tệp này</b><div class="muted">Định dạng Word / Excel / PowerPoint và một số tệp khác không xem trực tiếp được trong trình duyệt. Bấm “Tải xuống” rồi mở bằng phần mềm máy tính.</div></div></div><div class="row">${dl}</div></div>`;
+}
+function dbPreviewFillCode(url) {
+  fetch(url).then((r) => (r.ok ? r.text() : Promise.reject(new Error('HTTP ' + r.status)))).then((t) => {
+    const box = document.getElementById('db-preview-code');
+    if (box) box.textContent = t.length > 200000 ? t.slice(0, 200000) + '\n\n… (chỉ hiển thị phần đầu)' : t;
+  }).catch(() => {
+    const box = document.getElementById('db-preview-code');
+    if (box) box.textContent = 'Không đọc được nội dung tệp này — hãy tải xuống để xem.';
+  });
+}
+
+/* Tài liệu đính kèm bài học: tệp giáo viên tải lên, liên kết (YouTube/Canva/web) giáo viên thêm;
+   cả hai vai trò đều xem trước / tải xuống / mở được. */
 function dbLessonResources(l, resources) {
-  const items = (resources || []).map((r) => `<li class="db-file">
-    <span class="db-file-name">${ic('overview', 14)} ${h(r.file_name)}</span>
-    <span class="muted">${dbFileSize(r.file_size_bytes)}</span>
-    <span class="row">${dbBtn('Tải xuống', 'downloadResource', { path: r.storage_path, name: r.file_name }, 'light mini')}${dbIsTeacher() ? dbBtn('Xóa', 'deleteResource', { id: r.id, path: r.storage_path, name: r.file_name }, 'light mini danger-soft') : ''}</span>
-  </li>`).join('');
+  const items = (resources || []).map((r) => {
+    const isLink = r.kind === 'LINK';
+    const yt = isLink ? dbYoutubeId(r.url) : '';
+    const meta = isLink ? (yt ? 'YouTube' : 'Liên kết') : (r.file_size_bytes == null ? '' : dbFileSize(r.file_size_bytes));
+    return `<li class="db-file">
+    <span class="db-file-name">${ic(isLink && yt ? 'play' : 'overview', 14)} ${h(r.file_name)}${isLink ? `<span class="muted db-file-url">${h(String(r.url || '').replace(/^https?:\/\//, '').slice(0, 60))}</span>` : ''}</span>
+    <span class="muted">${meta}</span>
+    <span class="row">${dbBtn('Xem trước', 'previewResource', { kind: isLink ? 'LINK' : 'FILE', path: r.storage_path || '', url: r.url || '', name: r.file_name, mime: r.mime_type || '' }, 'light mini')}${isLink
+      ? dbBtn('Mở', 'openResourceLink', { url: r.url }, 'light mini')
+      : dbBtn('Tải xuống', 'downloadResource', { path: r.storage_path, name: r.file_name }, 'light mini')}${dbIsTeacher() ? dbBtn('Xóa', 'deleteResource', { id: r.id, name: r.file_name }, 'light mini danger-soft') : ''}</span>
+  </li>`;
+  }).join('');
   return `<div class="db-files"><span class="db-label">Tài liệu${dbIsTeacher() ? '' : ' của bài học'}</span>
     ${items ? `<ul class="db-filelist">${items}</ul>` : '<p class="muted">Chưa có tài liệu nào.</p>'}
     ${dbIsTeacher() ? `<form data-act="uploadResource" data-lesson="${h(l.id)}" class="db-form-row db-add-row" novalidate>
       <input type="file" id="db-rf-${h(l.id)}" name="file" class="db-input-file" aria-label="Chọn tệp tài liệu cho bài học ${h(l.title)}">
-      <button type="submit" class="btn light">Tải tài liệu lên</button>${dbFormError()}
+      <button type="submit" class="btn light">Tải tài liệu lên</button><span class="muted">Mọi định dạng (doc, xlsx, pptx, tệp code, video, âm thanh…), tối đa 50 MB.</span>${dbFormError()}
+    </form>
+    <form data-act="addResourceLink" data-lesson="${h(l.id)}" class="db-form-row db-add-row" novalidate>
+      ${dbField('Thêm liên kết (YouTube, Canva, trang web…)', 'db-rl-' + h(l.id), `<input id="db-rl-${h(l.id)}" name="url" type="url" placeholder="https://…" required>`)}
+      ${dbField('Tên hiển thị', 'db-rlt-' + h(l.id), `<input id="db-rlt-${h(l.id)}" name="title" maxlength="200" placeholder="Để trống = tự đặt tên">`)}
+      <button type="submit" class="btn light">Thêm liên kết</button>${dbFormError()}
     </form>` : ''}
   </div>`;
 }
@@ -260,8 +324,8 @@ DB_ACT.uploadResource = (form) => dbRun(form, async () => {
 DB_ACT.deleteResource = (el) => {
   const r = (DB.data.resources || []).find((x) => x.id === el.dataset.id);
   if (!r) return;
-  dbConfirm('Xóa tài liệu?', `Tệp “${h(r.file_name)}” sẽ bị xóa vĩnh viễn và không khôi phục được.`, 'Xóa tài liệu', async () => {
-    try { await EducMindDB.removeResourceFile(r.storage_path); } catch (_) {}
+  dbConfirm('Xóa tài liệu?', `${r.kind === 'LINK' ? 'Liên kết' : 'Tệp'} “${h(r.file_name)}” sẽ bị xóa vĩnh viễn và không khôi phục được.`, 'Xóa tài liệu', async () => {
+    if (r.storage_path) { try { await EducMindDB.removeResourceFile(r.storage_path); } catch (_) {} }
     await dbCall(EducMindDB.deleteResource(r.id));
     toast('Đã xóa tài liệu.');
   }, true);
@@ -276,6 +340,50 @@ DB_ACT.downloadSubmission = async (el) => {
   if (error) return toast('Không tạo được liên kết tải xuống: ' + (error.message || ''));
   window.open(data.signedUrl, '_blank');
 };
+
+/* ===== Xem trước & liên kết tài liệu ===== */
+DB_ACT.openResourceLink = (el) => { window.open(String(el.dataset.url || ''), '_blank', 'noopener'); };
+DB_ACT.previewResource = async (el) => {
+  const d = el.dataset;
+  if (d.kind === 'LINK') {
+    const yt = dbYoutubeId(d.url);
+    const open = dbBtn('Mở liên kết', 'openResourceLink', { url: d.url }, '');
+    dbOpenDialog({
+      title: d.name, wide: true,
+      body: yt
+        ? `<div class="db-preview"><iframe class="db-preview-frame db-preview-video" src="https://www.youtube.com/embed/${h(yt)}" title="${h(d.name)}" allow="accelerometer; autoplay; clipboard-write; encrypted-media; picture-in-picture; web-share" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe><div class="row">${open}</div></div>`
+        : `<div class="db-preview"><div class="db-link-card">${ic('overview', 18)}<div><b>${h(d.name)}</b><div class="muted">${h(d.url)}</div></div></div><p class="muted">Trang này không cho phép nhúng trực tiếp — bấm “Mở liên kết” để mở trong thẻ mới.</p><div class="row">${open}</div></div>`,
+    });
+    return;
+  }
+  const { data, error } = await EducMindDB.resourceFileUrl(d.path);
+  if (error || !data) return toast('Không tạo được liên kết xem tệp: ' + ((error && error.message) || ''));
+  const kind = dbFileKind(d.name, d.mime);
+  dbOpenDialog({ title: d.name, wide: true, body: dbPreviewBody(kind, data.signedUrl, d.name, 'downloadResource', d.path) });
+  if (kind === 'code') dbPreviewFillCode(data.signedUrl);
+};
+DB_ACT.previewSubmission = async (el) => {
+  const d = el.dataset;
+  const { data, error } = await EducMindDB.submissionFileUrl(d.path);
+  if (error || !data) return toast('Không tạo được liên kết xem tệp: ' + ((error && error.message) || ''));
+  const kind = dbFileKind(d.name, '');
+  dbOpenDialog({ title: d.name, wide: true, body: dbPreviewBody(kind, data.signedUrl, d.name, 'downloadSubmission', d.path) });
+  if (kind === 'code') dbPreviewFillCode(data.signedUrl);
+};
+DB_ACT.addResourceLink = (form) => dbRun(form, async (v) => {
+  const raw = String(v.url || '').trim();
+  let u;
+  try { u = new URL(raw); } catch (_) { throw new Error('Liên kết không hợp lệ. Hãy dán địa chỉ bắt đầu bằng http:// hoặc https://.'); }
+  if (u.protocol !== 'http:' && u.protocol !== 'https:') throw new Error('Chỉ chấp nhận liên kết http:// hoặc https://.');
+  const yt = dbYoutubeId(raw);
+  const title = String(v.title || '').trim() || (yt ? 'Video YouTube' : u.hostname.replace(/^www\./, ''));
+  const course = await dbEnsureCourse();
+  await dbCall(EducMindDB.createResource({
+    course_id: course.id, lesson_id: form.dataset.lesson, kind: 'LINK', url: raw,
+    file_name: title.slice(0, 200), storage_path: null, file_size_bytes: null,
+    mime_type: yt ? 'text/x-youtube' : 'text/x-link', uploaded_by: sess.userId,
+  }));
+}, 'Đã thêm liên kết.');
 
 /* ===== Thùng rác ===== */
 DB_ACT.restoreItem = (el) => dbRun(el, async () => {
