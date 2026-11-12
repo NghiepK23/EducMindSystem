@@ -61,12 +61,19 @@ const EducMindDB=(()=>{
     removeMember:(classId,studentId)=>from('class_members').delete().eq('class_id',classId).eq('student_id',studentId).select('student_id'),
     /* Mã lớp: tạo mã mới (máy chủ thu hồi mọi mã cũ trong cùng giao dịch) và mở lại lớp đã lưu trữ. */
     regenClassCode:(classId)=>rpc('regen_class_code',{p_class:classId}),
+    /* GV tạo tài khoản học sinh (mật khẩu ban đầu do GV đặt) và thêm thẳng vào một lớp của mình. */
+    createStudentAccount:(email,fullName,password,classId)=>rpc('create_student_account',{p_email:email,p_full_name:fullName,p_password:password,p_class_id:classId||null}),
+    /* Cấp thêm lượt làm bài kiểm tra cho một học sinh. */
+    grantExtraAttempts:(assessmentId,studentId,extra,reason)=>rpc('grant_extra_attempts',{p_assessment:assessmentId,p_student:studentId,p_extra:extra,p_reason:reason||''}),
+    listExtraAttempts:(assessmentIds)=>from('assessment_extra_attempts').select('id,assessment_id,student_id,extra,reason,granted_by,created_at').in('assessment_id',assessmentIds),
     listArchivedClasses:()=>from('classes').select('id,name,grade,school_year,owner_teacher_id,created_at,deleted_at').not('deleted_at','is',null).order('deleted_at',{ascending:false}),
     restoreClass:(id)=>rpc('restore_class',{p_class:id}),
 
     /* ----- Khóa học (mỗi lớp dùng một khóa học chứa toàn bộ nội dung) ----- */
-    listCourses:(classId)=>from('courses').select('id,class_id,title,description,created_at').eq('class_id',classId).is('deleted_at',null).order('created_at'),
-    createCourse:(row)=>from('courses').insert(row).select('id,class_id,title,description,created_at').single(),
+    listCourses:(classId)=>from('courses').select('id,class_id,title,description,sequential_unlock,created_at').eq('class_id',classId).is('deleted_at',null).order('created_at'),
+    createCourse:(row)=>from('courses').insert(row).select('id,class_id,title,description,sequential_unlock,created_at').single(),
+    /* Bật/tắt mở bài học tuần tự của khóa học. */
+    updateCourse:(id,row)=>from('courses').update(row).eq('id',id).select('id,class_id,title,description,sequential_unlock,created_at').single(),
 
     /* ----- Chủ đề, bài học, mục tiêu ----- */
     listTopics:(courseId)=>from('course_topics').select('id,course_id,title,description,display_order,status').eq('course_id',courseId).is('deleted_at',null).order('display_order').order('created_at'),
@@ -131,7 +138,9 @@ const EducMindDB=(()=>{
     /* ----- Ngân hàng câu hỏi -----
        options: mảng chuỗi lựa chọn. correct_answer: SINGLE_CHOICE = số thứ tự lựa chọn (từ 0); MULTIPLE_CHOICE = mảng số thứ tự;
        TRUE_FALSE = true/false; SHORT_ANSWER, ESSAY = null hoặc đáp án tham khảo (giáo viên chấm tay). */
-    listQuestions:(courseId)=>from('questions').select('id,course_id,content,kind,options,correct_answer,difficulty').eq('course_id',courseId).is('deleted_at',null),
+    listQuestions:(courseId)=>from('questions').select('id,course_id,content,kind,options,correct_answer,difficulty,grade,bloom_level').eq('course_id',courseId).is('deleted_at',null),
+    /* Nhập hàng loạt từ tệp Excel/CSV. */
+    createQuestions:(rows)=>from('questions').insert(rows.map((r)=>({...r,created_by:me()}))).select('id'),
     createQuestion:(row)=>from('questions').insert({...row,created_by:me()}).select().single(),
     updateQuestion:(id,row)=>from('questions').update(row).eq('id',id).select().single(),
     listQuestionObjectives:(questionIds)=>from('question_objectives').select('question_id,objective_id').in('question_id',questionIds),

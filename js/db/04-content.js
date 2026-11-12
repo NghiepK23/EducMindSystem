@@ -75,6 +75,7 @@ DB_PAGES.content = {
         ${dbField('Tên chủ đề mới', 'db-new-topic', `<input id="db-new-topic" name="title" maxlength="200" placeholder="Ví dụ: Mạng máy tính" required>`)}
         <button type="submit" class="btn">Thêm chủ đề</button>${dbFormError()}
       </form>
+      <label class="db-check db-seq-toggle"><input type="checkbox" data-change="toggleSequential" ${DB.course && DB.course.sequential_unlock ? 'checked' : ''}> Mở bài học tuần tự: học sinh chỉ mở được bài sau khi nắm vững (≥ 0,8) mọi mục tiêu của bài trước</label>
     </section>${topics}${dbTrashPanel(d)}`;
   },
 };
@@ -145,6 +146,13 @@ DB_ACT.toggleTopic = (el) => dbRun(el, async () => {
   const t = DB.data.topics.find((x) => x.id === el.dataset.id);
   await dbCall(EducMindDB.updateTopic(t.id, { status: t.status === 'PUBLISHED' ? 'DRAFT' : 'PUBLISHED' }));
   toast(t.status === 'PUBLISHED' ? 'Đã gỡ xuất bản chủ đề.' : 'Đã xuất bản chủ đề.');
+});
+/* Bật/tắt mở bài học tuần tự cho khóa học của lớp đang chọn. */
+DB_ACT.toggleSequential = (el) => dbRun(el, async () => {
+  const course = await dbEnsureCourse();
+  await dbCall(EducMindDB.updateCourse(course.id, { sequential_unlock: el.checked }));
+  DB.course.sequential_unlock = el.checked;
+  toast(el.checked ? 'Đã bật mở bài học tuần tự.' : 'Đã tắt mở bài học tuần tự.');
 });
 DB_ACT.editTopic = (el) => {
   const t = DB.data.topics.find((x) => x.id === el.dataset.id);
@@ -288,16 +296,34 @@ DB_PAGES.lessons = {
   sub: 'Các bài học giáo viên đã xuất bản, kèm mức nắm vững của em ở từng mục tiêu.',
   async load() {
     const content = await dbLoadContent();
-    const mastery = await dbCallIn(EducMindDB.listMastery, content.objectives.map((o) => o.id));
-    return { ...content, mastery: Object.fromEntries(mastery.map((m) => [m.objective_id, m])) };
+    const [mastery, courses] = await Promise.all([
+      dbCallIn(EducMindDB.listMastery, content.objectives.map((o) => o.id)),
+      DB.classId ? dbCall(EducMindDB.listCourses(DB.classId)) : [],
+    ]);
+    return { ...content, mastery: Object.fromEntries(mastery.map((m) => [m.objective_id, m])), seq: !!(courses[0] && courses[0].sequential_unlock) };
   },
   view(d) {
     if (!d.topics.length) return `<section class="panel">${dbEmpty('Giáo viên chưa xuất bản bài học nào cho lớp này.')}</section>`;
     const lessonsBy = dbGroup(d.lessons, 'topic_id'), objBy = dbGroup(d.objectives, 'lesson_id');
     const resBy = dbGroup(d.resources || [], 'lesson_id');
+    /* Mở tuần tự: bài học bị khóa cho tới khi mọi mục tiêu của bài liền trước đạt ≥ 0,8.
+       Bài không có mục tiêu thì không chặn bài sau. Thứ tự: theo chủ đề rồi theo bài học (display_order). */
+    const locked = {};
+    if (d.seq) {
+      const flat = d.topics.flatMap((t) => lessonsBy[t.id] || []);
+      let prevOk = true;
+      for (const l of flat) {
+        locked[l.id] = !prevOk;
+        const objs = objBy[l.id] || [];
+        prevOk = objs.length === 0 || objs.every((o) => Number(((d.mastery[o.id] || {}).mastery_score) || 0) >= 0.8);
+      }
+    }
     return d.topics.map((t) => `<section class="panel db-topic" aria-labelledby="db-st-${h(t.id)}">
       <h2 id="db-st-${h(t.id)}">${h(t.title)}</h2>${t.description ? `<p class="lead">${h(t.description)}</p>` : ''}
-      ${(lessonsBy[t.id] || []).map((l) => `<div class="db-lesson" id="db-l-${h(l.id)}">
+      ${(lessonsBy[t.id] || []).map((l) => locked[l.id]
+        ? `<div class="db-lesson db-locked" id="db-l-${h(l.id)}"><b>${h(l.title)}</b>
+            <div class="db-lock-note">${ic('lock', 16)} Bài học đang khóa — hãy nắm vững (≥ 0,8) mọi mục tiêu của bài trước để mở bài này.</div></div>`
+        : `<div class="db-lesson" id="db-l-${h(l.id)}">
         <b>${h(l.title)}</b>${l.description ? `<div class="muted">${h(l.description)}</div>` : ''}
         ${(objBy[l.id] || []).length ? `<ul class="db-objectives">${objBy[l.id].map((o) => `<li><span class="db-obj-code">${h(o.code)}</span><span class="db-obj-text">${h(o.description)}</span><span>${dbMasteryPill(d.mastery[o.id] ? d.mastery[o.id].mastery_score : null)}</span></li>`).join('')}</ul>` : ''}
         ${dbLessonResources(l, resBy[l.id] || [])}

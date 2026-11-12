@@ -136,3 +136,33 @@
   .db-timer{font-size:1.25rem}
   .db-rubric-row{flex-wrap:wrap}
 }
+
+/* ===== Lịch & việc cần làm (12-schedule) ===== */
+.db-sched-list{display:grid;gap:8px}
+.db-sched-item{display:flex;align-items:center;gap:12px;padding:10px 12px;border:1px solid var(--line,#d8dde5);border-left-width:4px;border-radius:10px;background:var(--bg,#fff)}
+.db-sched-item.prio-0{border-left-color:#c0392b}
+.db-sched-item.prio-1{border-left-color:#e67e22}
+.db-sched-item.prio-2{border-left-color:#2e7dd1}
+.db-sched-item.prio-3{border-left-color:#98a2b3}
+.db-sched-badge{flex:none;font-size:.72rem;font-weight:700;padding:3px 8px;border-radius:999px;background:#eef1f6;color:#42506b}
+.db-sched-item.prio-0 .db-sched-badge{background:#fdecea;color:#c0392b}
+.db-sched-item.prio-1 .db-sched-badge{background:#fdf1e3;color:#b3591a}
+.db-sched-body{flex:1 1 auto;min-width:0}
+.db-cal{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin:10px 0 6px}
+.db-cal-head{text-align:center;font-size:.75rem;font-weight:700;color:#5b6577;padding:4px 0}
+.db-cal-cell{position:relative;min-height:52px;border:1px solid var(--line,#d8dde5);border-radius:8px;background:var(--bg,#fff);cursor:pointer;font:inherit;padding:4px;text-align:left}
+.db-cal-cell.empty{border:none;background:transparent;cursor:default}
+.db-cal-cell.has-ev{background:#eef4fd;border-color:#9dbfe8}
+.db-cal-cell.today{outline:2px solid #2e7dd1;outline-offset:-2px}
+.db-cal-cell.sel{background:#2e7dd1;color:#fff;border-color:#2e7dd1}
+.db-cal-num{font-size:.82rem;font-weight:600}
+.db-cal-dot{position:absolute;right:6px;bottom:5px;min-width:18px;height:18px;line-height:18px;text-align:center;border-radius:999px;background:#2e7dd1;color:#fff;font-size:.7rem;font-weight:700}
+.db-cal-cell.sel .db-cal-dot{background:#fff;color:#2e7dd1}
+
+/* ===== Mở bài học tuần tự (04-content) ===== */
+.db-seq-toggle{display:flex;margin-top:10px;font-weight:500}
+.db-lesson.db-locked{opacity:.75}
+.db-lock-note{display:flex;align-items:center;gap:8px;margin-top:6px;padding:8px 10px;border-radius:8px;background:#f3f5f9;color:#42506b;font-size:.82rem}
+
+/* ===== Bảng rộng (13-report) ===== */
+.db-scroll{overflow-x:auto}

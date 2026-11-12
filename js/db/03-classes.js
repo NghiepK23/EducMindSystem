@@ -90,9 +90,10 @@ function dbClassMembersPanel(c, d) {
     <form data-act="addStudent" class="db-form-row" novalidate>
       ${dbField('Thêm học sinh bằng email', 'db-add-email', `<input id="db-add-email" name="email" type="email" placeholder="email học sinh đã đăng ký" autocomplete="off" required>`)}
       <button type="submit" class="btn light">Thêm vào lớp</button>
+      ${dbBtn('Tạo tài khoản học sinh', 'createStudentAccount', { id: c.id, name: c.name }, 'light')}
       ${dbFormError()}
     </form>
-    ${rows.length ? dbTable(['Họ và tên', 'Email', 'Vào lớp lúc', '<span class="sr">Thao tác</span>'], rows, 'Học sinh của lớp') : dbEmpty('Lớp chưa có học sinh. Gửi mã lớp cho học sinh hoặc thêm bằng email.')}
+    ${rows.length ? dbTable(['Họ và tên', 'Email', 'Vào lớp lúc', '<span class="sr">Thao tác</span>'], rows, 'Học sinh của lớp') : dbEmpty('Lớp chưa có học sinh. Gửi mã lớp cho học sinh, thêm bằng email hoặc tạo tài khoản cho các em.')}
   </section>`;
 }
 
@@ -196,6 +197,26 @@ DB_ACT.addStudent = (form) => dbRun(form, async (v) => {
     NOT_A_STUDENT: 'Email này thuộc tài khoản giáo viên nên không thêm vào lớp như học sinh được.',
   }[r] || 'Không thêm được học sinh (' + r + ').');
 });
+/* Giáo viên tạo tài khoản học sinh: email + họ tên + mật khẩu ban đầu do giáo viên đặt, thêm thẳng vào lớp. */
+DB_ACT.createStudentAccount = (el) => {
+  const classId = el.dataset.id, className = el.dataset.name || '';
+  dbOpenDialog({
+    title: 'Tạo tài khoản học sinh' + (className ? ' — lớp ' + className : ''),
+    body: `<p class="muted">Mật khẩu ban đầu do bạn tự đặt và thông báo cho học sinh. Các em nên đổi mật khẩu ngay sau khi đăng nhập.</p>
+      ${dbField('Email của học sinh', 'db-sa-email', `<input id="db-sa-email" name="email" type="email" placeholder="vidu@hocsinh.edu.vn" autocomplete="off" required>`)}
+      ${dbField('Họ và tên', 'db-sa-name', `<input id="db-sa-name" name="full_name" maxlength="120" placeholder="Nguyễn Văn A" required>`)}
+      ${dbField('Mật khẩu ban đầu (tối thiểu 6 ký tự)', 'db-sa-pw', `<input id="db-sa-pw" name="password" type="text" maxlength="72" placeholder="Ít nhất 6 ký tự" autocomplete="off" required>`)}`,
+    okLabel: 'Tạo tài khoản',
+    onOk: async (v) => {
+      const email = (v.email || '').trim().toLowerCase(), name = (v.full_name || '').trim(), pw = v.password || '';
+      if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) throw new Error('Nhập đúng địa chỉ email của học sinh.');
+      if (name.length < 2) throw new Error('Nhập họ tên học sinh.');
+      if (pw.length < 6) throw new Error('Mật khẩu phải có ít nhất 6 ký tự.');
+      await dbCall(EducMindDB.createStudentAccount(email, name, pw, classId || null));
+      toast('Đã tạo tài khoản cho ' + name + ' và thêm vào lớp.');
+    },
+  });
+};
 DB_ACT.removeMember = (el) => {
   const p = (DB.data.profiles || {})[el.dataset.id], c = dbClass();
   dbConfirm('Gỡ học sinh khỏi lớp?', `${h(dbName(p))} sẽ không còn thấy nội dung của lớp ${h(c ? c.name : '')}. Bài đã nộp và điểm vẫn được giữ.`, 'Gỡ khỏi lớp', async () => {
