@@ -260,3 +260,18 @@ select,textarea,.selectbox{
   background-image:var(--layer4-bg-image,none);background-size:cover;background-position:center;background-repeat:no-repeat
 }
 
+
+/* ===== Thanh cuộn sidebar luôn hiện rõ: nhìn thấy ngay còn chức năng bên dưới để cuộn xem =====
+   Lưu ý: KHÔNG đặt scrollbar-color/scrollbar-width (bản chuẩn) cho Chrome — chúng sẽ vô hiệu
+   ::-webkit-scrollbar và làm thanh cuộn trở thành dạng overlay mờ khó thấy. */
+@media(min-width:901px){
+  .layout>.side{scrollbar-width:auto;scrollbar-color:auto}
+  .layout>.side::-webkit-scrollbar{width:11px}
+  .layout>.side::-webkit-scrollbar-track{background:rgba(107,147,201,.16);border-radius:99px;margin:8px 2px}
+  .layout>.side::-webkit-scrollbar-thumb{background:rgba(99,148,210,.9);border:2px solid transparent;background-clip:padding-box;border-radius:99px}
+  .layout>.side::-webkit-scrollbar-thumb:hover{background:rgba(78,130,196,1);background-clip:padding-box}
+}
+/* Firefox: dùng thuộc tính chuẩn với màu đủ rõ */
+@supports (-moz-appearance:none){
+  @media(min-width:901px){.layout>.side{scrollbar-width:thin;scrollbar-color:rgba(99,148,210,.9) rgba(107,147,201,.16)}}
+}
