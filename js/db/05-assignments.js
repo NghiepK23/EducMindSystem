@@ -147,7 +147,7 @@ function dbAssignmentTeacherDetail(d, a) {
     return `<tr>
       <th scope="row">${h(dbName(p))}<div class="muted">${dbDateTime(s.submitted_at)}${s.is_edited ? ' · đã sửa' : ''}</div></th>
       <td>${s.score != null ? dbPill('Đã chấm', 'good') : s.status === 'LATE' ? dbPill('Nộp muộn', 'need') : dbPill('Chờ chấm', 'prog')}</td>
-      <td><details class="db-work"><summary>Xem bài làm</summary><div class="db-prose">${h(s.text_content || '(không có nội dung văn bản)')}</div>${s.storage_path ? `<div class="db-file"><span class="db-file-name">${ic('overview', 14)} ${h(dbFileName(s.storage_path))}</span>${dbBtn('Xem trước', 'previewSubmission', { path: s.storage_path, name: dbFileName(s.storage_path) }, 'light mini')}${dbBtn('Tải tệp bài nộp', 'downloadSubmission', { path: s.storage_path }, 'light mini')}</div>` : ''}</details></td>
+      <td><details class="db-work"><summary>Xem bài làm</summary><div class="db-prose">${h(s.text_content || '(không có nội dung văn bản)')}</div>${s.storage_path ? `<div class="db-file"><span class="db-file-name">${ic('overview', 14)} ${h(dbSubName(s))}</span>${dbBtn('Xem trước', 'previewSubmission', { path: s.storage_path, name: dbSubName(s) }, 'light mini')}${dbBtn('Tải tệp bài nộp', 'downloadSubmission', { path: s.storage_path, name: dbSubName(s) }, 'light mini')}</div>` : ''}</details></td>
       <td>${dbGradeCell(d, a, p, s)}</td>
     </tr>`;
   });
@@ -167,6 +167,8 @@ function dbAssignmentTeacherDetail(d, a) {
 
 /* Tên tệp từ đường dẫn lưu trữ: bỏ phần mã số thời gian phía trước. */
 const dbFileName = (p) => decodeURIComponent(String(p).split('/').pop() || '').replace(/^\d+-/, '');
+/* Tên hiển thị của tệp bài nộp: ưu tiên tên gốc học sinh đã chọn khi tải lên. */
+const dbSubName = (s) => s.file_name || dbFileName(s.storage_path);
 /* Ô chấm điểm: có rubric thì nhập điểm từng tiêu chí (tổng là điểm bài nộp); không thì nhập điểm trực tiếp. */
 function dbGradeCell(d, a, p, s) {
   const crits = (d.criteria || []).filter((c) => c.assignment_id === a.id);
@@ -290,7 +292,7 @@ function dbAssignmentStudentDetail(d, a) {
   else form = `<form data-act="submitAssignment" data-id="${h(a.id)}" novalidate>
       ${dbField(s ? 'Bài làm của em (có thể sửa và nộp lại)' : 'Bài làm của em', 'db-sub-text', `<textarea id="db-sub-text" name="text" rows="10" maxlength="20000">${h(s ? s.text_content || '' : '')}</textarea>`, w === 'LATE' ? 'Đã quá hạn nộp: bài nộp hoặc sửa lúc này được ghi là nộp muộn.' : '')}
       <div class="field"><span class="db-label">Tệp đính kèm (không bắt buộc, tối đa 20 MB)</span>
-        ${s && s.storage_path ? `<div class="db-file"><span class="db-file-name">${ic('overview', 14)} ${h(dbFileName(s.storage_path))}</span>${dbBtn('Xem trước', 'previewSubmission', { path: s.storage_path, name: dbFileName(s.storage_path) }, 'light mini')}${dbBtn('Tải xuống', 'downloadSubmission', { path: s.storage_path }, 'light mini')}<span class="muted">Chọn tệp khác để thay tệp này.</span></div>` : ''}
+        ${s && s.storage_path ? `<div class="db-file"><span class="db-file-name">${ic('overview', 14)} ${h(dbSubName(s))}</span>${dbBtn('Xem trước', 'previewSubmission', { path: s.storage_path, name: dbSubName(s) }, 'light mini')}${dbBtn('Tải xuống', 'downloadSubmission', { path: s.storage_path, name: dbSubName(s) }, 'light mini')}<span class="muted">Chọn tệp khác để thay tệp này.</span></div>` : ''}
         <input type="file" id="db-sub-file" name="file" class="db-input-file" aria-label="Chọn tệp bài làm">
       </div>
       ${dbFormError()}
@@ -304,7 +306,7 @@ function dbAssignmentStudentDetail(d, a) {
       <div class="facts"><div><span>Điểm</span><b>${dbNum(s.score)} / ${dbNum(a.max_score)}</b></div><div><span>Chấm lúc</span><b>${dbDateTime(s.graded_at)}</b></div>${dbRubricResult(d, s)}</div>
       ${s.feedback ? `<div class="db-prose"><b>Nhận xét của giáo viên:</b> ${h(s.feedback)}</div>` : ''}</section>` : ''}
   <section class="panel" aria-labelledby="db-h-sw"><h2 id="db-h-sw">Bài làm</h2>
-    ${graded || w === 'CLOSED' ? (s ? `<div class="db-prose">${h(s.text_content || '')}</div>${s.storage_path ? `<div class="db-file"><span class="db-file-name">${ic('overview', 14)} ${h(dbFileName(s.storage_path))}</span>${dbBtn('Xem trước', 'previewSubmission', { path: s.storage_path, name: dbFileName(s.storage_path) }, 'light mini')}${dbBtn('Tải xuống', 'downloadSubmission', { path: s.storage_path }, 'light mini')}</div>` : ''}` : '') : ''}${form}
+    ${graded || w === 'CLOSED' ? (s ? `<div class="db-prose">${h(s.text_content || '')}</div>${s.storage_path ? `<div class="db-file"><span class="db-file-name">${ic('overview', 14)} ${h(dbSubName(s))}</span>${dbBtn('Xem trước', 'previewSubmission', { path: s.storage_path, name: dbSubName(s) }, 'light mini')}${dbBtn('Tải xuống', 'downloadSubmission', { path: s.storage_path, name: dbSubName(s) }, 'light mini')}</div>` : ''}` : '') : ''}${form}
   </section>`;
 }
 /* Điểm từng tiêu chí rubric trong trang kết quả của học sinh. */
@@ -323,7 +325,7 @@ DB_ACT.submitAssignment = (form) => dbRun(form, async (v) => {
   let storagePath = prev ? prev.storage_path : null;
   if (file) {
     if (file.size > 20 * 1048576) throw new Error('Tệp bài làm tối đa 20 MB.');
-    const safe = String(file.name).replace(/[\/\\]/g, '_').slice(-120);
+    const safe = dbSafeFileName(file.name);
     const path = DB.classId + '/' + a.id + '/' + sess.userId + '/' + Date.now() + '-' + safe;
     await dbCall(EducMindDB.uploadSubmissionFile(path, file));
     if (storagePath && storagePath !== path) { try { await EducMindDB.removeSubmissionFile(storagePath); } catch (_) {} }
@@ -331,7 +333,7 @@ DB_ACT.submitAssignment = (form) => dbRun(form, async (v) => {
   }
   if (!v.text && !storagePath) throw new Error('Nhập nội dung bài làm trước khi nộp.');
   const first = dbAssignmentWindow(a) === 'OPEN' ? 'SUBMITTED' : 'LATE';
-  const send = (status) => EducMindDB.submitAssignment({ assignment_id: a.id, text_content: v.text || null, storage_path: storagePath, status });
+  const send = (status) => EducMindDB.submitAssignment({ assignment_id: a.id, text_content: v.text || null, storage_path: storagePath, file_name: file ? String(file.name).slice(0, 200) : (prev && prev.file_name) || null, status });
   let r = await send(first);
   /* Đồng hồ của máy người dùng có thể lệch vài giây so với máy chủ quanh thời điểm hết hạn: thử lại với trạng thái còn lại. */
   if (r.error && /Submission status is not valid/i.test(r.error.message || '')) r = await send(first === 'SUBMITTED' ? 'LATE' : 'SUBMITTED');

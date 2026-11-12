@@ -66,6 +66,17 @@ const dbById = (list) => Object.fromEntries((list || []).map((x) => [x.id, x]));
 const dbGroup = (list, key) => (list || []).reduce((m, x) => { (m[x[key]] = m[x[key]] || []).push(x); return m; }, {});
 const dbInitials = (name) => String(name || '?').trim().split(/\s+/).slice(-2).map((w) => w[0] || '').join('').toUpperCase() || '?';
 const dbName = (p) => (p && (p.full_name || p.email)) || 'Không rõ';
+/* Tên tệp dùng cho khóa Storage: Supabase Storage chỉ cho phép ký tự ASCII
+   [A-Za-z0-9_/!.*'() &$=@;:+,?-] — tên có dấu tiếng Việt bị từ chối ("Invalid key").
+   Bỏ dấu, thay ký tự lạ bằng '-', giữ nguyên đuôi tệp; tên hiển thị vẫn dùng tên gốc. */
+function dbSafeFileName(name) {
+  const s = String(name || 'tep');
+  const dot = s.lastIndexOf('.');
+  let base = (dot > 0 ? s.slice(0, dot) : s).normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd').replace(/Đ/g, 'D');
+  base = base.replace(/[^A-Za-z0-9._-]+/g, '-').replace(/-+/g, '-').replace(/^[.\-_]+|[.\-_]+$/g, '').slice(0, 80) || 'tep';
+  const ext = dot > 0 ? s.slice(dot + 1).toLowerCase().replace(/[^a-z0-9]+/g, '') : '';
+  return ext ? base + '.' + ext : base;
+}
 
 /* ----- Lỗi từ máy chủ -> thông báo tiếng Việt ----- */
 const DB_ERRORS = [

@@ -311,7 +311,7 @@ DB_ACT.uploadResource = (form) => dbRun(form, async () => {
   if (!file) throw new Error('Chọn tệp tài liệu trước khi tải lên.');
   if (file.size > 50 * 1048576) throw new Error('Tệp tài liệu tối đa 50 MB.');
   const course = await dbEnsureCourse();
-  const safe = String(file.name).replace(/[\/\\]/g, '_').slice(-120);
+  const safe = dbSafeFileName(file.name);
   const path = DB.classId + '/' + Date.now() + '-' + safe;
   await dbCall(EducMindDB.uploadResourceFile(path, file, file.type || 'application/octet-stream'));
   try {
@@ -331,12 +331,12 @@ DB_ACT.deleteResource = (el) => {
   }, true);
 };
 DB_ACT.downloadResource = async (el) => {
-  const { data, error } = await EducMindDB.resourceFileUrl(el.dataset.path);
+  const { data, error } = await EducMindDB.resourceFileUrl(el.dataset.path, el.dataset.name);
   if (error) return toast('Không tạo được liên kết tải xuống: ' + (error.message || ''));
   window.open(data.signedUrl, '_blank');
 };
 DB_ACT.downloadSubmission = async (el) => {
-  const { data, error } = await EducMindDB.submissionFileUrl(el.dataset.path);
+  const { data, error } = await EducMindDB.submissionFileUrl(el.dataset.path, el.dataset.name);
   if (error) return toast('Không tạo được liên kết tải xuống: ' + (error.message || ''));
   window.open(data.signedUrl, '_blank');
 };

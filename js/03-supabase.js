@@ -95,13 +95,13 @@ const EducMindDB=(()=>{
     deleteResource:(id)=>from('resources').delete().eq('id',id).select('id,storage_path'),
     uploadResourceFile:(path,file,contentType)=>storageUpload('educmind-resources',path,file,contentType,false),
     removeResourceFile:(path)=>supabaseClient.storage.from('educmind-resources').remove([path]),
-    resourceFileUrl:(path)=>supabaseClient.storage.from('educmind-resources').createSignedUrl(path,3600),
+    resourceFileUrl:(path,name)=>supabaseClient.storage.from('educmind-resources').createSignedUrl(path,3600,name?{download:name}:undefined),
 
     /* ----- Tệp bài nộp của học sinh (kho educmind-submissions) -----
        Đường dẫn: <mã lớp>/<mã bài tập>/<mã học sinh>/<tên tệp> (máy chủ xác nhận đúng cấu trúc này). */
     uploadSubmissionFile:(path,file)=>storageUpload('educmind-submissions',path,file,file.type,true),
     removeSubmissionFile:(path)=>supabaseClient.storage.from('educmind-submissions').remove([path]),
-    submissionFileUrl:(path)=>supabaseClient.storage.from('educmind-submissions').createSignedUrl(path,3600),
+    submissionFileUrl:(path,name)=>supabaseClient.storage.from('educmind-submissions').createSignedUrl(path,3600,name?{download:name}:undefined),
 
     /* ----- Bài tập và bài nộp ----- */
     listAssignments:(courseId)=>from('assignments').select('id,course_id,topic_id,lesson_id,title,description,due_at,allow_late,late_close_at,max_score,status,created_at').eq('course_id',courseId).is('deleted_at',null).order('due_at'),
@@ -110,7 +110,7 @@ const EducMindDB=(()=>{
     listAssignmentObjectives:(assignmentIds)=>from('assignment_objectives').select('assignment_id,objective_id').in('assignment_id',assignmentIds),
     addAssignmentObjectives:(rows)=>from('assignment_objectives').insert(rows).select(),
     removeAssignmentObjectives:(assignmentId,objectiveIds)=>from('assignment_objectives').delete().eq('assignment_id',assignmentId).in('objective_id',objectiveIds).select(),
-    listSubmissions:(assignmentIds)=>from('assignment_submissions').select('id,assignment_id,student_id,text_content,storage_path,status,score,feedback,graded_at,is_edited,submitted_at').in('assignment_id',assignmentIds),
+    listSubmissions:(assignmentIds)=>from('assignment_submissions').select('id,assignment_id,student_id,text_content,storage_path,file_name,status,score,feedback,graded_at,is_edited,submitted_at').in('assignment_id',assignmentIds),
     /* Học sinh nộp hoặc sửa bài: một bài nộp cho mỗi (bài tập, học sinh). status: SUBMITTED trước hạn, LATE sau hạn (khi bài cho nộp muộn). */
     submitAssignment:(row)=>from('assignment_submissions').upsert({...row,student_id:me()},{onConflict:'assignment_id,student_id'}).select().single(),
     gradeSubmission:(id,row)=>from('assignment_submissions').update({...row,graded_by:me(),graded_at:now()}).eq('id',id).select().single(),

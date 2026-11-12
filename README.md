@@ -59,7 +59,7 @@ js/
   vendor/
     supabase-js.min.js     Thư viện Supabase ghim sẵn trong repo — không phụ thuộc CDN
 supabase/
-  migrations/              32 migration SQL của backend — nguồn chuẩn cho cấu trúc cơ sở dữ liệu
+  migrations/              33 migration SQL của backend — nguồn chuẩn cho cấu trúc cơ sở dữ liệu
 ```
 
 Quy ước: tệp **số nhỏ nạp trước**, tệp số lớn có thể dùng hàm/định nghĩa của tệp số nhỏ.
@@ -101,6 +101,8 @@ Lưu ý bảo mật của backend:
   PDF, ảnh, video, âm thanh, tệp code `.h/.cpp/.py/…` — tối đa 50 MB) và **liên kết**
   (YouTube, Canva, trang web) theo bài học; **xem trước** ảnh/PDF/video/âm thanh/tệp mã
   ngay trong trình duyệt — tệp Office và liên kết khác bấm là tải xuống hoặc mở trang web.
+  Tên tệp có dấu/khoảng trắng vẫn tải lên được: tên lưu kho tự chuẩn hóa (bỏ dấu),
+  tên gốc giữ nguyên khi hiển thị và khi tải xuống.
 - Bài tập: giao đề, **rubric nhiều tiêu chí**, chấm điểm theo tiêu chí, cho phép nộp lại,
   thêm **lượt làm bù** cho từng học sinh; **xem trước tệp bài nộp** của học sinh ngay khi chấm.
 - Ngân hàng câu hỏi (5 dạng, theo độ khó và cấp Bloom, gắn mục tiêu) — nhập/xuất **Excel**.
