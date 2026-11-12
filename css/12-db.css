@@ -208,3 +208,15 @@
 .db-link-card{display:flex;gap:12px;align-items:center;width:100%;padding:14px;border:1px solid var(--line);border-radius:12px;background:var(--fill);text-align:left}
 .db-link-card .muted{font-size:.78rem;word-break:break-all;text-align:left}
 .db-file-url{margin-left:6px;font-size:.74rem;opacity:.85}
+
+/* ===== Thẻ tiến trình tải tệp: nổi góc dưới, tự ẩn khi xong ===== */
+.db-upload{position:fixed;right:24px;bottom:24px;z-index:80;width:min(320px,calc(100vw - 32px));background:rgba(29,29,31,.92);color:#fff;border-radius:16px;padding:12px 16px;box-shadow:0 12px 32px -8px rgba(0,0,0,.4);-webkit-backdrop-filter:saturate(180%) blur(20px);backdrop-filter:saturate(180%) blur(20px)}
+.db-upload-name{font-size:.8125rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.db-upload-track{height:6px;border-radius:999px;background:rgba(255,255,255,.25);margin:8px 0 6px;overflow:hidden}
+.db-upload-fill{height:100%;width:0;border-radius:999px;background:#7dd3fc;transition:width .2s ease}
+.db-upload-text{font-size:.75rem;opacity:.9}
+.db-upload-db .db-upload-fill{width:100%;background:linear-gradient(90deg,transparent,rgba(255,255,255,.55),transparent);background-size:40% 100%;background-repeat:no-repeat;animation:db-upload-sweep 1.1s linear infinite}
+@keyframes db-upload-sweep{from{background-position:-40% 0}to{background-position:140% 0}}
+:root[data-theme="dark"] .db-upload{background:rgba(58,58,60,.95)}
+@media (max-width:640px){.db-upload{right:16px;left:16px;width:auto;bottom:calc(16px + env(safe-area-inset-bottom))}}
+@media print{.db-upload{display:none!important}}

@@ -28,16 +28,26 @@ const EducMindDB=(()=>{
   const me=()=>sess?.userId;
   /* Tải tệp lên kho bằng thân nhị phân thô (Supabase Storage nhận body nguyên bản; tránh multipart
      để giữ nguyên từng byte tệp). Trả về { data, error } như supabase-js để dbCall dùng chung. */
-  const storageUpload=async(bucket,path,file,contentType,upsert)=>{
+  const storageUpload=async(bucket,path,file,contentType,upsert,onProgress)=>{
     try{
       const { data: s } = await supabaseClient.auth.getSession();
-      const r = await fetch(SUPABASE_URL + '/storage/v1/object/' + bucket + '/' + path.split('/').map(encodeURIComponent).join('/'), {
-        method: 'POST',
-        headers: { 'Authorization': 'Bearer ' + (s?.session?.access_token || SUPABASE_PUBLISHABLE_KEY), 'apikey': SUPABASE_PUBLISHABLE_KEY, 'content-type': contentType || file.type || 'application/octet-stream', 'x-upsert': String(!!upsert) },
-        body: await file.arrayBuffer(),
+      const body = await file.arrayBuffer();
+      /* XMLHttpRequest thay cho fetch: fetch không báo tiến trình tải lên; xhr.upload.onprogress
+         cho biết số byte đã gửi để vẽ thanh tiến trình cho người dùng. */
+      return await new Promise((resolve)=>{
+        const xhr=new XMLHttpRequest();
+        xhr.open('POST',SUPABASE_URL+'/storage/v1/object/'+bucket+'/'+path.split('/').map(encodeURIComponent).join('/'));
+        xhr.setRequestHeader('Authorization','Bearer '+(s?.session?.access_token||SUPABASE_PUBLISHABLE_KEY));
+        xhr.setRequestHeader('apikey',SUPABASE_PUBLISHABLE_KEY);
+        xhr.setRequestHeader('content-type',contentType||file.type||'application/octet-stream');
+        xhr.setRequestHeader('x-upsert',String(!!upsert));
+        if(onProgress&&xhr.upload)xhr.upload.onprogress=(e)=>{if(e.lengthComputable)onProgress(e.loaded,e.total);};
+        xhr.onload=()=>{let j=null;try{j=JSON.parse(xhr.responseText);}catch(_){}
+          if(xhr.status>=200&&xhr.status<300)resolve({data:j,error:null});
+          else resolve({data:null,error:{message:(j&&j.message)||('HTTP '+xhr.status)}});};
+        xhr.onerror=()=>resolve({data:null,error:{message:'HTTP '+xhr.status}});
+        xhr.send(body);
       });
-      if (!r.ok) { let m = 'HTTP ' + r.status; try { m = (await r.json()).message || m; } catch (_) {} return { data: null, error: { message: m } }; }
-      return { data: await r.json(), error: null };
     } catch (e) { return { data: null, error: { message: String(e && e.message || e) } }; }
   };
   return {
@@ -93,13 +103,13 @@ const EducMindDB=(()=>{
     createResource:(row)=>from('resources').insert(row).select().single(),
     /* Xóa hẳn dòng và tệp trong kho (tệp đã xóa không khôi phục được). */
     deleteResource:(id)=>from('resources').delete().eq('id',id).select('id,storage_path'),
-    uploadResourceFile:(path,file,contentType)=>storageUpload('educmind-resources',path,file,contentType,false),
+    uploadResourceFile:(path,file,contentType,onProgress)=>storageUpload('educmind-resources',path,file,contentType,false,onProgress),
     removeResourceFile:(path)=>supabaseClient.storage.from('educmind-resources').remove([path]),
     resourceFileUrl:(path,name)=>supabaseClient.storage.from('educmind-resources').createSignedUrl(path,3600,name?{download:name}:undefined),
 
     /* ----- Tệp bài nộp của học sinh (kho educmind-submissions) -----
        Đường dẫn: <mã lớp>/<mã bài tập>/<mã học sinh>/<tên tệp> (máy chủ xác nhận đúng cấu trúc này). */
-    uploadSubmissionFile:(path,file)=>storageUpload('educmind-submissions',path,file,file.type,true),
+    uploadSubmissionFile:(path,file,onProgress)=>storageUpload('educmind-submissions',path,file,file.type,true,onProgress),
     removeSubmissionFile:(path)=>supabaseClient.storage.from('educmind-submissions').remove([path]),
     submissionFileUrl:(path,name)=>supabaseClient.storage.from('educmind-submissions').createSignedUrl(path,3600,name?{download:name}:undefined),
 

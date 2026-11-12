@@ -313,12 +313,19 @@ DB_ACT.uploadResource = (form) => dbRun(form, async () => {
   const course = await dbEnsureCourse();
   const safe = dbSafeFileName(file.name);
   const path = DB.classId + '/' + Date.now() + '-' + safe;
-  await dbCall(EducMindDB.uploadResourceFile(path, file, file.type || 'application/octet-stream'));
+  /* Thẻ tiến trình: hết byte → chuyển sang giai đoạn máy chủ lưu, ẩn khi xong/lỗi. */
+  dbUploadShow(file.name);
   try {
-    await dbCall(EducMindDB.createResource({ course_id: course.id, lesson_id: form.dataset.lesson, file_name: String(file.name).slice(0, 200), storage_path: path, file_size_bytes: file.size, mime_type: file.type || 'application/octet-stream', uploaded_by: sess.userId }));
-  } catch (e) {
-    try { await EducMindDB.removeResourceFile(path); } catch (_) {}
-    throw e;
+    await dbCall(EducMindDB.uploadResourceFile(path, file, file.type || 'application/octet-stream', dbUploadProgress));
+    dbUploadSaving();
+    try {
+      await dbCall(EducMindDB.createResource({ course_id: course.id, lesson_id: form.dataset.lesson, file_name: String(file.name).slice(0, 200), storage_path: path, file_size_bytes: file.size, mime_type: file.type || 'application/octet-stream', uploaded_by: sess.userId }));
+    } catch (e) {
+      try { await EducMindDB.removeResourceFile(path); } catch (_) {}
+      throw e;
+    }
+  } finally {
+    dbUploadHide();
   }
 }, 'Đã tải tài liệu lên.');
 DB_ACT.deleteResource = (el) => {

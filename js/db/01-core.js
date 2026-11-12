@@ -262,6 +262,48 @@ async function dbRun(el, work, okMsg) {
   }
   if (scope && scope.isConnected) { controls.forEach((x) => { x.disabled = false; }); delete scope.dataset.busy; }
 }
+
+/* ===== Thẻ tiến trình tải tệp =====
+   Nổi góc dưới cùng, nằm ngoài vùng render nên không bị mất khi giao diện vẽ lại.
+   Trình tự: dbUploadShow(tên tệp) → dbUploadProgress(đã gửi, tổng) trong lúc tải byte
+   → dbUploadSaving() khi máy chủ lưu → dbUploadHide() khi xong hoặc lỗi. */
+function dbUploadCard() {
+  let n = document.getElementById('db-upload');
+  if (!n) {
+    n = document.createElement('div');
+    n.id = 'db-upload';
+    n.className = 'db-upload';
+    n.hidden = true;
+    n.setAttribute('role', 'status');
+    n.setAttribute('aria-live', 'polite');
+    n.innerHTML = '<div class="db-upload-name"></div><div class="db-upload-track"><div class="db-upload-fill"></div></div><div class="db-upload-text"></div>';
+    document.body.appendChild(n);
+  }
+  return n;
+}
+function dbUploadShow(name) {
+  const n = dbUploadCard();
+  n.classList.remove('db-upload-db');
+  n.querySelector('.db-upload-name').textContent = name;
+  n.querySelector('.db-upload-fill').style.width = '0%';
+  n.querySelector('.db-upload-text').textContent = 'Đang tải lên… 0%';
+  n.hidden = false;
+}
+function dbUploadProgress(loaded, total) {
+  const n = dbUploadCard();
+  const pct = Math.round(Math.max(0, Math.min(1, total > 0 ? loaded / total : 0)) * 100);
+  n.querySelector('.db-upload-fill').style.width = pct + '%';
+  n.querySelector('.db-upload-text').textContent = 'Đang tải lên… ' + pct + '%';
+}
+function dbUploadSaving() {
+  const n = dbUploadCard();
+  n.classList.add('db-upload-db');
+  n.querySelector('.db-upload-text').textContent = 'Đang lưu vào cơ sở dữ liệu…';
+}
+function dbUploadHide() {
+  const n = document.getElementById('db-upload');
+  if (n) n.hidden = true;
+}
 /* Hộp thoại: { title, body (html), okLabel, danger, wide, onOk(values) }. onOk ném lỗi thì hộp thoại ở lại và hiện lỗi. */
 function dbOpenDialog(d) { DB.dialog = d; render(); const f = document.querySelector('.db-dialog [autofocus], .db-dialog input, .db-dialog textarea, .db-dialog select, .db-dialog #db-dlg-ok'); if (f) f.focus(); }
 function dbCloseDialog() { DB.dialog = null; render(); }

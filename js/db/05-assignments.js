@@ -323,19 +323,26 @@ DB_ACT.submitAssignment = (form) => dbRun(form, async (v) => {
   const input = form.querySelector('input[type="file"]');
   const file = input && input.files[0];
   let storagePath = prev ? prev.storage_path : null;
-  if (file) {
-    if (file.size > 20 * 1048576) throw new Error('Tệp bài làm tối đa 20 MB.');
-    const safe = dbSafeFileName(file.name);
-    const path = DB.classId + '/' + a.id + '/' + sess.userId + '/' + Date.now() + '-' + safe;
-    await dbCall(EducMindDB.uploadSubmissionFile(path, file));
-    if (storagePath && storagePath !== path) { try { await EducMindDB.removeSubmissionFile(storagePath); } catch (_) {} }
-    storagePath = path;
+  try {
+    if (file) {
+      if (file.size > 20 * 1048576) throw new Error('Tệp bài làm tối đa 20 MB.');
+      const safe = dbSafeFileName(file.name);
+      const path = DB.classId + '/' + a.id + '/' + sess.userId + '/' + Date.now() + '-' + safe;
+      /* Thẻ tiến trình: hết byte → chuyển sang giai đoạn máy chủ lưu, ẩn khi xong/lỗi. */
+      dbUploadShow(file.name);
+      await dbCall(EducMindDB.uploadSubmissionFile(path, file, dbUploadProgress));
+      dbUploadSaving();
+      if (storagePath && storagePath !== path) { try { await EducMindDB.removeSubmissionFile(storagePath); } catch (_) {} }
+      storagePath = path;
+    }
+    if (!v.text && !storagePath) throw new Error('Nhập nội dung bài làm trước khi nộp.');
+    const first = dbAssignmentWindow(a) === 'OPEN' ? 'SUBMITTED' : 'LATE';
+    const send = (status) => EducMindDB.submitAssignment({ assignment_id: a.id, text_content: v.text || null, storage_path: storagePath, file_name: file ? String(file.name).slice(0, 200) : (prev && prev.file_name) || null, status });
+    let r = await send(first);
+    /* Đồng hồ của máy người dùng có thể lệch vài giây so với máy chủ quanh thời điểm hết hạn: thử lại với trạng thái còn lại. */
+    if (r.error && /Submission status is not valid/i.test(r.error.message || '')) r = await send(first === 'SUBMITTED' ? 'LATE' : 'SUBMITTED');
+    await dbCall(Promise.resolve(r));
+  } finally {
+    dbUploadHide();
   }
-  if (!v.text && !storagePath) throw new Error('Nhập nội dung bài làm trước khi nộp.');
-  const first = dbAssignmentWindow(a) === 'OPEN' ? 'SUBMITTED' : 'LATE';
-  const send = (status) => EducMindDB.submitAssignment({ assignment_id: a.id, text_content: v.text || null, storage_path: storagePath, file_name: file ? String(file.name).slice(0, 200) : (prev && prev.file_name) || null, status });
-  let r = await send(first);
-  /* Đồng hồ của máy người dùng có thể lệch vài giây so với máy chủ quanh thời điểm hết hạn: thử lại với trạng thái còn lại. */
-  if (r.error && /Submission status is not valid/i.test(r.error.message || '')) r = await send(first === 'SUBMITTED' ? 'LATE' : 'SUBMITTED');
-  await dbCall(Promise.resolve(r));
 }, 'Đã nộp bài.');

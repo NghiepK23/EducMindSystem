@@ -99,7 +99,8 @@ Lưu ý bảo mật của backend:
   hoặc **tự tạo tài khoản cho học sinh** (tự đặt mật khẩu).
 - Soạn chủ đề – bài học – mục tiêu; **tải tệp tài nguyên** (mọi định dạng: doc, docx, xlsx, pptx,
   PDF, ảnh, video, âm thanh, tệp code `.h/.cpp/.py/…` — tối đa 50 MB) và **liên kết**
-  (YouTube, Canva, trang web) theo bài học; **xem trước** ảnh/PDF/video/âm thanh/tệp mã
+  (YouTube, Canva, trang web) theo bài học; có **thanh tiến trình** khi đang tải tệp lên;
+  **xem trước** ảnh/PDF/video/âm thanh/tệp mã
   ngay trong trình duyệt — tệp Office và liên kết khác bấm là tải xuống hoặc mở trang web.
   Tên tệp có dấu/khoảng trắng vẫn tải lên được: tên lưu kho tự chuẩn hóa (bỏ dấu),
   tên gốc giữ nguyên khi hiển thị và khi tải xuống.
@@ -120,8 +121,8 @@ Lưu ý bảo mật của backend:
 ### Học sinh
 
 - Vào lớp bằng mã lớp; xem bài học, mục tiêu và tài liệu đã xuất bản.
-- Nộp/nộp lại bài tập bằng **tệp đính kèm** hoặc văn bản; **xem trước** tệp đã nộp; xem điểm,
-  nhận xét, rubric.
+- Nộp/nộp lại bài tập bằng **tệp đính kèm** hoặc văn bản (kèm **thanh tiến trình** khi tải tệp);
+  **xem trước** tệp đã nộp; xem điểm, nhận xét, rubric.
 - Làm bài kiểm tra có đồng hồ đếm ngược (tự lưu, tự nộp khi hết giờ, làm nhiều lượt
   theo số lượt giáo viên đặt — kể cả lượt bù).
 - **Trò chơi ôn tập** 3 chế độ: Nhanh (60 giây), Đua tốc độ (10 câu × 20 giây),
