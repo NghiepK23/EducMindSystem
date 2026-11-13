@@ -1,7 +1,7 @@
 /* EducMind · js/db/14-ai.js
    Trang “AI tạo câu hỏi nháp” (chỉ giáo viên):
      - Gửi yêu cầu sinh câu hỏi cho một bài học (chọn mục tiêu, loại câu, độ khó, Bloom, số lượng).
-       Bộ sinh chạy phía máy chủ (mẫu có kiểm chứng) — hạn mức 5 lượt/ngày theo giờ Việt Nam.
+       Gemini chạy trong Supabase Edge Function — hạn mức 5 lượt/ngày theo giờ Việt Nam.
      - Bản nháp chưa ảnh hưởng điểm hay mức nắm vững; giáo viên duyệt / sửa-và-duyệt / từ chối
        trước khi câu hỏi thật sự vào ngân hàng (kèm mục tiêu đã chọn). */
 
@@ -88,7 +88,7 @@ function dbAiHistory(d, byLesson) {
 }
 
 /* ===== Thao tác ===== */
-/* Gửi yêu cầu và chạy bộ sinh ngay (máy chủ sinh, kiểm chứng và lưu bản nháp). */
+/* Gửi yêu cầu rồi gọi Edge Function; khóa Gemini không được đưa xuống trình duyệt. */
 DB_ACT.aiGenerate = (form) => dbRun(form, async (v) => {
   const qty = Number(v.qty);
   if (!v.lesson) throw new Error('Hãy chọn bài học cần sinh câu hỏi.');
@@ -98,8 +98,22 @@ DB_ACT.aiGenerate = (form) => dbRun(form, async (v) => {
     kind: v.kind || 'AUTO', difficulty: v.difficulty || 'AUTO', bloom: v.bloom || 'AUTO',
   };
   const req = await dbCall(EducMindDB.createAiRequest(v.lesson, qty, params));
-  const n = await dbCall(EducMindDB.runAiGeneration(req.id));
-  toast(n > 0 ? 'AI đã tạo xong ' + n + ' câu hỏi nháp — hãy duyệt trước khi dùng.' : 'AI không tạo được câu hỏi (xem lỗi trong lịch sử yêu cầu).');
+  if (!supabaseClient) throw new Error('Chưa kết nối được Supabase.');
+  const { data, error } = await supabaseClient.functions.invoke('ai-generate', { body: { request_id: req.id } });
+  if (error) {
+    let message = error.message || 'Không gọi được Edge Function.';
+    if (error.context instanceof Response) {
+      try {
+        const detail = await error.context.clone().json();
+        if (detail && typeof detail.error === 'string') message = detail.error;
+      } catch (_) { /* Phản hồi không phải JSON; giữ thông báo lỗi của SDK. */ }
+    }
+    throw new Error(message);
+  }
+  if (!data || !Number.isInteger(data.count) || data.count !== qty) {
+    throw new Error('Máy chủ không xác nhận đã lưu đủ câu hỏi; hãy tải lại lịch sử yêu cầu.');
+  }
+  toast('AI đã tạo xong ' + data.count + ' câu hỏi nháp — hãy duyệt trước khi dùng.');
 });
 
 /* Duyệt nhanh một bản nháp: giữ nguyên nội dung, đưa vào ngân hàng kèm mục tiêu. */

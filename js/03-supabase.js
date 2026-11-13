@@ -199,7 +199,6 @@ const EducMindDB=(()=>{
     /* ----- Nhóm 3: AI tạo câu hỏi nháp ----- */
     listAiRequests:()=>from('ai_generation_requests').select('id,lesson_id,quantity,parameters,status,error_message,created_at,completed_at').eq('teacher_id',me()).order('created_at',{ascending:false}),
     createAiRequest:(lessonId,quantity,params)=>rpc('create_ai_request',{p_lesson:lessonId,p_quantity:quantity,p_parameters:params||{}}),
-    runAiGeneration:(requestId)=>rpc('run_ai_generation',{p_request:requestId}),
     listAiOutputs:(requestIds)=>from('ai_generation_outputs').select('id,request_id,content,kind,objective_id,difficulty,bloom_level,options,correct_answer,review_status,review_note,approved_question_id').in('request_id',requestIds).order('content'),
     /* Từ chối / ghi chú một bản nháp (reviewed_by luôn là người duyệt). */
     updateAiOutput:(id,row)=>from('ai_generation_outputs').update({...row,reviewed_by:me(),reviewed_at:now()}).eq('id',id).select().single(),

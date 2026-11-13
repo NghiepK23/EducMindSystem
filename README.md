@@ -59,7 +59,8 @@ js/
   vendor/
     supabase-js.min.js     Thư viện Supabase ghim sẵn trong repo — không phụ thuộc CDN
 supabase/
-  migrations/              33 migration SQL của backend — nguồn chuẩn cho cấu trúc cơ sở dữ liệu
+  migrations/              Migration SQL của backend — nguồn chuẩn cho cấu trúc cơ sở dữ liệu
+  functions/ai-generate/   Supabase Edge Function gọi Gemini để tạo câu hỏi nháp
 ```
 
 Quy ước: tệp **số nhỏ nạp trước**, tệp số lớn có thể dùng hàm/định nghĩa của tệp số nhỏ.
@@ -78,6 +79,27 @@ mọi lệnh đọc/ghi cơ sở dữ liệu đều đi qua đối tượng này
 5. Hai **Storage bucket** `educmind-resources` (tài liệu bài học) và `educmind-submissions`
    (bài nộp của học sinh) đã được migration tạo sẵn kèm policy đọc/ghi; nếu tự tạo lại thì
    để trống `allowed_mime_types` để nhận mọi định dạng tệp.
+
+### Cấu hình AI tạo câu hỏi bằng Gemini
+
+AI gọi Gemini từ Supabase Edge Function; **không đặt `GEMINI_API_KEY` trong JavaScript hoặc repository**.
+Chọn model Gemini trong Google AI Studio, sau đó tại terminal ở thư mục dự án:
+
+```bash
+supabase link --project-ref <project-ref>
+read -s GEMINI_API_KEY
+export GEMINI_API_KEY
+supabase secrets set GEMINI_API_KEY="$GEMINI_API_KEY" GEMINI_MODEL="<model-id>"
+unset GEMINI_API_KEY
+supabase db push
+supabase functions deploy ai-generate
+```
+
+Khi chạy `read -s`, nhập khóa Gemini rồi nhấn Enter; thay `<project-ref>` bằng mã dự án
+(phần trước `.supabase.co` trong URL Supabase) và `<model-id>` bằng tên model đã chọn.
+Sau đó cần xuất bản bản website có thay đổi JavaScript. Edge Function yêu cầu JWT giáo viên,
+đọc dữ liệu theo RLS, chỉ gửi tên lớp/chủ đề/bài học/mục tiêu cho Gemini và lưu kết quả ở trạng thái
+chờ giáo viên duyệt. Nếu Gemini lỗi, yêu cầu được ghi trạng thái thất bại để xem trong lịch sử.
 
 Lưu ý bảo mật của backend:
 
@@ -109,7 +131,7 @@ Lưu ý bảo mật của backend:
 - Ngân hàng câu hỏi (5 dạng, theo độ khó và cấp Bloom, gắn mục tiêu) — nhập/xuất **Excel**.
 - Đề kiểm tra: chọn câu từ ngân hàng, cửa sổ mở/đóng, chấm tự động và chấm tay,
   tự cộng dồn điểm từng câu (không cần nhập tổng).
-- **AI tạo câu hỏi nháp** cho một bài học (tối đa 20 câu/lượt, 5 lượt/ngày theo giờ Việt Nam),
+- **AI tạo câu hỏi nháp bằng Gemini** cho một bài học (tối đa 20 câu/lượt, 5 lượt/ngày theo giờ Việt Nam),
   duyệt / sửa-và-duyệt / từ chối trước khi đưa vào ngân hàng; có thông báo khi AI xong.
 - **Lịch & việc cần làm** tự động chốt theo hạn nộp và trạng thái chấm.
 - **Báo cáo tiến bộ**: tổng hợp + chi tiết từng học sinh, xuất **Excel** (kể cả sheet
