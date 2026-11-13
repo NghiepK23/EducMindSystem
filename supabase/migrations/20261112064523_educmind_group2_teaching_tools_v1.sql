@@ -1,5 +1,5 @@
 -- Nhóm 2 — công cụ giảng dạy:
---   1) Ngân hàng câu hỏi theo khối/Bloom: thêm cột grade (khối 1–12) và bloom_level cho câu hỏi.
+--   1) Ngân hàng câu hỏi theo khối/Bloom: thêm cột grade (khối 3–12) và bloom_level cho câu hỏi.
 --   2) Mở bài học tuần tự: cột courses.sequential_unlock để giáo viên tự bật/tắt; điều kiện mở bài
 --      (nắm vững ≥ 0.8 mọi mục tiêu của bài trước) do trình duyệt tính từ bảng mastery sẵn có.
 --   3) Thêm lượt làm bù: bảng assessment_extra_attempts + nới giới hạn lượt trong protect_student_grades;
@@ -8,7 +8,7 @@
 --      email được xác nhận ngay, có thể thêm thẳng vào một lớp do mình quản lý).
 
 alter table public.questions
-  add column grade smallint check (grade between 1 and 12),
+  add column grade smallint check (grade between 3 and 12),
   add column bloom_level text check (bloom_level in ('REMEMBER','UNDERSTAND','APPLY','ANALYZE','EVALUATE','CREATE'));
 create index if not exists questions_grade_idx on public.questions(grade);
 create index if not exists questions_bloom_idx on public.questions(bloom_level);
