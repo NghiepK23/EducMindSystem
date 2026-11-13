@@ -245,6 +245,11 @@ td{font-size:.84375rem}
 .login .field label{font-size:.76rem}
 .login .muted{font-size:.74rem;line-height:1.4}
 @media(pointer:coarse){.login input:not([type=checkbox]):not([type=radio]),.login .btn{min-height:44px}}
+/* Mọi màn hình đăng nhập / tạo tài khoản / quên mật khẩu / đặt mật khẩu mới cao bằng nhau (= chiều cao khung Tạo tài khoản).
+   Phần logo + tiêu đề nằm trên cùng, biểu mẫu tự giãn và căn giữa ở khoảng trống còn lại, các nút phụ nằm dưới cùng.
+   Đổi --login-h nếu thêm/bớt ô nhập ở màn hình Tạo tài khoản. */
+.login{--login-h:720px;min-height:var(--login-h);display:flex;flex-direction:column}
+.login>form{flex:1;display:flex;flex-direction:column;justify-content:center;gap:12px}.login>form .field{margin:0}
 .hide{display:none!important}
 
 /* Thông báo nhanh: viên thuốc nổi, chất liệu đậm */
