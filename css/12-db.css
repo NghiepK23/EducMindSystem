@@ -13,11 +13,15 @@
 .db-form-row{display:flex;flex-wrap:wrap;align-items:flex-end;gap:12px;margin-top:8px}
 .db-form-row .field{margin:0;flex:1 1 180px;min-width:0}
 .db-form-row .field input,.db-form-row .field select{width:100%}
+.db-files .db-add-row .field label{min-height:3em}
 .db-form-row>.btn{flex:none}
 .db-form-row>.db-form-error{flex:1 1 100%}
 .db-add-row{margin-top:14px;padding-top:14px;box-shadow:0 -.5px 0 var(--line)}
 .db-form-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:0 16px}
+.db-late-grid{grid-template-columns:minmax(0,1fr) minmax(0,2fr);align-items:center}
+.db-late-grid .field{margin:8px 0}
 .db-form-grid .field input,.db-form-grid .field select,.field textarea{width:100%}
+.db-late-grid .field input[type="checkbox"]{width:auto}
 .db-form-actions{justify-content:flex-end;margin-top:18px}
 .db-label{display:block;font-size:.8125rem;color:var(--muted);font-weight:600;margin-bottom:6px}
 .db-hint{font-size:.78125rem;margin-top:2px}
@@ -124,8 +128,8 @@
 .db-file-name>svg{flex:0 0 auto}
 .db-file-title{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .db-file-meta{flex:0 0 auto;white-space:nowrap;font-variant-numeric:tabular-nums}
-.db-file-actions{margin-left:auto;flex:0 0 auto;flex-wrap:wrap;justify-content:flex-end}
-.db-file-actions .btn{white-space:nowrap}
+.db-file-actions{display:grid;grid-template-columns:86px 86px 50px;gap:8px;margin-left:auto;flex:0 0 auto;justify-content:flex-end}
+.db-file-actions .btn{width:100%;white-space:nowrap}
 .db-input-file{font:inherit;font-size:.875rem;padding:6px 8px;border-radius:10px;border:1px dashed var(--line,var(--brand));background:var(--surface);max-width:100%}
 
 /* ----- Thang điểm chi tiết (rubric) ----- */
@@ -155,9 +159,10 @@
 .db-sched-body{flex:1 1 auto;min-width:0}
 .db-cal{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin:10px 0 6px}
 .db-cal-head{text-align:center;font-size:.75rem;font-weight:700;color:#5b6577;padding:4px 0}
-.db-cal-cell{position:relative;min-height:52px;border:1px solid var(--line,#d8dde5);border-radius:8px;background:var(--bg,#fff);cursor:pointer;font:inherit;padding:4px;text-align:left}
+.db-cal-cell{display:grid;place-items:center;position:relative;min-height:52px;border:1px solid var(--line,#d8dde5);border-radius:8px;background:var(--bg,#fff);cursor:pointer;font:inherit;padding:4px;text-align:center}
 .db-cal-cell.empty{border:none;background:transparent;cursor:default}
 .db-cal-cell.has-ev{background:#eef4fd;border-color:#9dbfe8}
+:root[data-theme="dark"] .db-cal-cell.has-ev:not(.sel){background:rgba(10,132,255,.18);border-color:rgba(108,180,255,.45);color:var(--ink)}
 .db-cal-cell.today{outline:2px solid #2e7dd1;outline-offset:-2px}
 .db-cal-cell.sel{background:#2e7dd1;color:#fff;border-color:#2e7dd1}
 .db-cal-num{font-size:.82rem;font-weight:600}
@@ -225,4 +230,4 @@
 :root[data-theme="dark"] .db-upload{background:rgba(58,58,60,.95)}
 @media (max-width:640px){.db-upload{right:16px;left:16px;width:auto;bottom:calc(16px + env(safe-area-inset-bottom))}}
 @media print{.db-upload{display:none!important}}
-@media (max-width:640px){.db-file-actions{flex-basis:100%}}
+@media (max-width:640px){.db-file-actions{flex-basis:100%}.db-late-grid{grid-template-columns:1fr;align-items:stretch}}
