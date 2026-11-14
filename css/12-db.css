@@ -84,6 +84,18 @@
 .db-objlist{margin-top:14px}
 .db-objlist ul{margin:0;padding-left:18px}
 
+/* Mục tiêu theo bài học: khối thu gọn */
+.db-objpick-fold{max-height:none;overflow:visible;gap:8px}
+.db-objgrp{border-radius:12px;box-shadow:inset 0 0 0 .5px var(--line)}
+.db-objgrp>summary{display:flex;align-items:center;gap:10px;list-style:none;cursor:pointer;padding:10px 12px;border-radius:12px;font:600 .8125rem/1.35 var(--font-body)}
+.db-objgrp>summary::-webkit-details-marker{display:none}
+.db-objgrp>summary::before{content:"";flex:none;width:7px;height:7px;border-right:2px solid var(--muted);border-bottom:2px solid var(--muted);transform:rotate(-45deg);transition:transform .2s var(--ease)}
+.db-objgrp[open]>summary::before{transform:rotate(45deg)}
+.db-objgrp>summary:hover{background:var(--fill)}
+.db-objgrp-title{flex:1;min-width:0;overflow-wrap:anywhere}
+.db-objgrp-count{flex:none}
+.db-objgrp-body{display:grid;gap:6px;padding:2px 10px 10px}
+
 /* ----- Bài tập, bài kiểm tra ----- */
 .db-task{padding:14px 0;box-shadow:0 -.5px 0 var(--line)}
 .db-task:first-of-type{box-shadow:none}
@@ -271,3 +283,24 @@
 @media (max-width:640px){.db-upload{right:16px;left:16px;width:auto;bottom:calc(16px + env(safe-area-inset-bottom))}}
 @media print{.db-upload{display:none!important}}
 @media (max-width:640px){.db-file-actions{flex-basis:100%}.db-late-grid{grid-template-columns:1fr;align-items:stretch}}
+
+/* Thuộc tính hidden phải thắng display:flex của .item / .qrow */
+.ab-bank .qrow[hidden],.db-objgrp[hidden]{display:none!important}
+/* Khối ngân hàng câu hỏi thu gọn được */
+.db-bankfold{margin-top:12px}
+.db-bankfold>summary{display:flex;align-items:center;gap:10px;list-style:none;cursor:pointer;padding:10px 12px;border-radius:12px;background:var(--fill);font:600 .875rem/1.35 var(--font-body)}
+.db-bankfold>summary::-webkit-details-marker{display:none}
+.db-bankfold>summary::before{content:"";flex:none;width:7px;height:7px;border-right:2px solid var(--muted);border-bottom:2px solid var(--muted);transform:rotate(-45deg);transition:transform .2s var(--ease)}
+.db-bankfold[open]>summary::before{transform:rotate(45deg)}
+.db-bankfold>summary:hover{background:var(--fill-2)}
+.db-bankfold-title{flex:1;min-width:0}
+.db-bankfold-hint{font-weight:500;font-size:.75rem;color:var(--muted)}
+.db-bankfold .when-closed{display:none}
+.db-bankfold:not([open]) .when-closed{display:inline}
+.db-bankfold:not([open]) .when-open{display:none}
+.db-bankfold>.ab-tools{margin-top:12px}
+
+/* Hàng bộ lọc ngân hàng có 3 ô */
+.db-bankfold>.ab-tools{grid-template-columns:repeat(3,minmax(0,1fr))}
+@media(max-width:1000px){.db-bankfold>.ab-tools{grid-template-columns:repeat(2,minmax(0,1fr))}.db-bankfold>.ab-tools .selectbox:last-child{grid-column:span 2}}
+@media(max-width:620px){.db-bankfold>.ab-tools{grid-template-columns:minmax(0,1fr)}.db-bankfold>.ab-tools .selectbox:last-child{grid-column:span 1}}

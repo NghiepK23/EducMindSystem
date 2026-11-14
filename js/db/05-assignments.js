@@ -34,10 +34,10 @@ DB_PAGES.assignments = {
     ]);
     const roster = dbIsTeacher() ? await dbLoadRoster() : { members: [], profiles: {} };
     const questions = dbIsTeacher() && DB.course ? await dbCall(EducMindDB.listQuestions(DB.course.id)) : [];
+    const qlinks = dbIsTeacher() ? await dbCallIn(EducMindDB.listQuestionObjectives, questions.map((q) => q.id)) : [];
     const assignmentQuestionDetails = dbIsTeacher() && DB.course ? await dbCall(EducMindDB.listAssignmentQuestionDetails(DB.course.id)) : [];
     const studentQuestions = !dbIsTeacher() && DB.arg.id ? await dbCall(EducMindDB.getAssignmentQuestions(DB.arg.id)) : [];
-    return { ...content, assignments, links, submissions, criteria, rubricScores, assignmentQuestions, assignmentAnswers, questions, assignmentQuestionDetails, studentQuestions, ...roster };
-  },
+    return { ...content, assignments, links, submissions, criteria, rubricScores, assignmentQuestions, assignmentAnswers, questions, qlinks, assignmentQuestionDetails, studentQuestions, ...roster };  },
   view(d) {
     const T = dbIsTeacher();
     if (T && DB.arg.edit) return dbAssignmentForm(d, DB.arg.edit === 'new' ? null : d.assignments.find((a) => a.id === DB.arg.edit));
@@ -74,6 +74,7 @@ function dbAssignmentTeacherList(d) {
     ${cards.length ? cards.join('') : dbEmpty('Chưa có bài tập nào.')}
   </section>`;
 }
+
 function dbAssignmentForm(d, a) {
   if (DB.arg.edit !== 'new' && !a) return `<section class="panel">${dbEmpty('Không tìm thấy bài tập cần sửa.')}</section>`;
   const picked = new Set(a ? d.links.filter((x) => x.assignment_id === a.id).map((x) => x.objective_id) : []);
@@ -81,6 +82,12 @@ function dbAssignmentForm(d, a) {
   const linkedQuestions = new Set(a ? d.assignmentQuestions.filter((x) => x.assignment_id === a.id).map((x) => x.question_id) : []);
   const questionBank = d.questions.filter((q) => !linkedQuestions.has(q.id));
   const locked = a && d.submissions.some((s) => s.assignment_id === a.id);
+  /* Bài học của từng câu hỏi = bài học chứa các mục tiêu mà câu đó gắn. Câu chưa gắn mục tiêu thì không rõ thuộc bài nào. */
+  const objById = dbById(d.objectives), qlinksBy = dbGroup(d.qlinks || [], 'question_id');
+  const lessonsOfQ = (qid) => [...new Set((qlinksBy[qid] || []).map((x) => objById[x.objective_id]).filter(Boolean).map((o) => o.lesson_id))];
+  const initLesson = a && a.lesson_id ? a.lesson_id : '';
+  const bankRows = questionBank.map((q) => { const ls = lessonsOfQ(q.id); return { q, ls, hide: !!(initLesson && ls.length && !ls.includes(initLesson)) }; });
+  const shownInit = bankRows.filter((r) => !r.hide).length;
   return `<section class="panel" aria-labelledby="db-h-af">
     <h2 id="db-h-af">${a ? 'Sửa bài tập' : 'Tạo bài tập'}</h2>
     <p class="lead">Chọn câu hỏi ngay bên dưới hoặc lưu bài tập thành bản nháp để tạo câu mới, nhập tệp Excel/CSV và xem trước. Học sinh chỉ thấy bài sau khi xuất bản.</p>
@@ -88,7 +95,7 @@ function dbAssignmentForm(d, a) {
       ${dbField('Tên bài tập', 'db-af-title', `<input id="db-af-title" name="title" maxlength="200" value="${h(a ? a.title : '')}" required>`)}
       ${dbField('Yêu cầu / hướng dẫn (không phải câu hỏi)', 'db-af-desc', `<textarea id="db-af-desc" name="description" rows="5" maxlength="5000">${h(a ? a.description : '')}</textarea>`)}
       <div class="db-form-grid">
-        ${dbField('Bài học', 'db-af-lesson', `<select id="db-af-lesson" name="lesson_id"><option value="">Không gắn bài học</option>${d.lessons.map((l) => `<option value="${h(l.id)}" ${a && a.lesson_id === l.id ? 'selected' : ''}>${h(l.title)}</option>`).join('')}</select>`)}
+        ${dbField('Bài học', 'db-af-lesson', `<select id="db-af-lesson" name="lesson_id" data-change="assignmentLessonPick" data-apply><option value="">Không gắn bài học</option>${d.lessons.map((l) => `<option value="${h(l.id)}" ${a && a.lesson_id === l.id ? 'selected' : ''}>${h(l.title)}</option>`).join('')}</select>`)}
         ${dbField('Hạn nộp', 'db-af-due', `<input id="db-af-due" name="due" type="datetime-local" value="${dbToLocalInput(a ? a.due_at : defDue.toISOString())}" required>`)}
         ${dbField('Điểm tối đa', 'db-af-max', `<input id="db-af-max" name="max_score" type="number" min="0.5" step="0.5" value="${h(a ? a.max_score : 10)}" required>`)}
       </div>
@@ -98,16 +105,21 @@ function dbAssignmentForm(d, a) {
       </div>
       <section class="panel ab-sec db-asg-bank" aria-labelledby="db-h-af-bank">
         <div class="ab-sec-head"><div><h3 id="db-h-af-bank">Câu hỏi trong bài tập</h3><p class="lead">Chọn một hoặc nhiều câu từ ngân hàng; dạng câu hỏi và đáp án sẽ được giữ nguyên.</p></div><span class="ab-sum">${linkedQuestions.size} đã thêm · ${questionBank.length} có thể chọn</span></div>
-        ${locked ? `<div class="notice">${ic('lock', 16)}<div>Bài đã có học sinh nộp nên không thể thay đổi danh sách câu hỏi.</div></div>` : questionBank.length ? `<div class="ab-tools">
-          <div class="selectbox"><label for="db-af-q-kind">Lọc theo dạng</label><select id="db-af-q-kind" data-change="filterAssignmentBank"><option value="">Mọi dạng</option>${Object.entries(DB_QKIND).map(([k, v]) => `<option value="${h(k)}">${h(v)}</option>`).join('')}</select></div>
-          <div class="selectbox"><label for="db-af-q-search">Tìm trong ngân hàng</label><input id="db-af-q-search" type="search" data-input="filterAssignmentBank" placeholder="Nội dung câu hỏi"></div>
-        </div>
-        <div class="ab-bank" id="db-af-question-bank">${questionBank.map((q) => `<label class="item qrow" data-assignment-bank-item data-qkind="${h(q.kind)}" data-qtext="${h((q.content || '').toLocaleLowerCase())}">
-          <input type="checkbox" name="pick" data-multi value="${h(q.id)}">
-          <span><b>${h(q.content)}</b><span class="muted" style="display:block">${h(DB_QKIND[q.kind] || q.kind)} · ${h(DB_QDIFF[q.difficulty] || q.difficulty)}${q.grade ? ' · Khối ' + h(q.grade) : ''}</span></span>
-        </label>`).join('')}</div>` : dbEmpty(d.questions.length ? 'Các câu trong ngân hàng đã được thêm vào bài tập.' : 'Ngân hàng chưa có câu hỏi. Lưu bài tập trước, sau đó tạo câu mới hoặc nhập Excel/CSV ngay trong chi tiết bài tập.')}
+        ${locked ? `<div class="notice">${ic('lock', 16)}<div>Bài đã có học sinh nộp nên không thể thay đổi danh sách câu hỏi.</div></div>` : questionBank.length ? `<details class="db-bankfold" open>
+          <summary><span class="db-bankfold-title">Ngân hàng câu hỏi</span><span class="pill plain db-bankfold-count">0 câu được chọn</span><span class="db-bankfold-hint"><span class="when-open">Thu gọn</span><span class="when-closed">Mở rộng</span></span></summary>
+          <div class="ab-tools">
+            <div class="selectbox"><label for="db-af-q-lesson">Lọc theo bài học</label><select id="db-af-q-lesson" data-change="filterAssignmentBank"><option value="">Mọi bài học</option>${d.lessons.map((l) => `<option value="${h(l.id)}" ${initLesson === l.id ? 'selected' : ''}>${h(l.title)}</option>`).join('')}</select></div>
+            <div class="selectbox"><label for="db-af-q-kind">Lọc theo dạng</label><select id="db-af-q-kind" data-change="filterAssignmentBank"><option value="">Mọi dạng</option>${Object.entries(DB_QKIND).map(([k, v]) => `<option value="${h(k)}">${h(v)}</option>`).join('')}</select></div>
+            <div class="selectbox"><label for="db-af-q-search">Tìm trong ngân hàng</label><input id="db-af-q-search" type="search" data-input="filterAssignmentBank" placeholder="Nội dung câu hỏi"></div>
+          </div>
+          <p class="muted db-hint" id="db-af-q-shown" role="status">Đang hiển thị ${shownInit}/${questionBank.length} câu. Câu chưa gắn mục tiêu luôn được hiển thị.</p>
+          <div class="ab-bank" id="db-af-question-bank">${bankRows.map(({ q, ls, hide }) => `<label class="item qrow" data-assignment-bank-item data-qkind="${h(q.kind)}" data-qlessons="${h(ls.join(' '))}" data-qtext="${h((q.content || '').toLocaleLowerCase())}" ${hide ? 'hidden' : ''}>
+            <input type="checkbox" name="pick" data-multi value="${h(q.id)}" data-change="assignmentPickCount" data-apply>
+            <span><b>${h(q.content)}</b><span class="muted" style="display:block">${h(DB_QKIND[q.kind] || q.kind)} · ${h(DB_QDIFF[q.difficulty] || q.difficulty)}${q.grade ? ' · Khối ' + h(q.grade) : ''}</span></span>
+          </label>`).join('')}</div>
+        </details>` : dbEmpty(d.questions.length ? 'Các câu trong ngân hàng đã được thêm vào bài tập.' : 'Ngân hàng chưa có câu hỏi. Lưu bài tập trước, sau đó tạo câu mới hoặc nhập Excel/CSV ngay trong chi tiết bài tập.')}
       </section>
-      <div class="field"><span class="db-label">Mục tiêu được đánh giá qua bài tập này</span>${dbObjectivePicker(d, 'objectives', picked)}</div>
+      <div class="field"><span class="db-label">Mục tiêu được đánh giá qua bài tập này</span>${dbObjectivePicker(d, 'objectives', picked, null, { fold: true, open: a ? a.lesson_id : null })}</div>
       ${dbFormError()}
       <div class="row db-form-actions">${dbBtn('Hủy', 'go', { page: 'assignments' }, 'light')}<button type="submit" class="btn">${a ? 'Lưu thay đổi' : 'Tạo bài tập và thêm câu đã chọn'}</button></div>
     </form>
@@ -115,10 +127,45 @@ function dbAssignmentForm(d, a) {
 }
 DB_ACT.filterAssignmentBank = () => {
   const kind = document.getElementById('db-af-q-kind')?.value || '';
+  const lesson = document.getElementById('db-af-q-lesson')?.value || '';
   const query = (document.getElementById('db-af-q-search')?.value || '').trim().toLocaleLowerCase();
-  document.querySelectorAll('#db-af-question-bank [data-assignment-bank-item]').forEach((row) => {
-    row.hidden = !!((kind && row.dataset.qkind !== kind) || (query && !row.dataset.qtext.includes(query)));
+  const rows = [...document.querySelectorAll('#db-af-question-bank [data-assignment-bank-item]')];
+  let shown = 0;
+  rows.forEach((row) => {
+    const ls = (row.dataset.qlessons || '').split(' ').filter(Boolean);
+    const miss = (kind && row.dataset.qkind !== kind) || (query && !row.dataset.qtext.includes(query)) || (lesson && ls.length && !ls.includes(lesson));
+    row.hidden = !!miss;
+    if (!miss) shown++;
   });
+  const note = document.getElementById('db-af-q-shown');
+  if (note) note.textContent = `Đang hiển thị ${shown}/${rows.length} câu. Câu chưa gắn mục tiêu luôn được hiển thị.`;
+};
+/* Đổi ô "Bài học": đồng bộ bộ lọc ngân hàng, mở nhóm mục tiêu của bài đó và thu gọn các nhóm còn lại. */
+DB_ACT.assignmentLessonPick = (el, ev) => {
+  const form = el.closest('form');
+  if (!form) return;
+  if (ev) { const bank = form.querySelector('#db-af-q-lesson'); if (bank) bank.value = el.value; }
+  if (el.value) form.querySelectorAll('.db-objgrp').forEach((g) => { g.open = g.dataset.lesson === el.value; });
+  DB_ACT.filterAssignmentBank();
+};
+/* Cập nhật số mục tiêu đã chọn trên tiêu đề nhóm. */
+DB_ACT.objGroupCount = (el) => {
+  const g = el.closest('.db-objgrp');
+  if (!g) return;
+  const n = g.querySelectorAll('input[type="checkbox"]:checked').length, pill = g.querySelector('.db-objgrp-count');
+  pill.textContent = n + '/' + pill.dataset.total + ' đã chọn';
+  pill.classList.toggle('prog', n > 0);
+  pill.classList.toggle('plain', n === 0);
+  g.classList.toggle('has-picked', n > 0);
+};
+/* Đếm số câu đã tick trên tiêu đề khối ngân hàng. */
+DB_ACT.assignmentPickCount = (el) => {
+  const box = el.closest('.db-bankfold');
+  if (!box) return;
+  const n = box.querySelectorAll('input[name="pick"]:checked').length, pill = box.querySelector('.db-bankfold-count');
+  pill.textContent = n + ' câu được chọn';
+  pill.classList.toggle('prog', n > 0);
+  pill.classList.toggle('plain', n === 0);
 };
 DB_ACT.saveAssignment = (form) => dbRun(form, async (v) => {
   const id = form.dataset.id;
@@ -181,6 +228,7 @@ DB_ACT.deleteAssignment = (el) => {
     toast('Đã xóa bài tập.');
   }, true);
 };
+
 function dbAssignmentFacts(d, a) {
   const objs = dbAssignmentObjectives(d, a);
   return `<div class="facts">

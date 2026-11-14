@@ -28,11 +28,22 @@ async function dbLoadTrash() {
 const dbFileSize = (n) => (n >= 1048576 ? (n / 1048576).toFixed(1) + ' MB' : Math.max(1, Math.round(n / 1024)) + ' KB');
 /* Nhãn mục tiêu: "MT1 · Nhận biết mạng LAN" */
 const dbObjLabel = (o) => (o ? `${h(o.code)} · ${h(o.description)}` : 'Mục tiêu đã xóa');
-/* Danh sách ô chọn mục tiêu, nhóm theo bài học. name là tên trường của biểu mẫu, picked là tập mã mục tiêu đang chọn. */
-function dbObjectivePicker(content, name, picked, onlyLesson) {
+/* Danh sách ô chọn mục tiêu, nhóm theo bài học. name là tên trường của biểu mẫu, picked là tập mã mục tiêu đang chọn.
+   opts.fold = true: mỗi bài học là một khối thu gọn có đếm số đã chọn; opts.open = mã bài học được mở sẵn. */
+function dbObjectivePicker(content, name, picked, onlyLesson, opts) {
   const byLesson = dbGroup(content.objectives, 'lesson_id');
   const lessons = content.lessons.filter((l) => (byLesson[l.id] || []).length && (!onlyLesson || l.id === onlyLesson));
   if (!lessons.length) return `<p class="muted">Chưa có mục tiêu nào. Hãy thêm mục tiêu ở trang “Thư mục học tập” trước.</p>`;
+  if (opts && opts.fold) {
+    return `<div class="db-objpick db-objpick-fold">${lessons.map((l) => {
+      const objs = byLesson[l.id], n = objs.filter((o) => picked.has(o.id)).length;
+      return `<details class="db-objgrp${n ? ' has-picked' : ''}" data-lesson="${h(l.id)}" ${opts.open === l.id ? 'open' : ''}>
+        <summary><span class="db-objgrp-title">${h(l.title)}</span><span class="pill ${n ? 'prog' : 'plain'} db-objgrp-count" data-total="${objs.length}">${n}/${objs.length} đã chọn</span></summary>
+        <div class="db-objgrp-body">${objs.map((o) =>
+          `<label class="objrow"><input type="checkbox" name="${name}" data-multi value="${h(o.id)}" data-change="objGroupCount" data-apply ${picked.has(o.id) ? 'checked' : ''}><span>${dbObjLabel(o)}</span></label>`).join('')}</div>
+      </details>`;
+    }).join('')}</div>`;
+  }
   return `<div class="db-objpick">${lessons.map((l) => `<fieldset><legend>${h(l.title)}</legend>${byLesson[l.id].map((o) =>
     `<label class="objrow"><input type="checkbox" name="${name}" data-multi value="${h(o.id)}" ${picked.has(o.id) ? 'checked' : ''}><span>${dbObjLabel(o)}</span></label>`).join('')}</fieldset>`).join('')}</div>`;
 }
