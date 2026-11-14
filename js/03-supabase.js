@@ -199,7 +199,9 @@ const EducMindDB=(()=>{
     /* ----- Nhóm 3: AI tạo câu hỏi nháp ----- */
     listAiRequests:()=>from('ai_generation_requests').select('id,lesson_id,quantity,parameters,status,error_message,created_at,completed_at').eq('teacher_id',me()).order('created_at',{ascending:false}),
     createAiRequest:(lessonId,quantity,params)=>rpc('create_ai_request',{p_lesson:lessonId,p_quantity:quantity,p_parameters:params||{}}),
-    listAiOutputs:(requestIds)=>from('ai_generation_outputs').select('id,request_id,content,kind,objective_id,difficulty,bloom_level,options,correct_answer,review_status,review_note,approved_question_id').in('request_id',requestIds).order('content'),
+    listAiOutputs:(requestIds)=>requestIds.length?from('ai_generation_outputs').select('id,request_id,content,kind,objective_id,difficulty,bloom_level,options,correct_answer,review_status,review_note,approved_question_id').in('request_id',requestIds).order('content'):Promise.resolve({data:[],error:null}),
+    listAiJobs:(requestIds)=>requestIds.length?from('ai_generation_jobs').select('id,request_id,ordinal,question_count,status,error_message').in('request_id',requestIds):Promise.resolve({data:[],error:null}),
+    aiCredentials:(action,apiKey)=>supabaseClient.functions.invoke('ai-credentials',{body:{action,...(apiKey?{api_key:apiKey}:{})}}),
     /* Từ chối / ghi chú một bản nháp (reviewed_by luôn là người duyệt). */
     updateAiOutput:(id,row)=>from('ai_generation_outputs').update({...row,reviewed_by:me(),reviewed_at:now()}).eq('id',id).select().single(),
     /* Duyệt bản nháp: máy chủ tạo câu hỏi thật, gắn mục tiêu và ghi nhận trạng thái duyệt. */

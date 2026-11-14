@@ -60,7 +60,8 @@ js/
     supabase-js.min.js     Thư viện Supabase ghim sẵn trong repo — không phụ thuộc CDN
 supabase/
   migrations/              Migration SQL của backend — nguồn chuẩn cho cấu trúc cơ sở dữ liệu
-  functions/ai-generate/   Supabase Edge Function gọi Gemini để tạo câu hỏi nháp
+  functions/ai-generate/   Supabase Edge Function xử lý hàng đợi Gemini và lưu tiến độ
+  functions/ai-credentials/ Quản lý API key Gemini riêng của giáo viên
 ```
 
 Quy ước: tệp **số nhỏ nạp trước**, tệp số lớn có thể dùng hàm/định nghĩa của tệp số nhỏ.
@@ -82,24 +83,32 @@ mọi lệnh đọc/ghi cơ sở dữ liệu đều đi qua đối tượng này
 
 ### Cấu hình AI tạo câu hỏi bằng Gemini
 
-AI gọi Gemini từ Supabase Edge Function; **không đặt `GEMINI_API_KEY` trong JavaScript hoặc repository**.
-Chọn model Gemini trong Google AI Studio, sau đó tại terminal ở thư mục dự án:
+Gemini được gọi từ Supabase Edge Function. Mỗi giáo viên nhập API key của riêng mình trong
+**Tài khoản → Quản lý API key Gemini**; key được mã hóa ở máy chủ và không được trả lại trình duyệt.
+Ứng dụng không lưu một API key Gemini dùng chung. Các yêu cầu chạy nền theo từng lô tối đa 5 câu,
+tiến độ được ghi vào Supabase và phần bị lỗi có thể thử lại. Ứng dụng không đặt hạn mức lượt/ngày;
+Google vẫn áp dụng hạn mức theo dự án gắn với API key (nhiều key cùng một dự án vẫn dùng chung quota).
 
-```bash
-supabase link --project-ref <project-ref>
-read -s GEMINI_API_KEY
-export GEMINI_API_KEY
-supabase secrets set GEMINI_API_KEY="$GEMINI_API_KEY" GEMINI_MODEL="<model-id>"
-unset GEMINI_API_KEY
-supabase db push
-supabase functions deploy ai-generate
-```
+Để triển khai backend lần đầu:
 
-Khi chạy `read -s`, nhập khóa Gemini rồi nhấn Enter; thay `<project-ref>` bằng mã dự án
-(phần trước `.supabase.co` trong URL Supabase) và `<model-id>` bằng tên model đã chọn.
-Sau đó cần xuất bản bản website có thay đổi JavaScript. Edge Function yêu cầu JWT giáo viên,
-đọc dữ liệu theo RLS, chỉ gửi tên lớp/chủ đề/bài học/mục tiêu cho Gemini và lưu kết quả ở trạng thái
-chờ giáo viên duyệt. Nếu Gemini lỗi, yêu cầu được ghi trạng thái thất bại để xem trong lịch sử.
+1. Tạo `AI_KEY_ENCRYPTION_KEY` bằng `openssl rand -base64 32` và `AI_WORKER_TOKEN` bằng
+   `openssl rand -hex 32`. Thêm cả hai làm **Edge Function secrets** trong Supabase Dashboard.
+   Không lưu các giá trị này trong repository. Không làm mất hoặc thay `AI_KEY_ENCRYPTION_KEY`:
+   nếu đổi secret, các key giáo viên đã lưu sẽ không giải mã được.
+2. Tại terminal ở thư mục dự án, liên kết dự án, áp dụng migration và triển khai hai Edge Function:
+
+   ```bash
+   supabase link --project-ref <project-ref>
+   supabase db push
+   supabase functions deploy ai-generate
+   supabase functions deploy ai-credentials
+   ```
+
+3. Nếu muốn dùng model khác mặc định `gemini-3.8-flash`, đặt thêm secret `GEMINI_MODEL` trong Supabase.
+   Giáo viên cần xuất bản bản website có thay đổi JavaScript, sau đó tự nhập API key của mình trong
+   phần Tài khoản. Chỉ tên lớp/chủ đề/bài học/mục tiêu được gửi cho Gemini; dữ liệu học sinh không được gửi.
+   Câu hỏi sinh ra vẫn ở trạng thái chờ giáo viên duyệt.
+4. Sau khi triển khai, xóa secret cũ `GEMINI_API_KEY` khỏi Supabase nếu trước đây đã cấu hình key dùng chung.
 
 Lưu ý bảo mật của backend:
 
@@ -131,8 +140,9 @@ Lưu ý bảo mật của backend:
 - Ngân hàng câu hỏi (5 dạng, theo độ khó và cấp Bloom, gắn mục tiêu) — nhập/xuất **Excel**.
 - Đề kiểm tra: chọn câu từ ngân hàng, cửa sổ mở/đóng, chấm tự động và chấm tay,
   tự cộng dồn điểm từng câu (không cần nhập tổng).
-- **AI tạo câu hỏi nháp bằng Gemini** cho một bài học (tối đa 20 câu/lượt, 5 lượt/ngày theo giờ Việt Nam),
-  duyệt / sửa-và-duyệt / từ chối trước khi đưa vào ngân hàng; có thông báo khi AI xong.
+- **AI tạo câu hỏi nháp bằng Gemini** cho một bài học (tối đa 20 câu/lượt, không giới hạn lượt/ngày
+  ở cấp ứng dụng), theo dõi tiến độ nền và thử lại lô lỗi; duyệt / sửa-và-duyệt / từ chối trước khi đưa
+  vào ngân hàng.
 - **Lịch & việc cần làm** tự động chốt theo hạn nộp và trạng thái chấm.
 - **Báo cáo tiến bộ**: tổng hợp + chi tiết từng học sinh, xuất **Excel** (kể cả sheet
   Bảng điểm), **Word** và **in báo cáo** (bản in đã tối ưu cho máy in).

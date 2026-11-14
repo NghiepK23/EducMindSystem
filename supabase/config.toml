@@ -2,3 +2,6 @@ project_id = "educmind"
 
 [functions.ai-generate]
 verify_jwt = true
+
+[functions.ai-credentials]
+verify_jwt = true

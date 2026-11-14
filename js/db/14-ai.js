@@ -1,16 +1,14 @@
 /* EducMind · js/db/14-ai.js
    Trang “AI tạo câu hỏi nháp” (chỉ giáo viên):
      - Gửi yêu cầu sinh câu hỏi cho một bài học (chọn mục tiêu, loại câu, độ khó, Bloom, số lượng).
-       Gemini chạy trong Supabase Edge Function — hạn mức 5 lượt/ngày theo giờ Việt Nam.
+       Gemini chạy trong hàng đợi nền ở Supabase Edge Function.
      - Bản nháp chưa ảnh hưởng điểm hay mức nắm vững; giáo viên duyệt / sửa-và-duyệt / từ chối
        trước khi câu hỏi thật sự vào ngân hàng (kèm mục tiêu đã chọn). */
 
-const DB_AI_PER_DAY = 5, DB_AI_MAX_Q = 20;
+const DB_AI_MAX_Q = 20;
 const DB_AIRS = { PENDING_REVIEW: 'Chờ duyệt', APPROVED: 'Đã duyệt', REJECTED: 'Đã từ chối', EDITED_AND_APPROVED: 'Đã sửa và duyệt' };
 const DB_AIST = { PROCESSING: ['Đang xử lý', 'prog'], COMPLETED: ['Hoàn tất', 'good'], FAILED: ['Thất bại', 'need'] };
-/* Ngày Việt Nam (yyyy-mm-dd) của một mốc thời gian — dùng để đếm lượt AI trong ngày. */
-const dbVnDay = (iso) => new Date(new Date(iso).getTime() + 7 * 3600000).toISOString().slice(0, 10);
-const dbVnToday = () => dbVnDay(new Date().toISOString());
+let dbAiPollTimer = null, dbAiPollBusy = false, dbAiLastResume = 0;
 
 DB_PAGES.ai = {
   title: 'AI tạo câu hỏi nháp',
@@ -19,16 +17,20 @@ DB_PAGES.ai = {
     if (!DB.classId) return {};
     const content = await dbLoadContent();
     const requests = await dbCall(EducMindDB.listAiRequests());
-    const outputs = await dbCallIn(EducMindDB.listAiOutputs, requests.map((r) => r.id));
-    return { ...content, requests, outputs };
+    const requestIds = requests.map((r) => r.id);
+    const [outputs, jobs] = await Promise.all([
+      dbCallIn(EducMindDB.listAiOutputs, requestIds),
+      dbCallIn(EducMindDB.listAiJobs, requestIds),
+    ]);
+    dbAiStartPoll();
+    return { ...content, requests, outputs, jobs };
   },
   view(d) {
     if (!dbIsTeacher()) return `<section class="panel">${dbEmpty('Chỉ giáo viên mới dùng được AI tạo câu hỏi.')}</section>`;
     if (!DB.classId) return `<section class="panel">${dbEmpty('Hãy chọn một lớp trước.')}</section>`;
-    const used = d.requests.filter((r) => dbVnDay(r.created_at) === dbVnToday()).length;
     const byObj = dbById(d.objectives), byLesson = dbById(d.lessons);
     const pending = d.outputs.filter((o) => o.review_status === 'PENDING_REVIEW');
-    return `${dbAiForm(d, used)}
+    return `${dbAiForm(d)}
     <section class="panel" aria-labelledby="db-h-aip">
       <div class="row between"><div><h2 id="db-h-aip">Bản nháp chờ duyệt</h2><p class="lead">${pending.length} bản nháp${pending.length ? ' · duyệt để đưa vào ngân hàng câu hỏi' : ''}</p></div>${pending.length ? dbBtn('Duyệt tất cả', 'aiApproveAll', {}, 'light') : ''}</div>
       ${pending.length ? pending.map((o) => dbAiRow(o, byObj, byLesson)).join('') : dbEmpty('Chưa có bản nháp nào. Gửi yêu cầu AI ở khung trên để bắt đầu.')}
@@ -37,12 +39,13 @@ DB_PAGES.ai = {
   },
 };
 
-function dbAiForm(d, used) {
+function dbAiForm(d) {
   const lessons = d.lessons;
   const objBy = dbGroup(d.objectives, 'lesson_id');
   return `<section class="panel" aria-labelledby="db-h-aif">
     <h2 id="db-h-aif">Tạo câu hỏi bằng AI</h2>
-    <p class="lead">AI chỉ nhận: tên lớp, tiêu đề chủ đề, tiêu đề, mô tả và mục tiêu của bài học được chọn. Hôm nay bạn đã dùng <b>${used}/${DB_AI_PER_DAY}</b> lượt.</p>
+    <p class="lead">AI chỉ nhận tên lớp, chủ đề, mô tả và mục tiêu bài học đã chọn. Ứng dụng không giới hạn lượt/ngày; Google áp dụng hạn mức của dự án API key riêng của bạn.</p>
+    <p class="muted">Trước khi tạo, hãy lưu API key cá nhân tại Tài khoản → Quản lý API key Gemini.</p>
     <form data-act="aiGenerate" class="db-ai-form" novalidate>
       ${dbField('Bài học', 'db-ai-lesson', `<select id="db-ai-lesson" name="lesson" data-change="aiLessonPick" required><option value="">Chọn bài học</option>${lessons.map((l) => `<option value="${h(l.id)}">${h(l.title)}</option>`).join('')}</select>`)}
       <div class="field"><span class="db-label">Mục tiêu cần sinh câu hỏi (bỏ trống = mọi mục tiêu của bài)</span>
@@ -55,7 +58,7 @@ function dbAiForm(d, used) {
         ${dbField('Số lượng (tối đa ' + DB_AI_MAX_Q + ')', 'db-ai-qty', `<input id="db-ai-qty" name="qty" type="number" min="1" max="${DB_AI_MAX_Q}" step="1" value="5" required>`)}
       </div>
       ${dbFormError()}
-      <div class="row db-form-actions"><button type="submit" class="btn" ${used >= DB_AI_PER_DAY ? 'disabled' : ''}>${ic('spark', 16)} Tạo câu hỏi bằng AI</button></div>
+      <div class="row db-form-actions"><button type="submit" class="btn">${ic('spark', 16)} Tạo câu hỏi bằng AI</button></div>
     </form>
   </section>`;
 }
@@ -77,10 +80,14 @@ function dbAiRow(o, byObj, byLesson) {
 }
 function dbAiHistory(d, byLesson) {
   const rows = d.requests.map((r) => {
-    const st = DB_AIST[r.status] || [r.status, 'plain'], n = d.outputs.filter((o) => o.request_id === r.id).length;
+    const outputs = d.outputs.filter((o) => o.request_id === r.id);
+    const jobs = d.jobs.filter((j) => j.request_id === r.id);
+    const n = outputs.length;
+    const st = DB_AIST[r.status] || [r.status, 'plain'];
+    const progress = r.status === 'PROCESSING' || r.status === 'FAILED' ? ` · ${n}/${r.quantity} câu đã tạo` : '';
     return `<tr><th scope="row">${h((byLesson[r.lesson_id] || {}).title || '')}</th>
       <td>${h(r.quantity)}</td><td>${n} bản nháp</td>
-      <td>${dbPill(st[0], st[1])}${r.error_message ? `<div class="muted">${h(r.error_message)}</div>` : ''}</td>
+      <td>${dbPill(st[0] + progress, st[1])}${r.error_message ? `<div class="muted">${h(r.error_message)}</div>` : ''}${r.status === 'FAILED' && jobs.some((j) => j.status === 'FAILED') ? dbBtn('Thử lại phần lỗi', 'aiRetry', { id: r.id }, 'light mini') : ''}</td>
       <td>${dbDateTime(r.created_at)}</td></tr>`;
   });
   return `<section class="panel" aria-labelledby="db-h-aih"><h2 id="db-h-aih">Lịch sử yêu cầu</h2>
@@ -88,7 +95,7 @@ function dbAiHistory(d, byLesson) {
 }
 
 /* ===== Thao tác ===== */
-/* Gửi yêu cầu rồi gọi Edge Function; khóa Gemini không được đưa xuống trình duyệt. */
+/* Gửi yêu cầu vào hàng đợi; tiến độ được nạp lại từ Supabase trong lúc xử lý. */
 DB_ACT.aiGenerate = (form) => dbRun(form, async (v) => {
   const qty = Number(v.qty);
   if (!v.lesson) throw new Error('Hãy chọn bài học cần sinh câu hỏi.');
@@ -110,11 +117,52 @@ DB_ACT.aiGenerate = (form) => dbRun(form, async (v) => {
     }
     throw new Error(message);
   }
-  if (!data || !Number.isInteger(data.count) || data.count !== qty) {
-    throw new Error('Máy chủ không xác nhận đã lưu đủ câu hỏi; hãy tải lại lịch sử yêu cầu.');
-  }
-  toast('AI đã tạo xong ' + data.count + ' câu hỏi nháp — hãy duyệt trước khi dùng.');
+  if (!data || data.accepted !== true) throw new Error('Máy chủ chưa xác nhận đã tiếp nhận yêu cầu AI.');
+  toast('Đã đưa yêu cầu vào xử lý nền. Bạn có thể tiếp tục làm việc; kết quả sẽ cập nhật trong lịch sử.');
 });
+
+DB_ACT.aiRetry = (el) => dbRun(el, async () => {
+  if (!supabaseClient) throw new Error('Chưa kết nối được Supabase.');
+  const { data, error } = await supabaseClient.functions.invoke('ai-generate', {
+    body: { request_id: el.dataset.id, retry: true },
+  });
+  if (error) throw new Error(error.message || 'Không thể thử lại tác vụ AI.');
+  if (!data || data.accepted !== true) throw new Error('Máy chủ chưa xác nhận yêu cầu thử lại.');
+  toast('Đã đưa các lô bị lỗi vào xử lý lại.');
+});
+
+function dbAiStartPoll() {
+  if (dbAiPollTimer && DB.timers.includes(dbAiPollTimer)) return;
+  dbAiPollTimer = setInterval(async () => {
+    if (DB.page !== 'ai' || dbAiPollBusy || !DB.data?.requests?.some((r) => r.status === 'PROCESSING')) return;
+    dbAiPollBusy = true;
+    try {
+      const active = DB.data.requests.filter((r) => r.status === 'PROCESSING');
+      if (Date.now() - dbAiLastResume > 60000 && supabaseClient) {
+        dbAiLastResume = Date.now();
+        await Promise.all(active.map(async (r) => {
+          const { error } = await supabaseClient.functions.invoke('ai-generate', { body: { request_id: r.id } });
+          if (error) console.warn('Could not resume AI request:', error.message);
+        }));
+      }
+      const requests = await dbCall(EducMindDB.listAiRequests());
+      const ids = requests.map((r) => r.id);
+      const [outputs, jobs] = await Promise.all([
+        dbCallIn(EducMindDB.listAiOutputs, ids),
+        dbCallIn(EducMindDB.listAiJobs, ids),
+      ]);
+      if (DB.page === 'ai' && DB.data) {
+        DB.data = { ...DB.data, requests, outputs, jobs };
+        render();
+      }
+    } catch (error) {
+      dbLogError(error);
+    } finally {
+      dbAiPollBusy = false;
+    }
+  }, 8000);
+  DB.timers.push(dbAiPollTimer);
+}
 
 /* Duyệt nhanh một bản nháp: giữ nguyên nội dung, đưa vào ngân hàng kèm mục tiêu. */
 DB_ACT.aiApprove = (el) => dbRun(el, async () => {

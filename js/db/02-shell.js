@@ -131,7 +131,8 @@ DB_ACT.openAccount = () => dbOpenDialog({
   body: `<div class="facts"><div><span>Email</span><b>${h(DB.me.email)}</b></div><div><span>Vai trò</span><b>${dbIsTeacher() ? 'Giáo viên' : 'Học sinh'}</b></div></div>
     ${dbField('Họ và tên', 'db-acc-name', `<input id="db-acc-name" name="full_name" maxlength="120" value="${h(DB.me.full_name)}" autocomplete="name">`)}
     ${dbField('Mật khẩu mới', 'db-acc-pw', `<input id="db-acc-pw" name="pw" type="password" autocomplete="new-password">`, `Để trống nếu không đổi. Tối thiểu ${PW_MIN} ký tự.`)}
-    ${dbField('Nhập lại mật khẩu mới', 'db-acc-pw2', `<input id="db-acc-pw2" name="pw2" type="password" autocomplete="new-password">`)}`,
+    ${dbField('Nhập lại mật khẩu mới', 'db-acc-pw2', `<input id="db-acc-pw2" name="pw2" type="password" autocomplete="new-password">`)}
+    ${dbIsTeacher() ? `<div class="field"><span class="db-label">Tạo câu hỏi bằng AI</span>${dbBtn('Quản lý API key Gemini', 'aiKeySettings', {}, 'light')}</div>` : ''}`,
   onOk: async (v) => {
     if (!v.full_name) throw new Error('Nhập họ và tên.');
     if (v.pw || v.pw2) {
@@ -143,3 +144,32 @@ DB_ACT.openAccount = () => dbOpenDialog({
     toast(v.pw ? 'Đã lưu họ tên và mật khẩu mới.' : 'Đã lưu thay đổi.');
   },
 });
+
+DB_ACT.aiKeySettings = async () => {
+  const status = await dbCall(EducMindDB.aiCredentials('status'));
+  dbOpenDialog({
+    title: 'API key Gemini',
+    okLabel: 'Lưu API key',
+    body: `<p class="lead">${status.configured ? `Đã lưu key kết thúc bằng <b>…${h(status.key_hint)}</b>.` : 'Chưa có API key Gemini được lưu.'}</p>
+      <p class="muted">Nhập key của dự án Google AI Studio. Key được mã hóa trên máy chủ; ứng dụng không gửi key này xuống màn hình sau khi lưu.</p>
+      ${dbField('API key Gemini', 'db-ai-key', `<input id="db-ai-key" name="api_key" type="password" maxlength="256" autocomplete="off" required>`, 'Để thay key hiện tại, nhập key mới vào đây.') }
+      ${status.configured ? `<div class="row">${dbBtn('Xóa API key đã lưu', 'aiKeyDelete', {}, 'light mini danger-soft')}</div>` : ''}`,
+    onOk: async (v) => {
+      const apiKey = (v.api_key || '').trim();
+      if (!apiKey) throw new Error('Hãy nhập API key Gemini cần lưu.');
+      await dbCall(EducMindDB.aiCredentials('save', apiKey));
+      toast('Đã lưu API key Gemini riêng cho tài khoản.');
+    },
+  });
+};
+
+DB_ACT.aiKeyDelete = () => dbConfirm(
+  'Xóa API key Gemini?',
+  'Bạn sẽ không thể tạo câu hỏi bằng AI cho đến khi lưu key mới.',
+  'Xóa API key',
+  async () => {
+    await dbCall(EducMindDB.aiCredentials('delete'));
+    toast('Đã xóa API key Gemini khỏi tài khoản.');
+  },
+  true,
+);
