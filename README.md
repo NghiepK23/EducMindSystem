@@ -3,7 +3,11 @@
 Website quản lý lớp học, nội dung bài học, bài tập, câu hỏi, đề kiểm tra và tiến độ học tập.
 Giao diện viết bằng **JavaScript thuần** (không framework, không cần bước build), backend dùng **Supabase**
 (PostgreSQL + Auth + REST + Storage + Realtime), toàn bộ mã nguồn lưu trong repository này.
-Giáo viên có thể gắn câu hỏi từ ngân hàng vào bài tập; học sinh trả lời trực tiếp trên web hoặc nộp bài/tệp như trước.
+Giáo viên có thể tạo nhiều dạng câu hỏi, chọn câu từ ngân hàng hoặc nhập câu hỏi bằng Excel/CSV để gắn vào bài tập; học sinh trả lời trực tiếp trên web hoặc nộp bài/tệp như trước. Giao diện dữ liệu thật tổ chức nội dung theo thư mục Chủ đề → Bài học, tách mục tiêu và tài liệu thành từng tab; bài tập và bài kiểm tra hiển thị dạng thẻ có thao tác thu gọn.
+
+Để thêm câu hỏi vào bài tập, hãy tạo bài tập thành bản nháp trước. Trang chi tiết của bài tập có mục
+**Câu hỏi của bài tập** để tạo câu hỏi theo dạng, chọn câu từ ngân hàng hoặc nhập tệp Excel/CSV;
+câu hỏi mới tạo hay nhập từ mục này sẽ được gắn trực tiếp vào bài tập.
 
 ## Chạy website trên máy cá nhân
 

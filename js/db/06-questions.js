@@ -32,7 +32,7 @@ function dbAnswerText(q, a) {
 
 DB_PAGES.questions = {
   title: 'Ngân hàng câu hỏi',
-  sub: 'Câu hỏi dùng chung cho các bài kiểm tra của lớp. Gắn mục tiêu để kết quả được tính vào mức nắm vững.',
+  sub: 'Câu hỏi dùng cho bài kiểm tra và bài tập của lớp. Gắn mục tiêu để kết quả được tính vào mức nắm vững.',
   async load() {
     const content = await dbLoadContent();
     const questions = DB.course ? await dbCall(EducMindDB.listQuestions(DB.course.id)) : [];
@@ -58,7 +58,12 @@ DB_PAGES.questions = {
       <div class="row between"><div><h2 id="db-h-q">Câu hỏi của lớp</h2><p class="lead">${d.questions.length} câu hỏi</p></div>
         <div class="row">${dbBtn('Xuất Excel', 'exportQuestions', {}, 'light')}${dbBtn(ic('plus', 16) + 'Thêm câu hỏi', 'go', { page: 'questions', edit: 'new' })}</div></div>
       <form data-act="importQuestionFile" class="db-form-row db-add-row" novalidate>
-        <input type="file" id="db-q-import" name="file" accept=".xlsx,.xls,.csv" class="db-input-file" aria-label="Nhập câu hỏi từ tệp Excel">
+        <div class="field"><label class="db-label" for="db-q-import">Nhập câu hỏi từ Excel hoặc CSV</label>
+          <input type="file" id="db-q-import" name="file" accept=".xlsx,.xls,.csv" class="db-input-file" aria-label="Nhập câu hỏi từ tệp Excel">
+          <div class="muted db-hint">Cần có cột Nội dung và Dạng; câu trắc nghiệm cần thêm Lựa chọn và Đáp án.</div>
+        </div>
+        <button type="submit" class="btn light">Nhập vào ngân hàng câu hỏi</button>
+        ${dbFormError()}
       </form>
       ${d.questions.length ? `<div class="row db-filter">
         <label class="sr" for="db-q-search">Tìm câu hỏi</label><input id="db-q-search" type="search" placeholder="Tìm theo nội dung" data-input="filterQuestions">
@@ -151,7 +156,13 @@ DB_ACT.saveQuestion = (form) => dbRun(form, async (v) => {
     (add) => dbCall(EducMindDB.addQuestionObjectives(add.map((o) => ({ question_id: q.id, objective_id: o })))),
     (rem) => dbCall(EducMindDB.removeQuestionObjectives(q.id, rem)));
   const returnToAssignment = !id && DB.arg.return_to === 'assignment' && DB.arg.assignment_id;
-  toast(returnToAssignment ? 'Đã tạo câu hỏi. Chọn câu mới trong danh sách để thêm vào bài tập.' : id ? 'Đã lưu câu hỏi.' : 'Đã thêm câu hỏi vào ngân hàng.');
+  if (returnToAssignment) {
+    const assignmentId = DB.arg.assignment_id;
+    const links = await dbCall(EducMindDB.listAssignmentQuestions([assignmentId]));
+    const display_order = links.reduce((max, link) => Math.max(max, Number(link.display_order) || 0), 0) + 1;
+    await dbCall(EducMindDB.addAssignmentQuestions([{ assignment_id: assignmentId, question_id: q.id, display_order }]));
+  }
+  toast(returnToAssignment ? 'Đã tạo và thêm câu hỏi vào bài tập.' : id ? 'Đã lưu câu hỏi.' : 'Đã thêm câu hỏi vào ngân hàng.');
   await dbGo(returnToAssignment ? 'assignments' : 'questions', returnToAssignment ? { id: DB.arg.assignment_id } : {});
   return false;
 });
@@ -174,7 +185,7 @@ DB_ACT.exportQuestions = () => {
   DBTF.exportExcel(dbExportName('ngan-hang-cau-hoi', 'xlsx'), [{ name: 'Câu hỏi', headers: ['Nội dung', 'Dạng', 'Độ khó', 'Khối', 'Bloom', 'Lựa chọn', 'Đáp án', 'Mục tiêu'], rows }]);
   toast('Đã xuất ngân hàng câu hỏi ra tệp Excel.');
 };
-/* Đọc tệp Excel/CSV và hỏi xác nhận trước khi nhập vào ngân hàng của lớp. */
+/* Đọc tệp Excel/CSV và hỏi xác nhận trước khi nhập vào ngân hàng hoặc gắn vào bài tập. */
 DB_ACT.importQuestionFile = (form) => dbRun(form, async () => {
   const input = form.querySelector('input[type="file"]');
   if (!input.files || !input.files[0]) throw new Error('Hãy chọn tệp Excel (.xlsx) hoặc .csv cần nhập.');
@@ -214,16 +225,30 @@ DB_ACT.importQuestionFile = (form) => dbRun(form, async () => {
     } catch (e) { skipped.push('Dòng ' + (i + 2) + ': ' + e.message); }
   });
   if (!parsed.length) throw new Error('Không có câu hỏi hợp lệ nào trong tệp.' + (skipped.length ? ' (' + skipped.length + ' dòng bị bỏ qua)' : ''));
+  const assignmentId = form.dataset.assignmentId;
   dbOpenDialog({
     title: 'Nhập câu hỏi từ tệp',
     body: `<p class="muted">Tìm thấy <b>${parsed.length}</b> câu hỏi hợp lệ${skipped.length ? `, bỏ qua <b>${skipped.length}</b> dòng lỗi` : ''} trong tệp <b>${h(input.files[0].name)}</b>.</p>
       ${skipped.length ? `<p class="muted db-hint">${skipped.slice(0, 5).map(h).join('<br>')}${skipped.length > 5 ? '<br>…' : ''}</p>` : ''}
-      <p class="muted">Các câu nhập mới chưa gắn mục tiêu — bạn có thể gắn sau trong “Ngân hàng câu hỏi”.</p>`,
-    okLabel: 'Nhập ' + parsed.length + ' câu hỏi',
+      <p class="muted">${assignmentId ? 'Câu hỏi sẽ được thêm vào ngân hàng và gắn trực tiếp với bài tập này.' : 'Các câu nhập mới chưa gắn mục tiêu — bạn có thể gắn sau trong “Ngân hàng câu hỏi”.'}</p>`,
+    okLabel: (assignmentId ? 'Nhập và thêm ' : 'Nhập ') + parsed.length + ' câu hỏi',
     onOk: async () => {
-      await dbCall(EducMindDB.createQuestions(parsed));
-      toast('Đã nhập ' + parsed.length + ' câu hỏi vào ngân hàng.');
-      await dbGo('questions', {});
+      const created = await dbCall(EducMindDB.createQuestions(parsed));
+      if (assignmentId) {
+        if (!created.length) throw new Error('Đã nhập nhưng máy chủ không trả về danh sách câu hỏi để gắn vào bài tập.');
+        const links = await dbCall(EducMindDB.listAssignmentQuestions([assignmentId]));
+        let order = links.reduce((max, link) => Math.max(max, Number(link.display_order) || 0), 0);
+        await dbCall(EducMindDB.addAssignmentQuestions(created.map((q) => ({
+          assignment_id: assignmentId,
+          question_id: q.id,
+          display_order: ++order,
+        }))));
+        toast('Đã nhập và thêm ' + created.length + ' câu hỏi vào bài tập.');
+        await dbGo('assignments', { id: assignmentId });
+      } else {
+        toast('Đã nhập ' + parsed.length + ' câu hỏi vào ngân hàng.');
+        await dbGo('questions', {});
+      }
     },
   });
   return false;

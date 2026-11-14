@@ -51,34 +51,90 @@ DB_PAGES.content = {
   load: async () => ({ ...(await dbLoadContent()), ...(await dbLoadTrash()) }),
   view(d) {
     const lessonsBy = dbGroup(d.lessons, 'topic_id'), objBy = dbGroup(d.objectives, 'lesson_id');
-    const resBy = dbGroup(d.resources || [], 'lesson_id');
-    const topics = d.topics.map((t) => {
-      const lessons = lessonsBy[t.id] || [];
-      const pub = t.status === 'PUBLISHED';
-      return `<section class="panel db-topic" aria-labelledby="db-t-${h(t.id)}">
-        <div class="row between db-topic-head">
-          <div><h2 id="db-t-${h(t.id)}">${h(t.title)}</h2><p class="lead">${dbStatusPill(t.status)} · ${lessons.length} bài học${t.description ? ' · ' + h(t.description) : ''}</p></div>
-          <div class="row">${dbBtn(pub ? 'Gỡ xuất bản' : 'Xuất bản', 'toggleTopic', { id: t.id }, pub ? 'light mini' : 'mini')}${dbBtn('Sửa', 'editTopic', { id: t.id }, 'light mini')}${dbBtn('Xóa', 'deleteTopic', { id: t.id }, 'light mini danger-soft')}</div>
-        </div>
-        ${lessons.map((l) => dbLessonBlock(l, objBy[l.id] || [], resBy[l.id] || [])).join('') || dbEmpty('Chủ đề chưa có bài học.')}
-        <form data-act="createLesson" data-topic="${h(t.id)}" class="db-form-row db-add-row" novalidate>
-          ${dbField('Thêm bài học vào chủ đề này', 'db-nl-' + h(t.id), `<input id="db-nl-${h(t.id)}" name="title" maxlength="200" placeholder="Tên bài học" required>`)}
-          <button type="submit" class="btn light">Thêm bài học</button>${dbFormError()}
-        </form>
-      </section>`;
-    }).join('');
-    return `
-    <section class="panel" aria-labelledby="db-h-topic">
-      <h2 id="db-h-topic">Chủ đề</h2>
-      <p class="lead">${d.topics.length ? d.topics.length + ' chủ đề · ' + d.lessons.length + ' bài học · ' + d.objectives.length + ' mục tiêu' : 'Lớp chưa có nội dung. Bắt đầu bằng việc thêm một chủ đề.'}</p>
-      <form data-act="createTopic" class="db-form-row" novalidate>
-        ${dbField('Tên chủ đề mới', 'db-new-topic', `<input id="db-new-topic" name="title" maxlength="200" placeholder="Ví dụ: Mạng máy tính" required>`)}
-        <button type="submit" class="btn">Thêm chủ đề</button>${dbFormError()}
-      </form>
-      <label class="db-check db-seq-toggle"><input type="checkbox" data-change="toggleSequential" ${DB.course && DB.course.sequential_unlock ? 'checked' : ''}> Mở bài học tuần tự: học sinh chỉ mở được bài sau khi nắm vững (≥ 0,8) mọi mục tiêu của bài trước</label>
-    </section>${topics}${dbTrashPanel(d)}`;
+    const topic = d.topics.find((t) => t.id === DB.arg.topicId);
+    const lesson = topic && d.lessons.find((l) => l.id === DB.arg.lessonId && l.topic_id === topic.id);
+    if (lesson) return dbContentLessonView(d, topic, lesson, objBy[lesson.id] || []);
+    if (topic) return dbContentTopicView(d, topic, lessonsBy[topic.id] || [], objBy);
+    return dbContentRootView(d, lessonsBy, objBy);
   },
 };
+
+function dbContentRootView(d, lessonsBy, objBy) {
+  const cards = d.topics.map((t, i) => {
+    const lessons = lessonsBy[t.id] || [];
+    const objectiveCount = lessons.reduce((n, l) => n + (objBy[l.id] || []).length, 0);
+    return `<button type="button" class="folder-tile" data-act="openContentTopic" data-id="${h(t.id)}">
+      <span class="folder-icon">${ic('lessons', 20)}</span><span><b>${h(t.title)}</b>
+        <span class="muted">${dbStatusPill(t.status)} · ${lessons.length} bài học · ${objectiveCount} mục tiêu${t.description ? '<br>' + h(t.description) : ''}</span>
+      </span><span class="sr">Mở chủ đề ${i + 1}</span>
+    </button>`;
+  }).join('');
+  return `<section class="panel" aria-labelledby="db-h-topic">
+    <div class="row between"><div><h2 id="db-h-topic">Thư mục nội dung</h2><p class="lead">${d.topics.length ? d.topics.length + ' chủ đề · ' + d.lessons.length + ' bài học · ' + d.objectives.length + ' mục tiêu' : 'Lớp chưa có nội dung. Bắt đầu bằng việc thêm một chủ đề.'}</p></div></div>
+    <form data-act="createTopic" class="db-form-row" novalidate>
+      ${dbField('Tên chủ đề mới', 'db-new-topic', `<input id="db-new-topic" name="title" maxlength="200" placeholder="Nhập tên chủ đề" required>`)}
+      <button type="submit" class="btn">${ic('plus', 16)}Thêm chủ đề</button>${dbFormError()}
+    </form>
+    <label class="db-check db-seq-toggle"><input type="checkbox" data-change="toggleSequential" ${DB.course && DB.course.sequential_unlock ? 'checked' : ''}> Mở bài học tuần tự: học sinh chỉ mở được bài sau khi nắm vững (≥ 0,8) mọi mục tiêu của bài trước</label>
+  </section>
+  <div class="folder-grid" aria-label="Danh sách chủ đề">${cards || `<div class="folder-empty">Chưa có chủ đề. Thêm chủ đề để bắt đầu xây dựng nội dung.</div>`}</div>
+  ${dbTrashPanel(d)}`;
+}
+
+function dbContentTopicView(d, topic, lessons, objBy) {
+  const rows = lessons.map((l) => `<button type="button" class="folder-lesson-row" data-act="openContentLesson" data-id="${h(l.id)}" data-topic-id="${h(topic.id)}">
+    <span class="lesson-name"><b>${h(l.title)}</b><small>${(objBy[l.id] || []).length} mục tiêu cần đạt · ${h(l.status === 'PUBLISHED' ? 'Đã xuất bản' : 'Bản nháp')}</small></span>${ic('arrow', 17)}
+  </button>`).join('');
+  const published = topic.status === 'PUBLISHED';
+  return `<div class="folder-wrap">
+    <nav class="folder-crumb" aria-label="Đường dẫn"><button type="button" data-act="openContentRoot">Thư mục nội dung</button><span aria-hidden="true">›</span><b>${h(topic.title)}</b></nav>
+    <section class="panel">
+      <div class="row between"><div><h2>${h(topic.title)}</h2><p class="lead">${dbStatusPill(topic.status)} · ${lessons.length} bài học${topic.description ? ' · ' + h(topic.description) : ''}</p></div>
+        <div class="row">${dbBtn(published ? 'Gỡ xuất bản' : 'Xuất bản', 'toggleTopic', { id: topic.id }, published ? 'light mini' : 'mini')}${dbBtn('Sửa chủ đề', 'editTopic', { id: topic.id }, 'light mini')}${dbBtn('Xóa', 'deleteTopic', { id: topic.id }, 'light mini danger-soft')}</div>
+      </div>
+      <div class="topic-lessons">${rows || `<div class="folder-empty">Chủ đề chưa có bài học. Thêm bài học bên dưới để bắt đầu.</div>`}</div>
+      <form data-act="createLesson" data-topic="${h(topic.id)}" class="db-form-row db-add-row" novalidate>
+        ${dbField('Tên bài học mới', 'db-nl-' + h(topic.id), `<input id="db-nl-${h(topic.id)}" name="title" maxlength="200" placeholder="Nhập tên bài học" required>`)}
+        <button type="submit" class="btn light">${ic('plus', 16)}Thêm bài học</button>${dbFormError()}
+      </form>
+    </section>
+  </div>`;
+}
+
+function dbContentLessonView(d, topic, lesson, objectives) {
+  const tab = DB.arg.tab === 'resources' ? 'resources' : 'objectives';
+  const tabs = `<div class="folder-tabs split-2" role="tablist" aria-label="Nội dung bài học">
+    <button type="button" role="tab" aria-selected="${tab === 'objectives'}" data-act="selectContentTab" data-tab="objectives">${ic('target', 16)}<span>Mục tiêu</span></button>
+    <button type="button" role="tab" aria-selected="${tab === 'resources'}" data-act="selectContentTab" data-tab="resources">${ic('file', 16)}<span>Tài liệu</span></button>
+  </div>`;
+  const body = tab === 'resources' ? dbLessonResources(lesson, (d.resources || []).filter((r) => r.lesson_id === lesson.id)) : dbLessonObjectives(lesson, objectives);
+  const published = lesson.status === 'PUBLISHED';
+  return `<div class="folder-wrap">
+    <nav class="folder-crumb" aria-label="Đường dẫn"><button type="button" data-act="openContentRoot">Thư mục nội dung</button><span aria-hidden="true">›</span><button type="button" data-act="openContentTopic" data-id="${h(topic.id)}">${h(topic.title)}</button><span aria-hidden="true">›</span><b>${h(lesson.title)}</b></nav>
+    <section class="panel lesson-workspace">
+      <div class="lesson-workspace-head">
+        <div class="row between"><div><h2>${h(lesson.title)}</h2><p class="lead">${dbStatusPill(lesson.status)} · ${h(topic.title)}</p>${lesson.description ? `<p class="muted">${h(lesson.description)}</p>` : ''}</div>
+          <div class="row">${dbBtn(published ? 'Gỡ xuất bản' : 'Xuất bản', 'toggleLesson', { id: lesson.id }, published ? 'light mini' : 'mini')}${dbBtn('Sửa bài học', 'editLesson', { id: lesson.id }, 'light mini')}${dbBtn('Xóa', 'deleteLesson', { id: lesson.id }, 'light mini danger-soft')}</div>
+        </div>${tabs}
+      </div>
+      <div class="lesson-workspace-body">${body}</div>
+    </section>
+  </div>`;
+}
+
+function dbLessonObjectives(lesson, objectives) {
+  const rows = objectives.map((o) => `<li><span class="db-obj-code">${h(o.code)}</span><span class="db-obj-text">${h(o.description)}</span>
+    <span class="row">${dbBtn('Sửa', 'editObjective', { id: o.id }, 'light mini')}${dbBtn('Xóa', 'deleteObjective', { id: o.id }, 'light mini danger-soft')}</span></li>`).join('');
+  return `<section class="panel">
+    <div class="row between"><div><h3>Mục tiêu cần đạt</h3><p class="lead">Mục tiêu được dùng để gắn câu hỏi và theo dõi mức độ nắm vững.</p></div><span class="pill plain">${objectives.length} mục tiêu</span></div>
+    ${rows ? `<ul class="db-objectives">${rows}</ul>` : `<div class="folder-empty">Chưa có mục tiêu cho bài học này.</div>`}
+    <form data-act="createObjective" data-lesson="${h(lesson.id)}" class="db-form-row db-add-row" novalidate>
+      ${dbField('Mã', 'db-oc-' + h(lesson.id), `<input id="db-oc-${h(lesson.id)}" name="code" maxlength="20" value="${h(dbNextObjectiveCode(objectives))}" class="db-input-code" required>`)}
+      ${dbField('Mục tiêu mới', 'db-od-' + h(lesson.id), `<input id="db-od-${h(lesson.id)}" name="description" maxlength="500" placeholder="Nhập điều học sinh cần đạt" required>`)}
+      <button type="submit" class="btn light">${ic('plus', 16)}Thêm mục tiêu</button>${dbFormError()}
+    </form>
+  </section>`;
+}
 /* ===== Xem trước tài liệu =====
    Nhận dạng nhóm tệp theo ĐUÔI TỆP trước (trình duyệt hay để trống MIME với .h, .cpp, .py…),
    rồi mới tới MIME. Nhóm 'office' và 'other' không xem trước được trong trình duyệt → tải xuống. */
@@ -175,23 +231,6 @@ function dbTrashPanel(d) {
   </section>`;
 }
 
-function dbLessonBlock(l, objectives, resources) {
-  const pub = l.status === 'PUBLISHED';
-  return `<div class="db-lesson" id="db-l-${h(l.id)}">
-    <div class="row between">
-      <div><b>${h(l.title)}</b> ${dbStatusPill(l.status)}${l.description ? `<div class="muted">${h(l.description)}</div>` : ''}</div>
-      <div class="row">${dbBtn(pub ? 'Gỡ xuất bản' : 'Xuất bản', 'toggleLesson', { id: l.id }, pub ? 'light mini' : 'mini')}${dbBtn('Sửa', 'editLesson', { id: l.id }, 'light mini')}${dbBtn('Xóa', 'deleteLesson', { id: l.id }, 'light mini danger-soft')}</div>
-    </div>
-    ${objectives.length ? `<ul class="db-objectives">${objectives.map((o) => `<li><span class="db-obj-code">${h(o.code)}</span><span class="db-obj-text">${h(o.description)}</span>
-        <span class="row">${dbBtn('Sửa', 'editObjective', { id: o.id }, 'light mini')}${dbBtn('Xóa', 'deleteObjective', { id: o.id }, 'light mini danger-soft')}</span></li>`).join('')}</ul>` : `<p class="muted db-noobj">Chưa có mục tiêu. Mục tiêu là cơ sở để hệ thống tính mức nắm vững.</p>`}
-    <form data-act="createObjective" data-lesson="${h(l.id)}" class="db-form-row db-add-row" novalidate>
-      ${dbField('Mã', 'db-oc-' + h(l.id), `<input id="db-oc-${h(l.id)}" name="code" maxlength="20" value="${h(dbNextObjectiveCode(objectives))}" class="db-input-code" required>`)}
-      ${dbField('Mục tiêu mới', 'db-od-' + h(l.id), `<input id="db-od-${h(l.id)}" name="description" maxlength="500" placeholder="Ví dụ: Phân biệt mạng LAN và WAN" required>`)}
-      <button type="submit" class="btn light">Thêm mục tiêu</button>${dbFormError()}
-    </form>
-    ${dbLessonResources(l, resources)}
-  </div>`;
-}
 /* Mã gợi ý cho mục tiêu tiếp theo của bài học: MT1, MT2, … (mã không trùng trong cùng một bài học). */
 function dbNextObjectiveCode(objectives) {
   const used = new Set(objectives.map((o) => o.code));
@@ -200,6 +239,11 @@ function dbNextObjectiveCode(objectives) {
   return 'MT' + n;
 }
 const dbNextOrder = (list) => list.reduce((m, x) => Math.max(m, x.display_order || 0), 0) + 1;
+
+DB_ACT.openContentRoot = () => { DB.arg = {}; render(); };
+DB_ACT.openContentTopic = (el) => { DB.arg = { topicId: el.dataset.id }; render(); };
+DB_ACT.openContentLesson = (el) => { DB.arg = { topicId: el.dataset.topicId, lessonId: el.dataset.id }; render(); };
+DB_ACT.selectContentTab = (el) => { DB.arg = { ...DB.arg, tab: el.dataset.tab }; render(); };
 
 DB_ACT.createTopic = (form) => dbRun(form, async (v) => {
   if (!v.title) throw new Error('Nhập tên chủ đề.');
@@ -236,6 +280,7 @@ DB_ACT.deleteTopic = (el) => {
   if (DB.data.lessons.some((l) => l.topic_id === t.id)) return toast('Hãy xóa hoặc chuyển các bài học trong chủ đề này trước.');
   dbConfirm('Xóa chủ đề?', `Chủ đề “${h(t.title)}” sẽ bị ẩn khỏi lớp.`, 'Xóa chủ đề', async () => {
     await dbCall(EducMindDB.updateTopic(t.id, { deleted_at: new Date().toISOString() }));
+    if (DB.arg.topicId === t.id) DB.arg = {};
     toast('Đã xóa chủ đề.');
   }, true);
 };
@@ -268,6 +313,7 @@ DB_ACT.deleteLesson = (el) => {
   const l = DB.data.lessons.find((x) => x.id === el.dataset.id);
   dbConfirm('Xóa bài học?', `Bài học “${h(l.title)}” sẽ bị ẩn khỏi lớp. Bài tập, bài kiểm tra và kết quả học tập đã có vẫn được giữ.`, 'Xóa bài học', async () => {
     await dbCall(EducMindDB.updateLesson(l.id, { deleted_at: new Date().toISOString() }));
+    if (DB.arg.lessonId === l.id) DB.arg = { topicId: l.topic_id };
     toast('Đã xóa bài học.');
   }, true);
 };
@@ -433,16 +479,23 @@ DB_PAGES.lessons = {
         prevOk = objs.length === 0 || objs.every((o) => Number(((d.mastery[o.id] || {}).mastery_score) || 0) >= 0.8);
       }
     }
-    return d.topics.map((t) => `<section class="panel db-topic" aria-labelledby="db-st-${h(t.id)}">
-      <h2 id="db-st-${h(t.id)}">${h(t.title)}</h2>${t.description ? `<p class="lead">${h(t.description)}</p>` : ''}
-      ${(lessonsBy[t.id] || []).map((l) => locked[l.id]
-        ? `<div class="db-lesson db-locked" id="db-l-${h(l.id)}"><b>${h(l.title)}</b>
-            <div class="db-lock-note">${ic('lock', 16)} Bài học đang khóa — hãy nắm vững (≥ 0,8) mọi mục tiêu của bài trước để mở bài này.</div></div>`
-        : `<div class="db-lesson" id="db-l-${h(l.id)}">
-        <b>${h(l.title)}</b>${l.description ? `<div class="muted">${h(l.description)}</div>` : ''}
-        ${(objBy[l.id] || []).length ? `<ul class="db-objectives">${objBy[l.id].map((o) => `<li><span class="db-obj-code">${h(o.code)}</span><span class="db-obj-text">${h(o.description)}</span><span>${dbMasteryPill(d.mastery[o.id] ? d.mastery[o.id].mastery_score : null)}</span></li>`).join('')}</ul>` : ''}
-        ${dbLessonResources(l, resBy[l.id] || [])}
-      </div>`).join('') || dbEmpty('Chủ đề chưa có bài học được xuất bản.')}
-    </section>`).join('');
+    return d.topics.map((t, i) => {
+      const lessons = lessonsBy[t.id] || [];
+      return `<details class="topic-folder">
+        <summary><span class="topic-mark">${String(i + 1).padStart(2, '0')}</span><span class="topic-title">${h(t.title)}</span><span class="pill plain">${lessons.length} bài học</span></summary>
+        <div class="topic-lessons">${t.description ? `<p class="muted">${h(t.description)}</p>` : ''}
+          ${lessons.map((l) => `<details class="scope-lesson">
+            <summary><span><b>${h(l.title)}</b> ${locked[l.id] ? dbPill('Đang khóa', 'need') : ''}</span>${ic(locked[l.id] ? 'lock' : 'arrow', 16)}</summary>
+            ${locked[l.id]
+              ? `<div class="db-lock-note">${ic('lock', 16)} Bài học đang khóa — hãy nắm vững (≥ 0,8) mọi mục tiêu của bài trước để mở bài này.</div>`
+              : `<div class="db-lesson" id="db-l-${h(l.id)}">
+                  ${l.description ? `<p class="muted">${h(l.description)}</p>` : ''}
+                  ${(objBy[l.id] || []).length ? `<ul class="db-objectives">${objBy[l.id].map((o) => `<li><span class="db-obj-code">${h(o.code)}</span><span class="db-obj-text">${h(o.description)}</span><span>${dbMasteryPill(d.mastery[o.id] ? d.mastery[o.id].mastery_score : null)}</span></li>`).join('')}</ul>` : `<p class="muted">Chưa có mục tiêu cho bài học này.</p>`}
+                  ${dbLessonResources(l, resBy[l.id] || [])}
+                </div>`}
+          </details>`).join('') || `<div class="folder-empty">Chủ đề chưa có bài học được xuất bản.</div>`}
+        </div>
+      </details>`;
+    }).join('');
   },
 };
