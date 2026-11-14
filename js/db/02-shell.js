@@ -18,6 +18,7 @@ const DB_NAV_S = [
 
 function dbShell(P, body) {
   const T = dbIsTeacher();
+  const avatarPhoto = avatarPhotoData();
   const unread = DB.notifs.filter((n) => !n.is_read).length;
   const bellLabel = 'Thông báo' + (unread ? ', ' + unread + ' chưa xem' : '');
   const nav = (T ? DB_NAV_T : DB_NAV_S).map(([g, items]) => `<div class="grp${g ? '' : ' grp-bare'}">${g ? `<h2>${g}</h2>` : ''}<div class="items">${items.map(([k, label, icon]) =>
@@ -32,7 +33,7 @@ function dbShell(P, body) {
   <header class="top">
     ${brandLogoHtml()}
     <span class="spacer"></span>
-    <div class="user"><span class="avatar" aria-hidden="true">${h(dbInitials(DB.me.full_name || DB.me.email))}</span><span>${h(dbName(DB.me))} · ${T ? 'Giáo viên' : 'Học sinh'}</span></div>
+    <div class="user">${avatarPickerHtml(`<span class="avatar" aria-hidden="true">${avatarPhoto ? `<img src="${h(avatarPhoto)}" alt="">` : h(dbInitials(DB.me.full_name || DB.me.email))}</span>`)}<span>${h(dbName(DB.me))} · ${T ? 'Giáo viên' : 'Học sinh'}</span></div>
     ${iconBtn(bellLabel, 'bell', 'data-act="openNotifs" id="db-bell"', unread ? `<span class="nb" aria-hidden="true">${unread > 9 ? '9+' : unread}</span>` : '', 'notif-btn')}
     ${themeBtn()}
     ${iconBtn('Tài khoản', 'user', 'data-act="openAccount"')}

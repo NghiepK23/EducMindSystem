@@ -9,10 +9,34 @@ const AV_THEMES=[['default','Mặc định'],['blue','Xanh dương'],['green','X
 const AV_KEYS=AV_THEMES.map(x=>x[0]);
 const acctRec=()=>sess?(ACCT[sess.email]||(ACCT[sess.email]={})):null;
 const avOf=()=>{const a=acctRec();return (a&&a.avatar)||{}};
+const avatarStorageKey=()=>`educmind.avatar:${String((sess&&sess.email)||'guest').toLowerCase()}`;
+function avatarPhotoData(){
+  if(sess&&!sess.backend){const av=avOf();if(av.photo)return av.photo}
+  try{return localStorage.getItem(avatarStorageKey())||''}catch(e){return ''}
+}
 function avatarHtml(big){
-  const av=avOf(),cls='avatar'+(AV_KEYS.includes(av.theme)&&av.theme!=='default'?' av-'+av.theme:'');
+  const av=avOf(),photo=avatarPhotoData(),cls='avatar'+(AV_KEYS.includes(av.theme)&&av.theme!=='default'?' av-'+av.theme:'');
   const st=big?" style='width:44px;height:44px;font-size:1rem;flex:none'":'';
-  return `<span class='${cls}'${st} aria-hidden='true'>${av.photo?`<img src='${av.photo}' alt=''>`:initials()}</span>`;
+  return `<span class='${cls}'${st} aria-hidden='true'>${photo?`<img src='${esc(photo)}' alt=''>`:initials()}</span>`;
+}
+function avatarPickerHtml(avatar){
+  return `<button type='button' class='avatar-pick' aria-label='Đổi ảnh đại diện' title='Đổi ảnh đại diện' onclick="document.getElementById('avatar-upload').click()">${avatar}</button><input id='avatar-upload' type='file' accept='image/png,image/jpeg,image/webp,image/gif' hidden onchange='uploadAvatar(this.files&&this.files[0]);this.value=""'>`;
+}
+function uploadAvatar(file){
+  if(!file)return;
+  if(!/^image\/(png|jpeg|webp|gif)$/i.test(file.type)){toast('Hãy chọn ảnh PNG, JPG, WEBP hoặc GIF.');return}
+  if(file.size>15*1024*1024){toast('Ảnh đại diện cần nhỏ hơn 15 MB.');return}
+  const reader=new FileReader();reader.onerror=()=>toast('Không đọc được tệp ảnh.');
+  reader.onload=()=>{const img=new Image();img.onerror=()=>toast('Tệp này không phải ảnh hợp lệ.');img.onload=()=>{
+    try{
+      const size=512,scale=Math.min(1,size/img.naturalWidth,size/img.naturalHeight),w=Math.max(1,Math.round(img.naturalWidth*scale)),h=Math.max(1,Math.round(img.naturalHeight*scale)),canvas=document.createElement('canvas');
+      canvas.width=w;canvas.height=h;const cx=canvas.getContext('2d');cx.fillStyle='#fff';cx.fillRect(0,0,w,h);cx.drawImage(img,0,0,w,h);
+      const photo=canvas.toDataURL('image/jpeg',.84);
+      localStorage.setItem(avatarStorageKey(),photo);
+      const a=sess&&!sess.backend?acctRec():null;if(a)a.avatar=Object.assign({},a.avatar||{},{photo});
+      render();toast('Đã cập nhật ảnh đại diện trên thiết bị này.');
+    }catch(e){toast('Không lưu được ảnh đại diện. Hãy thử ảnh khác hoặc giải phóng dung lượng trình duyệt.')}
+  };img.src=String(reader.result||'')};reader.readAsDataURL(file)
 }
 const ownerName=c=>(ACCT[c.owner]||{}).name||c.owner;
 const owns=c=>!!c&&!!sess&&sess.role==='T'&&c.owner===sess.email;

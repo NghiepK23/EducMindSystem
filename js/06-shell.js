@@ -16,7 +16,7 @@ function shell(content){
   <header class="top">
     ${brandLogoHtml()}
     <span class="spacer"></span>
-    <div class='user'>${avatarHtml()}<span>${esc(acctName())}${role==='S'?' · lớp '+esc(c.id):' · Giáo viên Tin học'}</span></div>${notifBtn()}${themeBtn()}<button class='btn light' onclick='openAccount()'>Tài khoản</button>
+    <div class='user'>${avatarPickerHtml(avatarHtml())}<span>${esc(acctName())}${role==='S'?' · lớp '+esc(c.id):' · Giáo viên Tin học'}</span></div>${notifBtn()}${themeBtn()}<button class='btn light' onclick='openAccount()'>Tài khoản</button>
     <button class="btn light" onclick="logout()">${ic('logout',16)}Đăng xuất</button>
   </header>
   <div class="layout ${role==='T'?'teacher-layout':''} ${sidebarCollapsed?'sidebar-collapsed':''} ${dlg?'has-dialog':''}" style="--sidebar-width:${sidebarWidth}px">
