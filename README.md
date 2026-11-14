@@ -3,6 +3,7 @@
 Website quản lý lớp học, nội dung bài học, bài tập, câu hỏi, đề kiểm tra và tiến độ học tập.
 Giao diện viết bằng **JavaScript thuần** (không framework, không cần bước build), backend dùng **Supabase**
 (PostgreSQL + Auth + REST + Storage + Realtime), toàn bộ mã nguồn lưu trong repository này.
+Giáo viên có thể gắn câu hỏi từ ngân hàng vào bài tập; học sinh trả lời trực tiếp trên web hoặc nộp bài/tệp như trước.
 
 ## Chạy website trên máy cá nhân
 
@@ -72,7 +73,7 @@ mọi lệnh đọc/ghi cơ sở dữ liệu đều đi qua đối tượng này
 
 1. Tạo dự án Supabase (miễn phí là đủ).
 2. Chạy toàn bộ tệp trong `supabase/migrations/` theo thứ tự thời gian trong tên tệp
-   (dùng Supabase CLI `supabase db push`, hoặc mở SQL Editor và chạy tuần tự từng tệp).
+   (dùng Supabase CLI `supabase db push --remote`, hoặc mở SQL Editor và chạy tuần tự từng tệp).
 3. Sửa `js/03-supabase.js`: điền `SUPABASE_URL` và `SUPABASE_PUBLISHABLE_KEY`
    (chỉ dùng **khóa công khai** publishable; mọi phân quyền do **RLS** trong cơ sở dữ liệu quyết định).
 4. Trong Authentication → URL Configuration của Supabase: đặt `site_url` là địa chỉ website
@@ -99,7 +100,7 @@ Google vẫn áp dụng hạn mức theo dự án gắn với API key (nhiều k
 
    ```bash
    supabase link --project-ref <project-ref>
-   supabase db push
+   supabase db push --remote
    supabase functions deploy ai-generate
    supabase functions deploy ai-credentials
    ```

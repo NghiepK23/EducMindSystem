@@ -86,6 +86,14 @@
 .db-question h2{font-size:1.0625rem}
 .db-answers{display:grid;gap:8px;margin-top:10px}
 .db-answers input[type=text],.db-answers textarea{width:100%}
+.db-assignment-questions{display:grid;gap:14px;margin:18px 0}
+.db-assignment-questions h3{margin:0}
+.db-assignment-questions .db-question{margin:0;padding:14px;border:1px solid var(--line);border-radius:14px;background:var(--surface)}
+.db-assignment-questions .db-question legend{padding:0 6px}
+.db-assignment-questions .db-prose{margin:6px 0 12px}
+.db-assignment-answers{margin:10px 0;padding:12px;border-radius:12px;background:var(--fill)}
+.db-assignment-answers>div+div{margin-top:14px;padding-top:14px;border-top:1px solid var(--line)}
+.db-assignment-answers p{margin:6px 0}
 
 /* ----- Làm bài kiểm tra ----- */
 .db-exam-bar{position:sticky;top:8px;z-index:5}

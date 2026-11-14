@@ -124,6 +124,13 @@ const EducMindDB=(()=>{
     /* Học sinh nộp hoặc sửa bài: một bài nộp cho mỗi (bài tập, học sinh). status: SUBMITTED trước hạn, LATE sau hạn (khi bài cho nộp muộn). */
     submitAssignment:(row)=>from('assignment_submissions').upsert({...row,student_id:me()},{onConflict:'assignment_id,student_id'}).select().single(),
     gradeSubmission:(id,row)=>from('assignment_submissions').update({...row,graded_by:me(),graded_at:now()}).eq('id',id).select().single(),
+    listAssignmentQuestions:(assignmentIds)=>from('assignment_questions').select('assignment_id,question_id,display_order').in('assignment_id',assignmentIds).order('display_order'),
+    addAssignmentQuestions:(rows)=>from('assignment_questions').insert(rows).select(),
+    removeAssignmentQuestion:(assignmentId,questionId)=>from('assignment_questions').delete().eq('assignment_id',assignmentId).eq('question_id',questionId).select(),
+    listAssignmentQuestionDetails:(courseId)=>from('questions').select('id,course_id,content,kind,options,correct_answer,difficulty,grade,bloom_level,deleted_at').eq('course_id',courseId),
+    listAssignmentAnswers:(submissionIds)=>from('assignment_submission_answers').select('submission_id,question_id,answer_content').in('submission_id',submissionIds),
+    saveAssignmentAnswers:(rows)=>from('assignment_submission_answers').upsert(rows,{onConflict:'submission_id,question_id'}).select(),
+    getAssignmentQuestions:(assignmentId)=>rpc('student_assignment_questions',{x:assignmentId}),
 
     /* ----- Rubric (thang điểm chi tiết của bài tập) -----
        Giáo viên đặt các tiêu chí; khi chấm, điểm mỗi tiêu chí được lưu vào rubric_scores

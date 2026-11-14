@@ -81,6 +81,8 @@ DB_ACT.filterQuestions = () => {
 
 function dbQuestionForm(d, q) {
   if (DB.arg.edit !== 'new' && !q) return `<section class="panel">${dbEmpty('Không tìm thấy câu hỏi cần sửa.')}</section>`;
+  const returnToAssignment = DB.arg.return_to === 'assignment' && DB.arg.assignment_id;
+  const cancelTarget = returnToAssignment ? { page: 'assignments', id: DB.arg.assignment_id } : { page: 'questions' };
   const kind = q ? q.kind : 'SINGLE_CHOICE', opts = q && Array.isArray(q.options) ? q.options : [];
   const correct = new Set(q && (kind === 'SINGLE_CHOICE' || kind === 'MULTIPLE_CHOICE') && q.correct_answer != null ? [].concat(q.correct_answer).map(Number) : []);
   const tf = q && kind === 'TRUE_FALSE' ? (q.correct_answer === true || String(q.correct_answer).toLowerCase() === 'true' ? 'true' : q.correct_answer == null ? '' : 'false') : '';
@@ -112,7 +114,7 @@ function dbQuestionForm(d, q) {
       <div class="db-only" data-for="SHORT_ANSWER ESSAY">${dbField('Đáp án tham khảo (không bắt buộc)', 'db-qf-ref', `<textarea id="db-qf-ref" name="ref" rows="2" maxlength="2000">${h(ref)}</textarea>`, 'Câu trả lời ngắn và tự luận do giáo viên chấm tay. Học sinh không nhìn thấy đáp án tham khảo.')}</div>
       <div class="field"><span class="db-label">Mục tiêu mà câu hỏi đánh giá</span>${dbObjectivePicker(d, 'objectives', picked)}</div>
       ${dbFormError()}
-      <div class="row db-form-actions">${dbBtn('Hủy', 'go', { page: 'questions' }, 'light')}<button type="submit" class="btn">${q ? 'Lưu thay đổi' : 'Thêm câu hỏi'}</button></div>
+      <div class="row db-form-actions">${dbBtn('Hủy', 'go', cancelTarget, 'light')}<button type="submit" class="btn">${q ? 'Lưu thay đổi' : 'Thêm câu hỏi'}</button></div>
     </form>
   </section>`;
 }
@@ -148,8 +150,9 @@ DB_ACT.saveQuestion = (form) => dbRun(form, async (v) => {
   await dbSyncLinks(current, v.objectives || [],
     (add) => dbCall(EducMindDB.addQuestionObjectives(add.map((o) => ({ question_id: q.id, objective_id: o })))),
     (rem) => dbCall(EducMindDB.removeQuestionObjectives(q.id, rem)));
-  toast(id ? 'Đã lưu câu hỏi.' : 'Đã thêm câu hỏi vào ngân hàng.');
-  await dbGo('questions', {});
+  const returnToAssignment = !id && DB.arg.return_to === 'assignment' && DB.arg.assignment_id;
+  toast(returnToAssignment ? 'Đã tạo câu hỏi. Chọn câu mới trong danh sách để thêm vào bài tập.' : id ? 'Đã lưu câu hỏi.' : 'Đã thêm câu hỏi vào ngân hàng.');
+  await dbGo(returnToAssignment ? 'assignments' : 'questions', returnToAssignment ? { id: DB.arg.assignment_id } : {});
   return false;
 });
 DB_ACT.deleteQuestion = (el) => {

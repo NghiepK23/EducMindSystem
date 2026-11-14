@@ -20,15 +20,23 @@ const dbDueText = (a) => 'Hạn nộp ' + dbDateTime(a.due_at) + (a.allow_late &
 
 DB_PAGES.assignments = {
   title: 'Bài tập',
-  sub: () => (dbIsTeacher() ? 'Giao bài, theo dõi bài nộp và chấm điểm.' : 'Bài tập giáo viên đã giao cho lớp.'),
+  sub: () => (dbIsTeacher() ? 'Tạo bài có câu hỏi, theo dõi bài nộp và chấm điểm.' : 'Bài tập giáo viên đã giao cho lớp.'),
   async load() {
     const content = await dbLoadContent();
     const assignments = DB.course ? await dbCall(EducMindDB.listAssignments(DB.course.id)) : [];
     const ids = assignments.map((a) => a.id);
     const [links, submissions] = await Promise.all([dbCallIn(EducMindDB.listAssignmentObjectives, ids), dbCallIn(EducMindDB.listSubmissions, ids)]);
-    const [criteria, rubricScores] = await Promise.all([dbCallIn(EducMindDB.listRubricCriteria, ids), dbCallIn(EducMindDB.listRubricScores, submissions.map((s) => s.id))]);
+    const [criteria, rubricScores, assignmentQuestions, assignmentAnswers] = await Promise.all([
+      dbCallIn(EducMindDB.listRubricCriteria, ids),
+      dbCallIn(EducMindDB.listRubricScores, submissions.map((s) => s.id)),
+      dbIsTeacher() ? dbCallIn(EducMindDB.listAssignmentQuestions, ids) : [],
+      dbCallIn(EducMindDB.listAssignmentAnswers, submissions.map((s) => s.id)),
+    ]);
     const roster = dbIsTeacher() ? await dbLoadRoster() : { members: [], profiles: {} };
-    return { ...content, assignments, links, submissions, criteria, rubricScores, ...roster };
+    const questions = dbIsTeacher() && DB.course ? await dbCall(EducMindDB.listQuestions(DB.course.id)) : [];
+    const assignmentQuestionDetails = dbIsTeacher() && DB.course ? await dbCall(EducMindDB.listAssignmentQuestionDetails(DB.course.id)) : [];
+    const studentQuestions = !dbIsTeacher() && DB.arg.id ? await dbCall(EducMindDB.getAssignmentQuestions(DB.arg.id)) : [];
+    return { ...content, assignments, links, submissions, criteria, rubricScores, assignmentQuestions, assignmentAnswers, questions, assignmentQuestionDetails, studentQuestions, ...roster };
   },
   view(d) {
     const T = dbIsTeacher();
@@ -49,20 +57,21 @@ function dbAssignmentObjectives(d, a) {
 
 /* ===== Giáo viên ===== */
 function dbAssignmentTeacherList(d) {
-  const subsBy = dbGroup(d.submissions, 'assignment_id'), total = d.members.length;
+  const subsBy = dbGroup(d.submissions, 'assignment_id'), questionsBy = dbGroup(d.assignmentQuestions, 'assignment_id'), total = d.members.length;
   const rows = d.assignments.map((a) => {
     const subs = subsBy[a.id] || [], waiting = subs.filter((s) => s.score == null).length, pub = a.status === 'PUBLISHED';
     return `<tr>
       <th scope="row"><button type="button" class="db-link" data-act="go" data-page="assignments" data-id="${h(a.id)}">${h(a.title)}</button><div class="muted">${dbLessonTitle(d, a.lesson_id) || 'Chưa gắn bài học'}</div></th>
       <td>${dbDateTime(a.due_at)}</td>
+      <td>${(questionsBy[a.id] || []).length} câu</td>
       <td>${dbStatusPill(a.status)}</td>
       <td>${subs.length}/${total} đã nộp${waiting ? ` · <b>${waiting}</b> chờ chấm` : ''}</td>
       <td class="db-cell-actions">${dbBtn(pub ? 'Gỡ xuất bản' : 'Xuất bản', 'toggleAssignment', { id: a.id }, pub ? 'light mini' : 'mini')}${dbBtn('Sửa', 'go', { page: 'assignments', edit: a.id }, 'light mini')}${dbBtn('Xóa', 'deleteAssignment', { id: a.id }, 'light mini danger-soft')}</td>
     </tr>`;
   });
   return `<section class="panel" aria-labelledby="db-h-asg">
-    <div class="row between"><div><h2 id="db-h-asg">Bài tập của lớp</h2><p class="lead">${d.assignments.length} bài tập · bấm vào tên bài để xem bài nộp và chấm điểm.</p></div>${dbBtn(ic('plus', 16) + 'Tạo bài tập', 'go', { page: 'assignments', edit: 'new' })}</div>
-    ${rows.length ? dbTable(['Bài tập', 'Hạn nộp', 'Trạng thái', 'Bài nộp', '<span class="sr">Thao tác</span>'], rows, 'Bài tập của lớp') : dbEmpty('Chưa có bài tập nào.')}
+    <div class="row between"><div><h2 id="db-h-asg">Bài tập của lớp</h2><p class="lead">${d.assignments.length} bài tập · mở bài để thêm câu hỏi, xem bài nộp và chấm điểm.</p></div>${dbBtn(ic('plus', 16) + 'Tạo bài tập', 'go', { page: 'assignments', edit: 'new' })}</div>
+    ${rows.length ? dbTable(['Bài tập', 'Hạn nộp', 'Câu hỏi', 'Trạng thái', 'Bài nộp', '<span class="sr">Thao tác</span>'], rows, 'Bài tập của lớp') : dbEmpty('Chưa có bài tập nào.')}
   </section>`;
 }
 function dbAssignmentForm(d, a) {
@@ -71,7 +80,7 @@ function dbAssignmentForm(d, a) {
   const defDue = new Date(dbNow() + 7 * 86400000); defDue.setHours(23, 59, 0, 0);
   return `<section class="panel" aria-labelledby="db-h-af">
     <h2 id="db-h-af">${a ? 'Sửa bài tập' : 'Tạo bài tập'}</h2>
-    <p class="lead">Bài tập mới ở trạng thái bản nháp; học sinh chỉ thấy sau khi xuất bản.</p>
+    <p class="lead">Bài tập mới ở trạng thái bản nháp. Sau khi lưu, hãy thêm câu hỏi hoặc yêu cầu; học sinh chỉ thấy bài sau khi xuất bản.</p>
     <form data-act="saveAssignment" data-id="${h(a ? a.id : '')}" novalidate>
       ${dbField('Tên bài tập', 'db-af-title', `<input id="db-af-title" name="title" maxlength="200" value="${h(a ? a.title : '')}" required>`)}
       ${dbField('Yêu cầu', 'db-af-desc', `<textarea id="db-af-desc" name="description" rows="5" maxlength="5000">${h(a ? a.description : '')}</textarea>`)}
@@ -80,7 +89,7 @@ function dbAssignmentForm(d, a) {
         ${dbField('Hạn nộp', 'db-af-due', `<input id="db-af-due" name="due" type="datetime-local" value="${dbToLocalInput(a ? a.due_at : defDue.toISOString())}" required>`)}
         ${dbField('Điểm tối đa', 'db-af-max', `<input id="db-af-max" name="max_score" type="number" min="0.5" step="0.5" value="${h(a ? a.max_score : 10)}" required>`)}
       </div>
-      <div class="db-form-grid">
+      <div class="db-form-grid db-late-grid">
         <div class="field"><label class="db-check"><input type="checkbox" id="db-af-late" name="allow_late" ${a && a.allow_late ? 'checked' : ''}> Cho phép nộp muộn</label></div>
         ${dbField('Nhận bài muộn đến', 'db-af-lateclose', `<input id="db-af-lateclose" name="late_close" type="datetime-local" value="${dbToLocalInput(a ? a.late_close_at : '')}">`, 'Chỉ dùng khi cho phép nộp muộn; phải sau hạn nộp.')}
       </div>
@@ -112,12 +121,16 @@ DB_ACT.saveAssignment = (form) => dbRun(form, async (v) => {
   await dbSyncLinks(current, v.objectives || [],
     (add) => dbCall(EducMindDB.addAssignmentObjectives(add.map((o) => ({ assignment_id: a.id, objective_id: o })))),
     (rem) => dbCall(EducMindDB.removeAssignmentObjectives(a.id, rem)));
-  toast(id ? 'Đã lưu bài tập.' : 'Đã tạo bài tập (bản nháp).');
-  await dbGo('assignments', {});
+  toast(id ? 'Đã lưu bài tập.' : 'Đã tạo bài tập (bản nháp). Hãy thêm câu hỏi hoặc yêu cầu trước khi xuất bản.');
+  await dbGo('assignments', { id: a.id });
   return false;
 });
 DB_ACT.toggleAssignment = (el) => dbRun(el, async () => {
   const a = DB.data.assignments.find((x) => x.id === el.dataset.id), pub = a.status === 'PUBLISHED';
+  if (!pub) {
+    const hasQuestions = DB.data.assignmentQuestions.some((x) => x.assignment_id === a.id);
+    if (!hasQuestions && !(a.description || '').trim()) throw new Error('Hãy thêm ít nhất một câu hỏi hoặc nhập yêu cầu bài tập trước khi xuất bản.');
+  }
   await dbCall(EducMindDB.updateAssignment(a.id, { status: pub ? 'DRAFT' : 'PUBLISHED' }));
   toast(pub ? 'Đã gỡ xuất bản bài tập.' : 'Đã xuất bản bài tập. Học sinh trong lớp nhận được thông báo.');
 });
@@ -139,15 +152,69 @@ function dbAssignmentFacts(d, a) {
     ${a.description ? `<div class="db-prose">${h(a.description)}</div>` : ''}
     ${objs.length ? `<div class="db-objlist"><span class="db-label">Mục tiêu được đánh giá</span><ul>${objs.map((o) => `<li>${dbObjLabel(o)}</li>`).join('')}</ul></div>` : (dbIsTeacher() ? `<p class="muted">Bài tập chưa gắn mục tiêu nên điểm sẽ không được tính vào mức nắm vững.</p>` : '')}`;
 }
+function dbAssignmentTeacherQuestions(d, a) {
+  const links = d.assignmentQuestions.filter((x) => x.assignment_id === a.id);
+  const byId = dbById(d.assignmentQuestionDetails), used = new Set(links.map((x) => x.question_id));
+  const bank = d.questions.filter((q) => !used.has(q.id));
+  const locked = d.submissions.some((s) => s.assignment_id === a.id);
+  const rows = links.map((x, i) => {
+    const q = byId[x.question_id];
+    return `<tr><td>${i + 1}</td><th scope="row">${q ? `<div class="db-qtext">${h(q.content)}</div><div class="muted">${h(DB_QKIND[q.kind] || q.kind)} · Đáp án: ${h(dbAnswerKeyText(q))}${q.deleted_at ? ' · Đã xóa khỏi ngân hàng' : ''}</div>` : '<span class="muted">Câu hỏi không còn trong ngân hàng.</span>'}</th>
+    <td class="db-cell-actions">${locked ? '' : dbBtn('Gỡ', 'removeAssignmentQuestion', { id: a.id, q: x.question_id }, 'light mini danger-soft')}</td></tr>`;
+  });
+  const picker = locked
+    ? `<div class="notice">${ic('lock', 16)}<div>Đã có học sinh nộp bài nên danh sách câu hỏi bị khóa để bảo đảm công bằng.</div></div>`
+    : bank.length
+    ? `<form data-act="addAssignmentQuestions" data-id="${h(a.id)}" novalidate>
+        <div class="db-objpick">${bank.map((q) => `<label class="objrow"><input type="checkbox" name="pick" data-multi value="${h(q.id)}"><span><span class="db-qtext">${h(q.content)}</span><span class="muted"> · ${h(DB_QKIND[q.kind] || q.kind)} · ${h(DB_QDIFF[q.difficulty] || q.difficulty)}</span></span></label>`).join('')}</div>
+        <div class="row db-form-actions"><button type="submit" class="btn">Thêm câu đã chọn</button>${dbFormError()}</div>
+      </form>`
+    : dbEmpty(d.questions.length ? 'Đã thêm hết câu hỏi trong ngân hàng.' : 'Ngân hàng câu hỏi chưa có câu nào.');
+  return `<section class="panel" aria-labelledby="db-h-asq">
+    <div class="row between"><div><h2 id="db-h-asq">Câu hỏi của bài tập</h2><p class="lead">${links.length} câu · học sinh trả lời trực tiếp; giáo viên chấm điểm trong bài nộp.</p></div>
+    ${locked ? '' : dbBtn(ic('plus', 16) + 'Tạo câu hỏi mới', 'go', { page: 'questions', edit: 'new', return_to: 'assignment', assignment_id: a.id }, 'light')}</div>
+    ${rows.length ? dbTable(['#', 'Câu hỏi', '<span class="sr">Thao tác</span>'], rows, 'Câu hỏi trong bài tập') : dbEmpty('Chưa có câu hỏi nào.')}
+    ${picker}
+  </section>`;
+}
+DB_ACT.addAssignmentQuestions = (form) => dbRun(form, async (v) => {
+  const picks = [].concat(v.pick || []).filter(Boolean);
+  if (!picks.length) throw new Error('Chọn ít nhất một câu hỏi.');
+  const current = DB.data.assignmentQuestions.filter((x) => x.assignment_id === form.dataset.id);
+  const used = new Set(current.map((x) => x.question_id));
+  const rows = [...new Set(picks)].filter((id) => !used.has(id)).map((question_id, i) => ({
+    assignment_id: form.dataset.id,
+    question_id,
+    display_order: current.reduce((max, x) => Math.max(max, Number(x.display_order) || 0), 0) + i + 1,
+  }));
+  if (!rows.length) throw new Error('Các câu đã chọn đều có trong bài tập.');
+  await dbCall(EducMindDB.addAssignmentQuestions(rows));
+}, 'Đã thêm câu hỏi vào bài tập.');
+DB_ACT.removeAssignmentQuestion = (el) => dbRun(el, async () => {
+  const removed = await dbCall(EducMindDB.removeAssignmentQuestion(el.dataset.id, el.dataset.q));
+  if (!removed.length) throw new Error('Không gỡ được câu hỏi này.');
+}, 'Đã gỡ câu hỏi khỏi bài tập.');
+function dbAssignmentAnswerReview(d, a, answers) {
+  const links = d.assignmentQuestions.filter((x) => x.assignment_id === a.id);
+  if (!links.length) return '';
+  const questions = dbById(d.assignmentQuestionDetails), answerById = dbById(answers.map((x) => ({ ...x, id: x.question_id })));
+  return `<div class="db-assignment-answers"><h3>Câu trả lời</h3>${links.map((link, i) => {
+    const q = questions[link.question_id], answer = answerById[link.question_id];
+    if (!q) return `<div><b>Câu ${i + 1}</b><p class="muted">Câu hỏi không còn trong ngân hàng.</p></div>`;
+    const text = answer ? dbAnswerText(q, answer.answer_content) : '';
+    return `<div><b>Câu ${i + 1} · ${h(DB_QKIND[q.kind] || q.kind)}</b><div class="db-prose">${h(q.content)}</div><p><b>Trả lời:</b> ${text ? h(text) : '<span class="muted">Chưa trả lời</span>'}</p></div>`;
+  }).join('')}</div>`;
+}
 function dbAssignmentTeacherDetail(d, a) {
   const subs = Object.fromEntries(d.submissions.filter((s) => s.assignment_id === a.id).map((s) => [s.student_id, s]));
+  const answersBySubmission = dbGroup(d.assignmentAnswers, 'submission_id');
   const rows = d.members.map((m) => {
     const p = d.profiles[m.student_id], s = subs[m.student_id];
     if (!s) return `<tr><th scope="row">${h(dbName(p))}</th><td>${dbPill('Chưa nộp', 'plain')}</td><td class="muted">—</td><td class="muted">—</td></tr>`;
     return `<tr>
       <th scope="row">${h(dbName(p))}<div class="muted">${dbDateTime(s.submitted_at)}${s.is_edited ? ' · đã sửa' : ''}</div></th>
       <td>${s.score != null ? dbPill('Đã chấm', 'good') : s.status === 'LATE' ? dbPill('Nộp muộn', 'need') : dbPill('Chờ chấm', 'prog')}</td>
-      <td><details class="db-work"><summary>Xem bài làm</summary><div class="db-prose">${h(s.text_content || '(không có nội dung văn bản)')}</div>${s.storage_path ? `<div class="db-file"><span class="db-file-name">${ic('overview', 14)}<span class="db-file-title">${h(dbSubName(s))}</span></span><span class="row db-file-actions">${dbBtn('Xem trước', 'previewSubmission', { path: s.storage_path, name: dbSubName(s) }, 'light mini')}${dbBtn('Tải tệp bài nộp', 'downloadSubmission', { path: s.storage_path, name: dbSubName(s) }, 'light mini')}</span></div>` : ''}</details></td>
+      <td><details class="db-work"><summary>Xem bài làm</summary>${s.text_content ? `<div class="db-prose">${h(s.text_content)}</div>` : ''}${dbAssignmentAnswerReview(d, a, answersBySubmission[s.id] || [])}${s.storage_path ? `<div class="db-file"><span class="db-file-name">${ic('overview', 14)}<span class="db-file-title">${h(dbSubName(s))}</span></span><span class="row db-file-actions">${dbBtn('Xem trước', 'previewSubmission', { path: s.storage_path, name: dbSubName(s) }, 'light mini')}${dbBtn('Tải tệp bài nộp', 'downloadSubmission', { path: s.storage_path, name: dbSubName(s) }, 'light mini')}</span></div>` : ''}${!s.text_content && !s.storage_path && !d.assignmentQuestions.some((x) => x.assignment_id === a.id) ? '<div class="muted">(không có nội dung văn bản)</div>' : ''}</details></td>
       <td>${dbGradeCell(d, a, p, s)}</td>
     </tr>`;
   });
@@ -157,6 +224,7 @@ function dbAssignmentTeacherDetail(d, a) {
       <div class="row">${dbBtn('Về danh sách', 'go', { page: 'assignments' }, 'light')}${dbBtn('Sửa bài tập', 'go', { page: 'assignments', edit: a.id }, 'light')}</div></div>
     ${dbAssignmentFacts(d, a)}
   </section>
+  ${dbAssignmentTeacherQuestions(d, a)}
   <section class="panel" aria-labelledby="db-h-subs">
     <h2 id="db-h-subs">Bài nộp</h2>
     <p class="lead">Điểm từ 0 đến ${dbNum(a.max_score)}. Lưu điểm xong, học sinh nhận thông báo và mức nắm vững được tính lại.</p>
@@ -284,12 +352,58 @@ function dbAssignmentStudentList(d) {
     ${d.assignments.length ? d.assignments.map(card).join('') : dbEmpty('Chưa có bài tập nào được giao.')}
   </section>`;
 }
+function dbAssignmentStudentQuestions(d, submission, editable) {
+  const questions = d.studentQuestions || [];
+  if (!questions.length) return '';
+  const answers = dbById((d.assignmentAnswers || []).filter((x) => submission && x.submission_id === submission.id).map((x) => ({ ...x, id: x.question_id })));
+  const items = questions.map((q, i) => {
+    const saved = answers[q.question_id], answer = saved ? saved.answer_content : null, options = Array.isArray(q.options) ? q.options : [], name = 'db-asg-' + q.question_id;
+    const optionList = !editable && options.length ? `<ol class="db-options" type="A">${options.map((option) => `<li>${h(option)}</li>`).join('')}</ol>` : '';
+    let response;
+    if (!editable) {
+      const text = saved ? dbAnswerText(q, answer) : '';
+      response = `<p><b>Câu trả lời:</b> ${text ? h(text) : '<span class="muted">Chưa trả lời</span>'}</p>`;
+    } else if (q.kind === 'SINGLE_CHOICE') {
+      response = options.map((option, k) => `<label class="objrow"><input type="radio" name="${h(name)}" value="${k}" data-assignment-answer="${h(q.question_id)}" ${answer != null && answer !== '' && Number(answer) === k ? 'checked' : ''}><span>${dbLetter(k)}. ${h(option)}</span></label>`).join('');
+    } else if (q.kind === 'MULTIPLE_CHOICE') {
+      const selected = new Set(answer == null || answer === '' ? [] : [].concat(answer).map(Number));
+      response = `<div class="muted db-hint">Chọn mọi đáp án đúng.</div>` + options.map((option, k) => `<label class="objrow"><input type="checkbox" name="${h(name)}" value="${k}" data-assignment-answer="${h(q.question_id)}" ${selected.has(k) ? 'checked' : ''}><span>${dbLetter(k)}. ${h(option)}</span></label>`).join('');
+    } else if (q.kind === 'TRUE_FALSE') {
+      response = [['true', 'Đúng'], ['false', 'Sai']].map(([value, label]) => `<label class="objrow"><input type="radio" name="${h(name)}" value="${value}" data-assignment-answer="${h(q.question_id)}" ${answer != null && String(answer) === value ? 'checked' : ''}><span>${label}</span></label>`).join('');
+    } else if (q.kind === 'SHORT_ANSWER') {
+      response = `<label class="sr" for="${h(name)}">Câu trả lời câu ${i + 1}</label><input id="${h(name)}" type="text" maxlength="1000" value="${h(answer == null ? '' : answer)}" data-assignment-answer="${h(q.question_id)}" placeholder="Câu trả lời của em">`;
+    } else {
+      response = `<label class="sr" for="${h(name)}">Bài làm câu ${i + 1}</label><textarea id="${h(name)}" rows="5" maxlength="20000" data-assignment-answer="${h(q.question_id)}" placeholder="Bài làm của em">${h(answer == null ? '' : answer)}</textarea>`;
+    }
+    return `<fieldset class="field db-question"><legend><b>Câu ${i + 1} · ${h(DB_QKIND[q.kind] || q.kind)}</b></legend><div class="db-prose">${h(q.content)}</div>${optionList}<div class="db-answers">${response}</div></fieldset>`;
+  }).join('');
+  return `<div class="db-assignment-questions"><h3>Câu hỏi (${questions.length})</h3>${items}</div>`;
+}
+function dbReadAssignmentAnswers(form, questions) {
+  return Object.fromEntries(questions.map((q) => {
+    const controls = [...form.querySelectorAll(`[data-assignment-answer="${q.question_id}"]`)];
+    let answer = null;
+    if (q.kind === 'SINGLE_CHOICE') {
+      const checked = controls.find((x) => x.checked);
+      answer = checked ? Number(checked.value) : '';
+    } else if (q.kind === 'MULTIPLE_CHOICE') answer = controls.filter((x) => x.checked).map((x) => Number(x.value));
+    else if (q.kind === 'TRUE_FALSE') {
+      const checked = controls.find((x) => x.checked);
+      answer = checked ? checked.value === 'true' : '';
+    } else answer = controls[0] ? controls[0].value : '';
+    return [q.question_id, answer];
+  }));
+}
+function dbAssignmentAnswerBlank(value) {
+  return value == null || value === '' || (Array.isArray(value) && !value.length) || (typeof value === 'string' && !value.trim());
+}
 function dbAssignmentStudentDetail(d, a) {
   const s = d.submissions.find((x) => x.assignment_id === a.id), w = dbAssignmentWindow(a), graded = s && s.score != null;
   let form;
   if (graded) form = `<div class="notice">${ic('info', 16)}<div>Bài đã được chấm nên không sửa được nữa.</div></div>`;
   else if (w === 'CLOSED') form = `<div class="notice">${ic('info', 16)}<div>${s ? 'Đã hết hạn nên không sửa được bài nộp.' : 'Đã hết hạn nộp bài.'}</div></div>`;
   else form = `<form data-act="submitAssignment" data-id="${h(a.id)}" novalidate>
+      ${dbAssignmentStudentQuestions(d, s, true)}
       ${dbField(s ? 'Bài làm của em (có thể sửa và nộp lại)' : 'Bài làm của em', 'db-sub-text', `<textarea id="db-sub-text" name="text" rows="10" maxlength="20000">${h(s ? s.text_content || '' : '')}</textarea>`, w === 'LATE' ? 'Đã quá hạn nộp: bài nộp hoặc sửa lúc này được ghi là nộp muộn.' : '')}
       <div class="field"><span class="db-label">Tệp đính kèm (không bắt buộc, tối đa 20 MB)</span>
         ${s && s.storage_path ? `<div class="db-file"><span class="db-file-name">${ic('overview', 14)}<span class="db-file-title">${h(dbSubName(s))}</span></span><span class="muted db-file-meta">Chọn tệp khác để thay tệp này.</span><span class="row db-file-actions">${dbBtn('Xem trước', 'previewSubmission', { path: s.storage_path, name: dbSubName(s) }, 'light mini')}${dbBtn('Tải xuống', 'downloadSubmission', { path: s.storage_path, name: dbSubName(s) }, 'light mini')}</span></div>` : ''}
@@ -306,7 +420,7 @@ function dbAssignmentStudentDetail(d, a) {
       <div class="facts"><div><span>Điểm</span><b>${dbNum(s.score)} / ${dbNum(a.max_score)}</b></div><div><span>Chấm lúc</span><b>${dbDateTime(s.graded_at)}</b></div>${dbRubricResult(d, s)}</div>
       ${s.feedback ? `<div class="db-prose"><b>Nhận xét của giáo viên:</b> ${h(s.feedback)}</div>` : ''}</section>` : ''}
   <section class="panel" aria-labelledby="db-h-sw"><h2 id="db-h-sw">Bài làm</h2>
-    ${graded || w === 'CLOSED' ? (s ? `<div class="db-prose">${h(s.text_content || '')}</div>${s.storage_path ? `<div class="db-file"><span class="db-file-name">${ic('overview', 14)}<span class="db-file-title">${h(dbSubName(s))}</span></span><span class="row db-file-actions">${dbBtn('Xem trước', 'previewSubmission', { path: s.storage_path, name: dbSubName(s) }, 'light mini')}${dbBtn('Tải xuống', 'downloadSubmission', { path: s.storage_path, name: dbSubName(s) }, 'light mini')}</span></div>` : ''}` : '') : ''}${form}
+    ${graded || w === 'CLOSED' ? (s ? `${dbAssignmentStudentQuestions(d, s, false)}${s.text_content ? `<div class="db-prose">${h(s.text_content)}</div>` : ''}${s.storage_path ? `<div class="db-file"><span class="db-file-name">${ic('overview', 14)}<span class="db-file-title">${h(dbSubName(s))}</span></span><span class="row db-file-actions">${dbBtn('Xem trước', 'previewSubmission', { path: s.storage_path, name: dbSubName(s) }, 'light mini')}${dbBtn('Tải xuống', 'downloadSubmission', { path: s.storage_path, name: dbSubName(s) }, 'light mini')}</span></div>` : ''}` : dbAssignmentStudentQuestions(d, null, false)) : form}
   </section>`;
 }
 /* Điểm từng tiêu chí rubric trong trang kết quả của học sinh. */
@@ -319,6 +433,7 @@ function dbRubricResult(d, s) {
 DB_ACT.submitAssignment = (form) => dbRun(form, async (v) => {
   const a = DB.data.assignments.find((x) => x.id === form.dataset.id);
   const prev = (DB.data.submissions || []).find((x) => x.assignment_id === a.id);
+  const questions = DB.data.studentQuestions || [], answers = dbReadAssignmentAnswers(form, questions);
   /* Tệp đính kèm (không bắt buộc): tải lên kho bài nộp rồi lưu đường dẫn vào bài nộp. */
   const input = form.querySelector('input[type="file"]');
   const file = input && input.files[0];
@@ -335,13 +450,19 @@ DB_ACT.submitAssignment = (form) => dbRun(form, async (v) => {
       if (storagePath && storagePath !== path) { try { await EducMindDB.removeSubmissionFile(storagePath); } catch (_) {} }
       storagePath = path;
     }
-    if (!v.text && !storagePath) throw new Error('Nhập nội dung bài làm trước khi nộp.');
+    const hasAnswer = Object.values(answers).some((answer) => !dbAssignmentAnswerBlank(answer));
+    if (!v.text && !storagePath && !hasAnswer) throw new Error('Hãy trả lời ít nhất một câu, nhập nội dung bài làm hoặc đính kèm tệp.');
     const first = dbAssignmentWindow(a) === 'OPEN' ? 'SUBMITTED' : 'LATE';
-    const send = (status) => EducMindDB.submitAssignment({ assignment_id: a.id, text_content: v.text || null, storage_path: storagePath, file_name: file ? String(file.name).slice(0, 200) : (prev && prev.file_name) || null, status });
+    const send = (status) => EducMindDB.submitAssignment({ assignment_id: a.id, text_content: v.text || (questions.length ? '' : null), storage_path: storagePath, file_name: file ? String(file.name).slice(0, 200) : (prev && prev.file_name) || null, status });
     let r = await send(first);
     /* Đồng hồ của máy người dùng có thể lệch vài giây so với máy chủ quanh thời điểm hết hạn: thử lại với trạng thái còn lại. */
     if (r.error && /Submission status is not valid/i.test(r.error.message || '')) r = await send(first === 'SUBMITTED' ? 'LATE' : 'SUBMITTED');
-    await dbCall(Promise.resolve(r));
+    const saved = await dbCall(Promise.resolve(r));
+    if (questions.length) await dbCall(EducMindDB.saveAssignmentAnswers(questions.map((q) => ({
+      submission_id: saved.id,
+      question_id: q.question_id,
+      answer_content: answers[q.question_id],
+    }))));
   } finally {
     dbUploadHide();
   }
