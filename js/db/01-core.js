@@ -173,6 +173,10 @@ async function dbLoad() {
 }
 /* Mở một trang: vẽ ngay khung "đang tải", nạp dữ liệu, rồi vẽ lại. */
 async function dbGo(page, arg) {
+  if (dbIsTeacher() && page === 'games') {
+    toast('Trò chơi chỉ dành cho học sinh. Giáo viên có thể xem trước câu hỏi trong trang Bài tập.');
+    page = 'assignments'; arg = {};
+  }
   if (!DB_PAGES[page]) page = 'home';
   const cur = DB_PAGES[DB.page];
   if (cur && cur.leave && page !== DB.page) cur.leave();

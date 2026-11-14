@@ -5,7 +5,7 @@
 /* Danh mục điều hướng: [tên nhóm, [[khóa trang, nhãn, biểu tượng], …]] */
 const DB_NAV_T = [
   ['', [['home', 'Tổng quan', 'dashboard'], ['schedule', 'Lịch & cần làm', 'calendar']]],
-  ['Dạy học', [['content', 'Thư mục học tập', 'lessons'], ['assignments', 'Bài tập', 'navAsg'], ['questions', 'Ngân hàng câu hỏi', 'questions'], ['assessments', 'Bài kiểm tra', 'assessments'], ['ai', 'AI tạo câu hỏi', 'spark'], ['games', 'Trò chơi', 'play']]],
+  ['Dạy học', [['content', 'Thư mục học tập', 'lessons'], ['assignments', 'Bài tập', 'navAsg'], ['questions', 'Ngân hàng câu hỏi', 'questions'], ['assessments', 'Bài kiểm tra', 'assessments'], ['ai', 'AI tạo câu hỏi', 'spark']]],
   ['Đánh giá học tập', [['progress', 'Mức độ nắm vững', 'mastery'], ['gaps', 'Lỗ hổng kiến thức', 'gaps'], ['recommend', 'Gợi ý học tập', 'recommend'], ['report', 'Báo cáo tiến bộ', 'trend']]],
   ['Quản lý', [['classes', 'Lớp học phụ trách', 'classes'], ['history', 'Lịch sử chỉnh sửa', 'calendar']]],
 ];
@@ -48,7 +48,7 @@ function dbShell(P, body) {
       </div>
       <div class="view">${body}</div>${dbDialogHtml()}
     </main>
-  </div>`;
+  </div>${layer4BackgroundControls()}`;
   applyLayer4Background();
 }
 

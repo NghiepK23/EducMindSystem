@@ -19,6 +19,7 @@ DB_PAGES.games = {
   sub: 'Luyện tập bằng câu hỏi trắc nghiệm của lớp — chơi vui, không ảnh hưởng điểm số.',
   leave() { dbGameStopTick(); },
   async load() {
+    if (dbIsTeacher()) return {};
     if (!DB.classId) return {};
     const content = await dbLoadContent();
     /* Học sinh KHÔNG đọc trực tiếp bảng questions (RLS) — câu hỏi trò chơi lấy qua RPC game_questions. */
@@ -29,6 +30,7 @@ DB_PAGES.games = {
     return { ...content, questions, sessions, ...roster };
   },
   view(d) {
+    if (dbIsTeacher()) return `<section class="panel">${dbEmpty('Trò chơi chỉ dành cho học sinh. Giáo viên có thể xem trước câu hỏi trong trang Bài tập.')}</section>`;
     if (!DB.classId) return `<section class="panel">${dbEmpty('Hãy chọn một lớp để chơi.')}</section>`;
     if (DB_GAME) return dbGamePlay(d);
     return `${DB_GAME_RESULT ? dbGameResult() : ''}${dbGameLobby(d)}${dbGameHistory(d)}`;
