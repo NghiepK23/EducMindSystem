@@ -5,7 +5,7 @@ let authSignupName='',authSignupRole='STUDENT';
 function backendErrorText(e){
   const m=String(e?.message||'');
   if(/Invalid login credentials/i.test(m))return 'Email hoặc mật khẩu không đúng.';
-  if(/Email not confirmed/i.test(m))return 'Email chưa được xác nhận. Hãy mở thư xác nhận Supabase đã gửi rồi đăng nhập lại.';
+  if(/Email not confirmed/i.test(m))return 'Email chưa được xác nhận. Hãy mở thư và nhập mã xác nhận rồi đăng nhập lại.';
   if(/User already registered/i.test(m))return 'Email này đã có tài khoản.';
   if(/Password should be at least/i.test(m))return 'Mật khẩu quá ngắn.';
   if(/rate limit|too many requests|over_email_send_rate_limit/i.test(m))return 'Hệ thống gửi quá nhiều thư trong thời gian ngắn. Hãy thử lại sau ít phút.';
@@ -43,12 +43,12 @@ async function backendSignup(){
   if(data.user&&Array.isArray(data.user.identities)&&data.user.identities.length===0){
     authMode='login';authMsg='';authErr='Email '+email+' đã có tài khoản. Hãy đăng nhập, hoặc bấm “Quên mật khẩu?” nếu không nhớ mật khẩu.';render();return;
   }
-  authMode='login';authSignupName='';
-  authMsg='Đã tạo tài khoản '+(suRole==='TEACHER'?'giáo viên':'học sinh')+'. Hãy mở thư xác nhận gửi tới '+email+' rồi quay lại đăng nhập.';render();
+  authMode='verify-signup';
+  authMsg='Đã tạo tài khoản '+(suRole==='TEACHER'?'giáo viên':'học sinh')+'. Hãy nhập mã xác nhận trong thư gửi tới '+email+'.';render();
 }
 async function activateBackendSession(session){
   if(!session?.user){authErr='Không nhận được phiên đăng nhập.';render();return}
-  /* Liên kết đặt lại mật khẩu: không vào app, hiện màn hình đặt mật khẩu mới (doReset sẽ lưu và đăng xuất). */
+  /* Yêu cầu khôi phục mật khẩu: không vào app, hiện màn hình đặt mật khẩu mới. */
   if(backendRecovery){authMode='reset';render();return}
   /* Hồ sơ (bảng profiles) cho biết vai trò. Chỉ khi đọc được hồ sơ mới coi là đã đăng nhập. */
   const {data:profile,error}=await supabaseClient.from('profiles').select('id,email,full_name,role').eq('id',session.user.id).maybeSingle();

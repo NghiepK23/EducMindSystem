@@ -32,7 +32,7 @@ const dbObjLabel = (o) => (o ? `${h(o.code)} · ${h(o.description)}` : 'Mục ti
 function dbObjectivePicker(content, name, picked, onlyLesson) {
   const byLesson = dbGroup(content.objectives, 'lesson_id');
   const lessons = content.lessons.filter((l) => (byLesson[l.id] || []).length && (!onlyLesson || l.id === onlyLesson));
-  if (!lessons.length) return `<p class="muted">Chưa có mục tiêu nào. Hãy thêm mục tiêu ở trang “Bài học &amp; mục tiêu” trước.</p>`;
+  if (!lessons.length) return `<p class="muted">Chưa có mục tiêu nào. Hãy thêm mục tiêu ở trang “Thư mục học tập” trước.</p>`;
   return `<div class="db-objpick">${lessons.map((l) => `<fieldset><legend>${h(l.title)}</legend>${byLesson[l.id].map((o) =>
     `<label class="objrow"><input type="checkbox" name="${name}" data-multi value="${h(o.id)}" ${picked.has(o.id) ? 'checked' : ''}><span>${dbObjLabel(o)}</span></label>`).join('')}</fieldset>`).join('')}</div>`;
 }
@@ -44,10 +44,10 @@ async function dbSyncLinks(current, wanted, add, remove) {
   if (toAdd.length) await add(toAdd);
 }
 
-/* ===== Giáo viên: Bài học & mục tiêu ===== */
+/* ===== Giáo viên: Thư mục học tập ===== */
 DB_PAGES.content = {
-  title: 'Bài học & mục tiêu',
-  sub: 'Học sinh chỉ thấy bài học khi cả chủ đề và bài học đều đã xuất bản.',
+  title: 'Thư mục học tập',
+  sub: 'Quản lý nội dung theo Chủ đề → Bài học → Mục tiêu và tài liệu.',
   load: async () => ({ ...(await dbLoadContent()), ...(await dbLoadTrash()) }),
   view(d) {
     const lessonsBy = dbGroup(d.lessons, 'topic_id'), objBy = dbGroup(d.objectives, 'lesson_id');
@@ -63,21 +63,35 @@ function dbContentRootView(d, lessonsBy, objBy) {
   const cards = d.topics.map((t, i) => {
     const lessons = lessonsBy[t.id] || [];
     const objectiveCount = lessons.reduce((n, l) => n + (objBy[l.id] || []).length, 0);
-    return `<button type="button" class="folder-tile" data-act="openContentTopic" data-id="${h(t.id)}">
-      <span class="folder-icon">${ic('lessons', 20)}</span><span><b>${h(t.title)}</b>
-        <span class="muted">${dbStatusPill(t.status)} · ${lessons.length} bài học · ${objectiveCount} mục tiêu${t.description ? '<br>' + h(t.description) : ''}</span>
-      </span><span class="sr">Mở chủ đề ${i + 1}</span>
-    </button>`;
+    const lessonRows = lessons.map((l) => `<button type="button" class="folder-lesson-row" data-act="openContentLesson" data-id="${h(l.id)}" data-topic-id="${h(t.id)}">
+      <span class="lesson-name"><b>${h(l.title)}</b><small>${(objBy[l.id] || []).length} mục tiêu cần đạt · ${h(l.status === 'PUBLISHED' ? 'Đã xuất bản' : 'Bản nháp')}</small></span>${ic('arrow', 17)}
+    </button>`).join('');
+    return `<details class="topic-folder">
+      <summary><span class="topic-mark">${String(i + 1).padStart(2, '0')}</span><span class="topic-title">${h(t.title)}<small class="muted">${lessons.length} bài học · ${objectiveCount} mục tiêu</small></span>
+        <span class="topic-actions">
+          <span class="pill plain">${lessons.length} bài học</span>
+          <button type="button" class="topic-icon-btn" data-act="openContentTopic" data-id="${h(t.id)}" aria-label="Mở chủ đề ${h(t.title)} để thêm bài học" title="Thêm bài học">${ic('plus', 16)}</button>
+          <button type="button" class="topic-icon-btn" data-act="editTopic" data-id="${h(t.id)}" aria-label="Sửa chủ đề ${h(t.title)}" title="Sửa chủ đề">${ic('edit', 16)}</button>
+          <button type="button" class="topic-icon-btn" data-act="deleteTopic" data-id="${h(t.id)}" aria-label="Xóa chủ đề ${h(t.title)}" title="Xóa chủ đề">${ic('trash', 16)}</button>
+        </span>
+      </summary>
+      <div class="topic-lessons">${lessonRows || '<div class="folder-empty">Chưa có bài học trong chủ đề này.</div>'}</div>
+    </details>`;
   }).join('');
   return `<section class="panel" aria-labelledby="db-h-topic">
-    <div class="row between"><div><h2 id="db-h-topic">Thư mục nội dung</h2><p class="lead">${d.topics.length ? d.topics.length + ' chủ đề · ' + d.lessons.length + ' bài học · ' + d.objectives.length + ' mục tiêu' : 'Lớp chưa có nội dung. Bắt đầu bằng việc thêm một chủ đề.'}</p></div></div>
-    <form data-act="createTopic" class="db-form-row" novalidate>
-      ${dbField('Tên chủ đề mới', 'db-new-topic', `<input id="db-new-topic" name="title" maxlength="200" placeholder="Nhập tên chủ đề" required>`)}
-      <button type="submit" class="btn">${ic('plus', 16)}Thêm chủ đề</button>${dbFormError()}
-    </form>
-    <label class="db-check db-seq-toggle"><input type="checkbox" data-change="toggleSequential" ${DB.course && DB.course.sequential_unlock ? 'checked' : ''}> Mở bài học tuần tự: học sinh chỉ mở được bài sau khi nắm vững (≥ 0,8) mọi mục tiêu của bài trước</label>
+    <div class="row between db-folder-heading"><div><h2 id="db-h-topic">Chủ đề học tập</h2><p class="lead">${d.topics.length ? d.topics.length + ' chủ đề · ' + d.lessons.length + ' bài học · ' + d.objectives.length + ' mục tiêu' : 'Lớp chưa có nội dung. Bắt đầu bằng cách tạo chủ đề đầu tiên.'}</p></div>
+      <details class="db-topic-create"><summary class="btn">${ic('plus', 16)}Tạo chủ đề</summary>
+        <form data-act="createTopic" class="db-form-row" novalidate>
+          ${dbField('Tên chủ đề mới', 'db-new-topic', `<input id="db-new-topic" name="title" maxlength="200" placeholder="Ví dụ: Mạng máy tính" required>`)}
+          <button type="submit" class="btn">${ic('plus', 16)}Thêm</button>${dbFormError()}
+        </form>
+      </details>
+    </div>
+    <div class="db-topic-list" aria-label="Danh sách chủ đề">${cards || `<div class="folder-empty">Chưa có chủ đề. Tạo chủ đề để bắt đầu xây dựng nội dung.</div>`}</div>
+    <details class="db-content-settings"><summary>Cài đặt học tập</summary>
+      <label class="db-check db-seq-toggle"><input type="checkbox" data-change="toggleSequential" ${DB.course && DB.course.sequential_unlock ? 'checked' : ''}> Mở bài học tuần tự: học sinh chỉ mở được bài sau khi nắm vững (≥ 0,8) mọi mục tiêu của bài trước</label>
+    </details>
   </section>
-  <div class="folder-grid" aria-label="Danh sách chủ đề">${cards || `<div class="folder-empty">Chưa có chủ đề. Thêm chủ đề để bắt đầu xây dựng nội dung.</div>`}</div>
   ${dbTrashPanel(d)}`;
 }
 

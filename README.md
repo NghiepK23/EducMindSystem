@@ -33,7 +33,7 @@ Hệ thống chỉ dùng **tài khoản thật** đăng ký bằng email (chế 
 
 1. Bấm **Tạo tài khoản**, chọn vai trò **Giáo viên (TEACHER)** hoặc **Học sinh (STUDENT)**
    (vai trò không đổi được sau khi tạo).
-2. Mở hộp thư (kể cả thư rác) bấm liên kết **xác nhận email**, rồi quay lại đăng nhập.
+2. Mở hộp thư (kể cả thư rác), nhập **mã xác nhận email**, rồi đăng nhập.
 3. Giáo viên tạo **Lớp học** — hệ thống sinh **mã lớp 8 ký tự**; học sinh tự đăng ký
    rồi vào lớp bằng mã đó.
 4. Giáo viên cũng có thể **tự tạo tài khoản cho học sinh** ngay trong trang lớp học
@@ -85,6 +85,54 @@ mọi lệnh đọc/ghi cơ sở dữ liệu đều đi qua đối tượng này
 5. Hai **Storage bucket** `educmind-resources` (tài liệu bài học) và `educmind-submissions`
    (bài nộp của học sinh) đã được migration tạo sẵn kèm policy đọc/ghi; nếu tự tạo lại thì
    để trống `allowed_mime_types` để nhận mọi định dạng tệp.
+
+### Gửi mã xác nhận và đặt lại mật khẩu qua Gmail
+
+Gmail thay thế máy chủ **gửi thư mặc định** của Supabase; Supabase Auth vẫn tạo tài khoản,
+phát hành/kiểm tra mã OTP và lưu mật khẩu. Không gửi mật khẩu người dùng qua Gmail, không
+tự kiểm tra mã ở trình duyệt và không tắt xác nhận email.
+
+1. Bật **Xác minh 2 bước** cho tài khoản Gmail, sau đó tạo **App Password** tại
+   [Google Account → App passwords](https://myaccount.google.com/apppasswords).
+   Dùng App Password này thay cho mật khẩu đăng nhập Gmail.
+2. Trong Supabase Dashboard, mở **Authentication → SMTP Settings**, bật custom SMTP và đặt:
+   - Host: `smtp.gmail.com`
+   - Port: `587` (TLS/STARTTLS)
+   - Username: địa chỉ Gmail đầy đủ
+   - Password: App Password của Google
+   - Sender email: chính địa chỉ Gmail đã xác thực
+   - Sender name: `EducMind`
+3. Trong **Authentication → Email Templates**, đặt template **Confirm signup**:
+
+   - Subject: `Mã xác nhận tài khoản EducMind`
+   - Body:
+
+     ```html
+     <h2>Xác nhận email</h2>
+     <p>Nhập mã này trong EducMind để xác nhận tài khoản:</p>
+     <p style="font-size:28px;font-weight:bold;letter-spacing:6px">{{ .Token }}</p>
+     <p>Nếu bạn không tạo tài khoản, hãy bỏ qua email này.</p>
+     ```
+
+4. Đặt template **Reset password**:
+
+   - Subject: `Mã đặt lại mật khẩu EducMind`
+   - Body:
+
+     ```html
+     <h2>Đặt lại mật khẩu</h2>
+     <p>Nhập mã này trong EducMind để tiếp tục:</p>
+     <p style="font-size:28px;font-weight:bold;letter-spacing:6px">{{ .Token }}</p>
+     <p>Nếu bạn không yêu cầu đặt lại mật khẩu, hãy bỏ qua email này.</p>
+     ```
+
+5. Giữ bật xác nhận email và kiểm tra giới hạn gửi thư trong
+   **Authentication → Rate Limits**. Gmail có hạn mức gửi; với lượng email giao dịch lớn,
+   nên dùng dịch vụ SMTP chuyên cho ứng dụng thay vì hộp thư cá nhân. Mã OTP Supabase mặc định
+   có 6 chữ số; giao diện hỗ trợ mã dài từ 6 đến 10 chữ số.
+
+Không lưu App Password trong mã nguồn, `supabase/config.toml` hay biến JavaScript phía trình duyệt.
+Nếu lộ App Password, hãy thu hồi ngay trong Google Account rồi tạo mật khẩu ứng dụng mới.
 
 ### Cấu hình AI tạo câu hỏi bằng Gemini
 

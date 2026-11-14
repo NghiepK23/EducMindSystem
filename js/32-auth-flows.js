@@ -19,11 +19,45 @@ function doLogin(e,p){
 }
 function doForgot(){
   const em=(document.getElementById('em').value||'').trim().toLowerCase();authEmail=em;
-  if(supabaseClient&&authMode==='forgot'&&!sess?.backend&&!ACCT[em]){
-    supabaseClient.auth.resetPasswordForEmail(em,{redirectTo:location.href.split('#')[0]}).then(({error})=>{authMode='login';authErr=error?'Không gửi được email đặt lại mật khẩu: '+backendErrorText(error):'';authMsg=error?'':'Nếu email tồn tại, Supabase đã gửi hướng dẫn đặt lại mật khẩu.';render()});return;
+  if(supabaseClient&&authMode==='forgot'&&!sess?.backend){
+    backendBusy=true;authErr='';authMsg='';render();
+    supabaseClient.auth.resetPasswordForEmail(em,{redirectTo:location.href.split('#')[0]}).then(({error})=>{
+      backendBusy=false;authMode=error?'forgot':'verify-recovery';
+      authErr=error?'Không gửi được mã đặt lại mật khẩu: '+backendErrorText(error):'';
+      authMsg=error?'':'Nếu email tồn tại, mã đặt lại mật khẩu đã được gửi.';
+      render();
+    });return;
   }
   mailFor='';if(ACCT[em]&&!ACCT[em].deleted){sendReset(em,false);mailFor=em}
   authMode='login';authErr='';authMsg='Nếu email tồn tại trong hệ thống, đường dẫn đặt lại mật khẩu đã được gửi. Đường dẫn có hiệu lực '+RESET_MIN+' phút.';render();
+}
+async function verifyBackendCode(purpose){
+  if(!supabaseClient)return;
+  const token=(document.getElementById('auth-code')?.value||'').trim();
+  if(!/^\d{6,10}$/.test(token)){authErr='Nhập mã gồm 6–10 chữ số trong email.';render();return}
+  const email=authEmail.trim().toLowerCase();
+  backendBusy=true;authErr='';authMsg='';render();
+  const {data,error}=await supabaseClient.auth.verifyOtp({email,token,type:purpose==='signup'?'email':'recovery'});
+  backendBusy=false;
+  if(error){authErr='Mã xác nhận không hợp lệ hoặc đã hết hạn: '+backendErrorText(error);render();return}
+  if(purpose==='recovery'){
+    if(!data.session){authErr='Mã đã được xác nhận nhưng chưa mở được phiên đặt lại mật khẩu. Hãy gửi mã mới.';authMode='login';render();return}
+    backendRecovery=true;authMode='reset';authErr='';authMsg='Mã đã xác nhận. Hãy đặt mật khẩu mới.';render();return;
+  }
+  if(!data.session){authErr='Mã đã xác nhận nhưng chưa mở được phiên đăng nhập. Hãy thử đăng nhập lại.';authMode='login';render();return}
+  authSignupName='';await activateBackendSession(data.session);
+}
+async function resendBackendCode(purpose){
+  if(!supabaseClient)return;
+  const email=authEmail.trim().toLowerCase();
+  backendBusy=true;authErr='';authMsg='';render();
+  const result=purpose==='signup'
+    ? await supabaseClient.auth.resend({type:'signup',email})
+    : await supabaseClient.auth.resetPasswordForEmail(email,{redirectTo:location.href.split('#')[0]});
+  backendBusy=false;
+  if(result.error){authErr='Không gửi lại được mã: '+backendErrorText(result.error);render();return}
+  authMsg=purpose==='signup'?'Nếu tài khoản chưa được xác nhận, mã xác nhận đã được gửi lại.':'Nếu email tồn tại, mã đặt lại mật khẩu đã được gửi lại.';
+  render();
 }
 function doReset(){
   const n=document.getElementById('np').value,n2=document.getElementById('np2').value;

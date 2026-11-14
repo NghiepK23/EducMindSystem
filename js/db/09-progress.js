@@ -29,7 +29,7 @@ DB_PAGES.progress = {
   sub: 'Dưới 40%: Cần ôn · 40–69%: Đang tiến bộ · từ 70%: Vững. Kết quả gần đây được tính nặng hơn kết quả cũ.',
   load: dbLoadProgress,
   view(d) {
-    if (!d.objectives.length) return `<section class="panel">${dbEmpty(dbIsTeacher() ? 'Lớp chưa có mục tiêu học tập. Thêm mục tiêu ở trang “Bài học &amp; mục tiêu”, rồi gắn mục tiêu vào bài tập và câu hỏi.' : 'Lớp chưa có mục tiêu học tập nào được xuất bản.')}</section>`;
+    if (!d.objectives.length) return `<section class="panel">${dbEmpty(dbIsTeacher() ? 'Lớp chưa có mục tiêu học tập. Thêm mục tiêu ở trang “Thư mục học tập”, rồi gắn mục tiêu vào bài tập và câu hỏi.' : 'Lớp chưa có mục tiêu học tập nào được xuất bản.')}</section>`;
     return dbIsTeacher() ? dbMasteryTeacher(d) : dbMasteryStudent(d);
   },
 };

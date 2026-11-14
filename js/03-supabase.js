@@ -4,7 +4,7 @@
 const SUPABASE_URL='https://jzjaxxhvhfzjkinbbuxf.supabase.co';
 const SUPABASE_PUBLISHABLE_KEY='sb_publishable_VOx-63Nb8xNbmSbeF5sVJA_uARLSAqp';
 const supabaseClient=window.supabase?.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}})||null;
-/* backendBusy: đang chờ Supabase trả lời ở màn hình đăng nhập. backendRecovery: người dùng vừa mở liên kết đặt lại mật khẩu. */
+/* backendBusy: đang chờ Supabase trả lời ở màn hình đăng nhập. backendRecovery: người dùng đã xác minh yêu cầu đặt lại mật khẩu. */
 let backendBusy=false,backendRecovery=false;
 if(supabaseClient)supabaseClient.auth.onAuthStateChange((event)=>{
   if(event==='PASSWORD_RECOVERY'){backendRecovery=true;authMode='reset';authErr='';if(appReady)render()}
