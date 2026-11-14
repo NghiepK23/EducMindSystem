@@ -223,19 +223,20 @@
 
 /* ===== Trò chơi ôn tập (15-games) ===== */
 .db-game-modes{grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;margin:10px 0 16px}
-.db-game-mode{display:grid;gap:4px;justify-items:start;padding:14px;border:2px solid var(--line,#d8dde5);border-radius:12px;background:var(--bg,#fff);cursor:pointer;font:inherit;text-align:left}
+.db-game-mode{display:grid;gap:4px;justify-items:start;padding:14px;border:2px solid var(--line,#d8dde5);border-radius:12px;background:var(--bg,#fff);color:var(--ink);cursor:pointer;font:inherit;text-align:left} /* sửa: thêm color */
 .db-game-mode:hover{border-color:#2e7dd1}
 .db-game-mode.chosen{border-color:var(--brand);background:var(--brand-soft);color:var(--brand-ink);box-shadow:0 0 0 2px color-mix(in srgb,var(--brand) 18%,transparent)}
 .db-game-panel .db-game-bar{margin-bottom:12px;padding-bottom:10px;border-bottom:1px solid var(--line,#d8dde5)}
 .db-game-score b{color:#2e7dd1}
-.db-game-clock{font-weight:700;font-variant-numeric:tabular-nums;background:#eef1f6;border-radius:999px;padding:3px 10px}
+.db-game-clock{font-weight:700;font-variant-numeric:tabular-nums;background:color-mix(in srgb,var(--ink) 10%,transparent);color:var(--ink);border-radius:999px;padding:3px 10px} /* sửa: nền trong suốt + thêm color */
 .db-game-lives{letter-spacing:2px;color:#c0392b;font-size:1.05rem}
 .db-game-opts{display:grid;gap:8px;margin:12px 0}
-.db-game-opt{display:flex;gap:10px;align-items:center;padding:12px 14px;border:1.5px solid var(--line,#d8dde5);border-radius:10px;background:var(--bg,#fff);cursor:pointer;font:inherit;text-align:left}
+.db-game-opt{display:flex;gap:10px;align-items:center;padding:12px 14px;border:1.5px solid var(--line,#d8dde5);border-radius:10px;background:var(--bg,#fff);color:var(--ink);cursor:pointer;font:inherit;text-align:left} /* sửa: thêm color */
 .db-game-opt:hover:not(:disabled){border-color:#2e7dd1}
-.db-game-opt.right{border-color:#27ae60;background:#e9f7ef}
-.db-game-opt.wrong{border-color:#c0392b;background:#fdecea}
-.db-game-opt:disabled{cursor:default;opacity:.85}
+.db-game-opt:disabled{cursor:default;color:var(--ink)} /* sửa: đưa lên trước .right/.wrong, bỏ opacity chung */
+.db-game-opt:disabled:not(.right):not(.wrong){opacity:.55}
+.db-game-opt.right{border-color:#27ae60;background:color-mix(in srgb,#27ae60 22%,transparent)} /* sửa: nền trong suốt */
+.db-game-opt.wrong{border-color:#c0392b;background:color-mix(in srgb,#c0392b 22%,transparent)} /* sửa: nền trong suốt */
 
 /* ===== Bản in báo cáo (in ảo): chỉ giữ nội dung, ẩn nút/bộ lọc/thanh công cụ ===== */
 @media print{
