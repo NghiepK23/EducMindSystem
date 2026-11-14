@@ -33,7 +33,7 @@ DB_PAGES.ai = {
     return `${dbAiForm(d)}
     <section class="panel" aria-labelledby="db-h-aip">
       <div class="row between"><div><h2 id="db-h-aip">Bản nháp chờ duyệt</h2><p class="lead">${pending.length} bản nháp${pending.length ? ' · duyệt để đưa vào ngân hàng câu hỏi' : ''}</p></div>${pending.length ? dbBtn('Duyệt tất cả', 'aiApproveAll', {}, 'light') : ''}</div>
-      ${pending.length ? pending.map((o) => dbAiRow(o, byObj, byLesson)).join('') : dbEmpty('Chưa có bản nháp nào. Gửi yêu cầu AI ở khung trên để bắt đầu.')}
+      ${pending.length ? pending.map((o, i) => dbAiRow(o, byObj, i)).join('') : dbEmpty('Chưa có bản nháp nào. Gửi yêu cầu AI ở khung trên để bắt đầu.')}
     </section>
     ${dbAiHistory(d, byLesson)}`;
   },
@@ -67,16 +67,29 @@ DB_ACT.aiLessonPick = (el) => {
   document.querySelectorAll('.db-ai-objs').forEach((x) => { x.hidden = x.dataset.lesson !== el.value; });
 };
 
-function dbAiRow(o, byObj, byLesson) {
+function dbAiRow(o, byObj, index) {
   const obj = byObj[o.objective_id] || {};
-  return `<div class="db-ai-row" data-id="${h(o.id)}">
-    <div class="db-ai-main">
-      <div class="db-qtext">${h(o.content)}</div>
-      <div class="muted">${h(DB_QKIND[o.kind] || o.kind)} · ${h(DB_QDIFF[o.difficulty] || o.difficulty)} · ${o.bloom_level ? h(DB_QBLOOM[o.bloom_level] || o.bloom_level) : '—'} · Mục tiêu <span class="db-obj-code">${h(obj.code || '')}</span></div>
-      ${(Array.isArray(o.options) && o.options.length) ? `<div class="muted">Lựa chọn: ${o.options.map((x, i) => `<b>${dbLetter(i)}.</b> ${h(x)}`).join(' · ')}</div>` : ''}
+  const options = Array.isArray(o.options) ? o.options : [];
+  return `<article class="db-ai-row" data-id="${h(o.id)}">
+    <div class="db-ai-row-body">
+      <span class="db-ai-number" aria-hidden="true">${String(index + 1).padStart(2, '0')}</span>
+      <div class="db-ai-content">
+        <div class="db-qtext">${h(o.content)}</div>
+        <div class="db-ai-meta">
+          <span class="db-ai-tag">${h(DB_QKIND[o.kind] || o.kind)}</span>
+          <span class="db-ai-tag">${h(DB_QDIFF[o.difficulty] || o.difficulty)}</span>
+          ${o.bloom_level ? `<span class="db-ai-tag">${h(DB_QBLOOM[o.bloom_level] || o.bloom_level)}</span>` : ''}
+          <span class="db-ai-tag db-ai-objective">Mục tiêu <b>${h(obj.code || '—')}</b></span>
+        </div>
+        ${options.length ? `<ul class="db-ai-options" aria-label="Các lựa chọn">${options.map((x, i) => `<li><span class="db-ai-option-letter">${dbLetter(i)}</span><span>${h(x)}</span></li>`).join('')}</ul>` : ''}
+      </div>
     </div>
-    <div class="row">${dbBtn('Duyệt', 'aiApprove', { id: o.id }, 'mini')}${dbBtn('Sửa và duyệt', 'aiEditApprove', { id: o.id }, 'light mini')}${dbBtn('Từ chối', 'aiReject', { id: o.id }, 'light mini danger-soft')}</div>
-  </div>`;
+    <div class="db-ai-actions" role="group" aria-label="Thao tác bản nháp">
+      ${dbBtn('Duyệt', 'aiApprove', { id: o.id }, 'mini')}
+      ${dbBtn('Sửa và duyệt', 'aiEditApprove', { id: o.id }, 'light mini')}
+      ${dbBtn('Từ chối', 'aiReject', { id: o.id }, 'light mini danger-soft')}
+    </div>
+  </article>`;
 }
 function dbAiHistory(d, byLesson) {
   const rows = d.requests.map((r) => {
