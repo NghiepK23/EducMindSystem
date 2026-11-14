@@ -2,17 +2,20 @@
    Khung giao diện của chế độ dữ liệu thật: thanh trên, thanh điều hướng, ô chọn lớp, thông báo và hộp thoại tài khoản.
    Lưu ý: Dùng lại các lớp CSS của bản gốc (.top, .side, .nav, .head, .panel, …) nên giao diện giống chế độ demo. */
 
-/* Danh mục điều hướng: [tên nhóm, [[khóa trang, nhãn, biểu tượng], …]] */
+/* Danh mục điều hướng: [tên nhóm, [[khóa trang, nhãn, biểu tượng], …]]
+   Bám đúng cấu trúc và tên gọi của prototype: “Bài tập & kiểm tra” và “Chấm điểm & Kết quả”
+   nằm chung nhóm “Bài tập & Chấm điểm”; “Thư mục học tập” là cửa ngõ nội dung Chủ đề → Bài học. */
 const DB_NAV_T = [
-  ['', [['home', 'Tổng quan', 'dashboard'], ['schedule', 'Lịch & cần làm', 'calendar']]],
-  ['Dạy học', [['content', 'Bài học & mục tiêu', 'lessons'], ['assignments', 'Bài tập', 'navAsg'], ['questions', 'Ngân hàng câu hỏi', 'questions'], ['assessments', 'Bài kiểm tra', 'assessments'], ['ai', 'AI tạo câu hỏi', 'spark'], ['games', 'Trò chơi', 'play']]],
-  ['Đánh giá học tập', [['progress', 'Mức độ nắm vững', 'mastery'], ['gaps', 'Lỗ hổng kiến thức', 'gaps'], ['recommend', 'Gợi ý học tập', 'recommend'], ['report', 'Báo cáo tiến bộ', 'trend']]],
-  ['Quản lý', [['classes', 'Lớp học phụ trách', 'classes'], ['history', 'Lịch sử chỉnh sửa', 'calendar']]],
+  ['', [['home', 'Tổng quan', 'dashboard'], ['content', 'Thư mục học tập', 'lessons']]],
+  ['Bài tập & Chấm điểm', [['schedule', 'Lịch & việc cần làm', 'calendar'], ['assignments', 'Bài tập & kiểm tra', 'navAsg'], ['grading', 'Chấm điểm & Kết quả', 'navGrade']]],
+  ['Đánh giá học tập', [['report', 'Báo cáo tiến bộ', 'trend'], ['progress', 'Mức độ nắm vững', 'mastery'], ['gaps', 'Lỗ hổng kiến thức', 'gaps'], ['recommend', 'Gợi ý học tập', 'recommend']]],
+  ['Quản lý', [['classes', 'Lớp học phụ trách', 'classes'], ['questions', 'Ngân hàng câu hỏi', 'questions'], ['history', 'Lịch sử chỉnh sửa', 'calendar']]],
+  ['Tiện ích', [['ai', 'AI tạo câu hỏi', 'spark'], ['games', 'Trò chơi', 'play']]],
 ];
 const DB_NAV_S = [
-  ['', [['home', 'Tổng quan', 'dashboard'], ['schedule', 'Lịch & cần làm', 'calendar']]],
+  ['', [['home', 'Tổng quan', 'dashboard'], ['schedule', 'Lịch & việc cần làm', 'calendar']]],
   ['Học tập', [['lessons', 'Bài học', 'lessons'], ['assignments', 'Bài tập', 'assignments'], ['assessments', 'Bài kiểm tra', 'assessments'], ['games', 'Trò chơi', 'play']]],
-  ['Kết quả', [['progress', 'Mức nắm vững', 'mastery'], ['gaps', 'Lỗ hổng kiến thức', 'gaps'], ['recommend', 'Gợi ý học tập', 'recommend'], ['report', 'Báo cáo tiến bộ', 'trend']]],
+  ['Kết quả & phân tích', [['report', 'Kết quả học tập', 'trend'], ['progress', 'Mức nắm vững', 'mastery'], ['gaps', 'Lỗ hổng kiến thức', 'gaps'], ['recommend', 'Gợi ý học tập', 'recommend']]],
   ['Lớp học', [['classes', 'Lớp của em', 'classes']]],
 ];
 

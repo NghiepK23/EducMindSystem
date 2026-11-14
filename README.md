@@ -57,6 +57,7 @@ js/
     14-ai.js               AI tạo câu hỏi nháp (giáo viên)
     15-games.js            Trò chơi ôn tập 3 chế độ
     16-live.js             Realtime cho chuông thông báo (tự fallback polling)
+    17-grading.js          Trang “Chấm điểm & Kết quả”: tổng hợp bài chờ chấm
   vendor/
     supabase-js.min.js     Thư viện Supabase ghim sẵn trong repo — không phụ thuộc CDN
 supabase/

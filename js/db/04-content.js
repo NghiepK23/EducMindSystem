@@ -46,8 +46,8 @@ async function dbSyncLinks(current, wanted, add, remove) {
 
 /* ===== Giáo viên: Bài học & mục tiêu ===== */
 DB_PAGES.content = {
-  title: 'Bài học & mục tiêu',
-  sub: 'Học sinh chỉ thấy bài học khi cả chủ đề và bài học đều đã xuất bản.',
+  title: 'Thư mục học tập',
+  sub: 'Chủ đề → Bài học → Mục tiêu và tài liệu. Học sinh chỉ thấy nội dung khi cả chủ đề và bài học đều đã xuất bản.',
   load: async () => ({ ...(await dbLoadContent()), ...(await dbLoadTrash()) }),
   view(d) {
     const lessonsBy = dbGroup(d.lessons, 'topic_id'), objBy = dbGroup(d.objectives, 'lesson_id');

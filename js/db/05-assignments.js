@@ -19,8 +19,8 @@ function dbAssignmentWindow(a) {
 const dbDueText = (a) => 'Hạn nộp ' + dbDateTime(a.due_at) + (a.allow_late && a.late_close_at ? ' · nhận bài muộn đến ' + dbDateTime(a.late_close_at) : '');
 
 DB_PAGES.assignments = {
-  title: 'Bài tập',
-  sub: () => (dbIsTeacher() ? 'Tạo bài có câu hỏi, theo dõi bài nộp và chấm điểm.' : 'Bài tập giáo viên đã giao cho lớp.'),
+  title: () => (dbIsTeacher() ? 'Bài tập & kiểm tra' : 'Bài tập'),
+  sub: () => (dbIsTeacher() ? 'Bài tập xếp theo Chủ đề và Bài học; chuyển tab “Bài kiểm tra” để soạn đề và theo dõi lượt làm.' : 'Bài tập giáo viên đã giao cho lớp.'),
   async load() {
     const content = await dbLoadContent();
     const assignments = DB.course ? await dbCall(EducMindDB.listAssignments(DB.course.id)) : [];
@@ -56,23 +56,46 @@ function dbAssignmentObjectives(d, a) {
 }
 
 /* ===== Giáo viên ===== */
+/* Tab “Bài tập” / “Bài kiểm tra” — đúng giao diện seg-page mà prototype dùng ở trang này. */
+function dbWorkSeg(active) {
+  const tab = (k, label, icon, page) => `<button type="button" role="tab" aria-selected="${active === k}" data-act="go" data-page="${page}">${ic(icon, 16)}<span>${label}</span></button>`;
+  return `<div class="seg seg-page" role="tablist" aria-label="Nội dung Bài tập và kiểm tra">${tab('asg', 'Bài tập', 'assignments', 'assignments')}${tab('quiz', 'Bài kiểm tra', 'assessments', 'assessments')}</div>`;
+}
+/* Gom danh sách theo Chủ đề → Bài học như prototype: mục không gắn bài học nằm ở nhóm “Cấp lớp”. */
+function dbScopeGroups(d, items, cardHtml) {
+  const used = new Set();
+  let groups = '';
+  (d.topics || []).forEach((t) => {
+    const lessons = d.lessons.filter((l) => l.topic_id === t.id);
+    const inner = lessons.map((l) => {
+      const its = items.filter((x) => x.lesson_id === l.id);
+      if (!its.length) return '';
+      its.forEach((x) => used.add(x));
+      return `<details class="scope-lesson"><summary><b>${h(l.title)}</b><span class="pill plain">${its.length} bài</span></summary>${its.map(cardHtml).join('')}</details>`;
+    }).join('');
+    const n = items.filter((x) => x.lesson_id && lessons.some((l) => l.id === x.lesson_id)).length;
+    if (n || inner) groups += `<details class="scope-group" open><summary><span><b>Chủ đề: ${h(t.title)}</b><span class="muted"> · ${lessons.length} bài học</span></span><span class="pill plain">${n} bài</span></summary>${inner}</details>`;
+  });
+  const course = items.filter((x) => !used.has(x));
+  if (course.length) groups += `<details class="scope-group" open><summary><span><b>Cấp lớp</b><span class="muted"> · nội dung tổng hợp</span></span><span class="pill plain">${course.length} bài</span></summary>${course.map(cardHtml).join('')}</details>`;
+  return groups;
+}
 function dbAssignmentTeacherList(d) {
   const subsBy = dbGroup(d.submissions, 'assignment_id'), questionsBy = dbGroup(d.assignmentQuestions, 'assignment_id'), total = d.members.length;
-  const rows = d.assignments.map((a) => {
-    const subs = subsBy[a.id] || [], waiting = subs.filter((s) => s.score == null).length, pub = a.status === 'PUBLISHED';
-    return `<tr>
-      <th scope="row"><button type="button" class="db-link" data-act="go" data-page="assignments" data-id="${h(a.id)}">${h(a.title)}</button><div class="muted">${dbLessonTitle(d, a.lesson_id) || 'Chưa gắn bài học'}</div></th>
-      <td>${dbDateTime(a.due_at)}</td>
-      <td>${(questionsBy[a.id] || []).length} câu</td>
-      <td>${dbStatusPill(a.status)}</td>
-      <td>${subs.length}/${total} đã nộp${waiting ? ` · <b>${waiting}</b> chờ chấm` : ''}</td>
-      <td class="db-cell-actions">${dbBtn(pub ? 'Gỡ xuất bản' : 'Xuất bản', 'toggleAssignment', { id: a.id }, pub ? 'light mini' : 'mini')}${dbBtn('Sửa', 'go', { page: 'assignments', edit: a.id }, 'light mini')}${dbBtn('Xóa', 'deleteAssignment', { id: a.id }, 'light mini danger-soft')}</td>
-    </tr>`;
-  });
-  return `<section class="panel" aria-labelledby="db-h-asg">
-    <div class="row between"><div><h2 id="db-h-asg">Bài tập của lớp</h2><p class="lead">${d.assignments.length} bài tập · mở bài để thêm câu hỏi, xem bài nộp và chấm điểm.</p></div>${dbBtn(ic('plus', 16) + 'Tạo bài tập', 'go', { page: 'assignments', edit: 'new' })}</div>
-    ${rows.length ? dbTable(['Bài tập', 'Hạn nộp', 'Câu hỏi', 'Trạng thái', 'Bài nộp', '<span class="sr">Thao tác</span>'], rows, 'Bài tập của lớp') : dbEmpty('Chưa có bài tập nào.')}
-  </section>`;
+  const card = (a) => {
+    const subs = subsBy[a.id] || [], waiting = subs.filter((s) => s.score == null).length, pub = a.status === 'PUBLISHED', nQ = (questionsBy[a.id] || []).length;
+    return `<details class="work-card">
+      <summary><span class="work-detail"><b>${h(a.title)}</b> ${dbStatusPill(a.status)} <span class="pill prog">${nQ ? `Bộ câu hỏi · ${nQ} câu` : 'Nộp tệp hoặc bài tự luận'}</span>
+        <div class="muted" style="margin-top:4px">${dbDueText(a)} · ${subs.length}/${total} nộp${waiting ? ` · <b>${waiting}</b> chờ chấm` : ''} · tối đa ${dbNum(a.max_score)} điểm${dbLessonTitle(d, a.lesson_id) ? ' · ' + dbLessonTitle(d, a.lesson_id) : ''}</div></span>
+        <span class="pill plain">Mở chi tiết</span></summary>
+      <div class="work-actions">${dbBtn('Mở & chấm điểm', 'go', { page: 'assignments', id: a.id }, 'light mini')}${dbBtn(pub ? 'Gỡ xuất bản' : 'Xuất bản', 'toggleAssignment', { id: a.id }, pub ? 'light mini' : 'mini')}${dbBtn('Sửa', 'go', { page: 'assignments', edit: a.id }, 'light mini')}${dbBtn('Xóa', 'deleteAssignment', { id: a.id }, 'light mini danger-soft')}</div>
+      ${a.description ? `<div class="muted" style="margin-top:8px">${h(a.description)}</div>` : ''}
+    </details>`;
+  };
+  const groups = dbScopeGroups(d, d.assignments, card);
+  return dbWorkSeg('asg')
+    + `<div class="row asg-plusbar">${dbBtn(ic('plus', 16) + 'Tạo bài tập', 'go', { page: 'assignments', edit: 'new' })}</div>`
+    + (groups || dbEmpty('Chưa có bài tập nào. Bấm “Tạo bài tập” để mở trình tạo: chọn nguồn câu hỏi, gắn phạm vi bài học rồi giao bài.'));
 }
 function dbAssignmentForm(d, a) {
   if (DB.arg.edit !== 'new' && !a) return `<section class="panel">${dbEmpty('Không tìm thấy bài tập cần sửa.')}</section>`;

@@ -49,21 +49,19 @@ DB_PAGES.assessments = {
 /* ===== Giáo viên: danh sách và biểu mẫu ===== */
 function dbAssessmentTeacherList(d) {
   const aqBy = dbGroup(d.aq, 'assessment_id'), attBy = dbGroup(d.attempts, 'assessment_id');
-  const rows = d.assessments.map((e) => {
+  const card = (e) => {
     const qs = aqBy[e.id] || [], att = attBy[e.id] || [], waiting = att.filter((t) => t.status === 'SUBMITTED').length, pub = e.status === 'PUBLISHED';
-    return `<tr>
-      <th scope="row"><button type="button" class="db-link" data-act="go" data-page="assessments" data-id="${h(e.id)}">${h(e.title)}</button><div class="muted">${dbLessonTitle(d, e.lesson_id) || 'Chưa gắn bài học'}</div></th>
-      <td>${dbDateTime(e.open_at)}<div class="muted">đến ${dbDateTime(e.close_at)}</div></td>
-      <td>${h(e.duration_minutes)} phút · ${h(e.max_attempts)} lượt</td>
-      <td>${qs.length} câu · ${dbNum(qs.reduce((s, x) => s + Number(x.weight), 0))} điểm</td>
-      <td>${dbStatusPill(e.status)}<div class="muted">${att.length} lượt làm${waiting ? ` · <b>${waiting}</b> chờ chấm` : ''}</div></td>
-      <td class="db-cell-actions">${dbBtn(pub ? 'Gỡ xuất bản' : 'Xuất bản', 'toggleAssessment', { id: e.id }, pub ? 'light mini' : 'mini')}${dbBtn('Sửa', 'go', { page: 'assessments', edit: e.id }, 'light mini')}${dbBtn('Xóa', 'deleteAssessment', { id: e.id }, 'light mini danger-soft')}</td>
-    </tr>`;
-  });
-  return `<section class="panel" aria-labelledby="db-h-ex">
-    <div class="row between"><div><h2 id="db-h-ex">Bài kiểm tra của lớp</h2><p class="lead">${d.assessments.length} bài kiểm tra · bấm vào tên bài để soạn đề, xem lượt làm và chấm điểm.</p></div>${dbBtn(ic('plus', 16) + 'Tạo bài kiểm tra', 'go', { page: 'assessments', edit: 'new' })}</div>
-    ${rows.length ? dbTable(['Bài kiểm tra', 'Thời gian mở', 'Thời lượng', 'Đề', 'Trạng thái', '<span class="sr">Thao tác</span>'], rows, 'Bài kiểm tra của lớp') : dbEmpty('Chưa có bài kiểm tra nào.')}
-  </section>`;
+    return `<details class="work-card">
+      <summary><span class="work-detail"><b>${h(e.title)}</b> ${dbStatusPill(e.status)} <span class="pill prog">${qs.length} câu · ${dbNum(qs.reduce((s, x) => s + Number(x.weight), 0))} điểm</span>
+        <div class="muted" style="margin-top:4px">${dbWindowText(e)} · ${h(e.duration_minutes)} phút · tối đa ${h(e.max_attempts)} lượt · ${att.length} lượt làm${waiting ? ` · <b>${waiting}</b> chờ chấm` : ''}${dbLessonTitle(d, e.lesson_id) ? ' · ' + dbLessonTitle(d, e.lesson_id) : ''}</div></span>
+        <span class="pill plain">Mở chi tiết</span></summary>
+      <div class="work-actions">${dbBtn('Soạn đề & chấm', 'go', { page: 'assessments', id: e.id }, 'light mini')}${dbBtn('Lượt làm', 'go', { page: 'assessments', id: e.id, tab: 'attempts' }, 'light mini')}${dbBtn(pub ? 'Gỡ xuất bản' : 'Xuất bản', 'toggleAssessment', { id: e.id }, pub ? 'light mini' : 'mini')}${dbBtn('Sửa', 'go', { page: 'assessments', edit: e.id }, 'light mini')}${dbBtn('Xóa', 'deleteAssessment', { id: e.id }, 'light mini danger-soft')}</div>
+    </details>`;
+  };
+  const groups = dbScopeGroups(d, d.assessments, card);
+  return dbWorkSeg('quiz')
+    + `<div class="row asg-plusbar">${dbBtn(ic('plus', 16) + 'Tạo bài kiểm tra', 'go', { page: 'assessments', edit: 'new' })}</div>`
+    + (groups || dbEmpty('Chưa có bài kiểm tra nào. Bấm “Tạo bài kiểm tra” để soạn đề từ Ngân hàng câu hỏi.'));
 }
 function dbAssessmentForm(d, e) {
   if (DB.arg.edit !== 'new' && !e) return `<section class="panel">${dbEmpty('Không tìm thấy bài kiểm tra cần sửa.')}</section>`;
