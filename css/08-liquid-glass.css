@@ -796,7 +796,7 @@ input[type="file"]::file-selector-button:active{transform:scale(.97)}
 }
 .login .btn.light{background-image:linear-gradient(180deg,rgba(255,255,255,.72),rgba(255,255,255,.44))}
 .login.login-dark .btn.light{background-image:linear-gradient(180deg,rgba(255,255,255,.14),rgba(255,255,255,.07))}
-.login-bg-trigger,.login-theme-toggle{
+.login-bg-trigger,.app-bg-trigger,.login-theme-toggle{
   background-image:linear-gradient(180deg,var(--lg-chrome-a),var(--lg-chrome-b));
   background-color:transparent;
   border:1px solid var(--lg-edge);
@@ -804,7 +804,7 @@ input[type="file"]::file-selector-button:active{transform:scale(.97)}
   backdrop-filter:var(--lg-blur-chrome);
   box-shadow:var(--lg-chrome-rim),var(--lg-chrome-shadow);
 }
-.login-bg-panel{
+.login-bg-panel,.app-bg-panel{
   background-image:linear-gradient(180deg,var(--lg-chrome-a),var(--lg-chrome-b))!important;
   background-color:transparent!important;
   -webkit-backdrop-filter:var(--lg-blur-sheet)!important;

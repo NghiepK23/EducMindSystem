@@ -2,7 +2,7 @@
    Điều hướng (đăng nhập demo, đăng xuất, đổi trang, đổi lớp) và khung giao diện: thanh trên, thanh bên. */
 /* ===== Điều hướng ===== */
 function login(){logged=true;focusId='pageTitle';render()}
-function logout(){const wasBackend=!!(sess&&sess.backend);logged=false;role='T';sess=null;dlg=null;taking=false;authMode='login';authErr='';authMsg='';focusId='loginBtn';stuLessonView=null;stuLessonTab='goals';folderTopicId=null;folderLessonName=null;folderModule='goals';if(wasBackend){if(typeof dbReset==='function')dbReset();if(supabaseClient)supabaseClient.auth.signOut().catch(console.error)}render()}
+function logout(){const wasBackend=!!(sess&&sess.backend);logged=false;role='T';sess=null;dlg=null;taking=false;authMode='login';authErr='';authMsg='';focusId='loginBtn';layer4BgOpen=false;stuLessonView=null;stuLessonTab='goals';folderTopicId=null;folderLessonName=null;folderModule='goals';if(wasBackend){if(typeof dbReset==='function')dbReset();if(supabaseClient)supabaseClient.auth.signOut().catch(console.error)}render()}
 function setPage(p,keepFolder){if(p!=='assignments')redo=null;if(role==='S'&&p==='lessons')stuLessonView=null;if(role==='T'&&!keepFolder&&!STANDALONE_PAGES.includes(p)){folderTopicId=null;folderLessonName=null;folderModule=p==='overview'?'goals':p}if(role==='T'&&p==='dashboard'){folderTopicId=null;folderLessonName=null;folderModule='goals'}page=p;focusId='nav-'+(role==='T'&&!STANDALONE_PAGES.includes(p)?(p==='dashboard'?'dashboard':'overview'):p);render();window.scrollTo(0,0)}
 function toggleSidebar(){sidebarCollapsed=!sidebarCollapsed;render()}
 function setClass(id,fromSelect){if(!visClasses().some(x=>x.id===id)){toast('Bị từ chối: lớp '+id+' không thuộc quyền của bạn.');return}current=id;page='overview';folderTopicId=null;folderLessonName=null;folderModule='goals';focusId=fromSelect?'classSelect':'pageTitle';render();window.scrollTo(0,0)}
@@ -38,7 +38,7 @@ function shell(content){
       </div>
       <div class="view${_ve}">${content}</div>${dlgHtml()}
     </main>
-  </div>`;
+  </div>${layer4BackgroundControls()}`;
   const freshToggle=app.querySelector('.side-toggle');
   if(persistentToggle&&freshToggle){
     const expanded=!sidebarCollapsed;

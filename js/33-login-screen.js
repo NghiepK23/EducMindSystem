@@ -81,8 +81,37 @@ function authHtml(){
   return true;
 }
 /* Nền riêng của layer 4, lưu cục bộ theo từng tài khoản giáo viên/học sinh. */
+let layer4BgOpen=false;
 function layer4BackgroundKey(){return 'educmind.layer4-background:'+String((sess&&sess.email)||'guest').toLowerCase()}
 function layer4BackgroundData(){try{return localStorage.getItem(layer4BackgroundKey())||''}catch(e){return ''}}
+function layer4BgStatus(message){const el=document.getElementById('app-bg-status');if(el)el.textContent=message}
+function toggleLayer4BgPanel(){
+  const panel=document.getElementById('app-bg-panel'),btn=document.getElementById('app-bg-trigger');if(!panel)return;
+  layer4BgOpen=!layer4BgOpen;panel.hidden=!layer4BgOpen;if(btn)btn.setAttribute('aria-expanded',String(layer4BgOpen));
+}
+function storeLayer4Background(value){
+  try{localStorage.setItem(layer4BackgroundKey(),value);applyLayer4Background();layer4BgStatus('Ảnh nền màn hình chính đã được cập nhật và lưu cho tài khoản này.');return true}
+  catch(e){layer4BgStatus('Không lưu được ảnh nền. Hãy dùng ảnh nhỏ hơn hoặc giải phóng dung lượng trình duyệt.');return false}
+}
+function applyLayer4BgUrl(){
+  const input=document.getElementById('app-bg-url'),raw=(input&&input.value||'').trim();if(!raw){layer4BgStatus('Hãy dán liên kết ảnh trực tiếp.');return}
+  let url;try{url=loginBgImageUrl(raw)}catch(e){
+    layer4BgStatus(e.message==='pexels-page'?'Không tìm thấy mã ảnh trong liên kết Pexels. Hãy dùng liên kết trang ảnh hoặc URL CDN trực tiếp.':e.message==='unsplash-page'?'Đây là link trang Unsplash, không phải tệp ảnh. Hãy dùng URL ảnh images.unsplash.com.':'Liên kết chưa hợp lệ. Hãy dùng URL công khai bắt đầu bằng http:// hoặc https://.');return
+  }
+  layer4BgStatus('Đang kiểm tra ảnh…');const probe=new Image();probe.onload=()=>storeLayer4Background(url);
+  probe.onerror=()=>layer4BgStatus('Không tải được ảnh từ liên kết này. Hãy dùng địa chỉ ảnh trực tiếp hoặc tải ảnh lên.');
+  probe.src=url;
+}
+function uploadLayer4Bg(file){
+  if(!file)return;if(!/^image\/(png|jpeg|webp|gif)$/i.test(file.type)){layer4BgStatus('Hãy chọn ảnh PNG, JPG, WEBP hoặc GIF.');return}
+  if(file.size>15*1024*1024){layer4BgStatus('Ảnh tải lên cần nhỏ hơn 15 MB.');return}
+  const reader=new FileReader();reader.onerror=()=>layer4BgStatus('Không đọc được tệp ảnh.');
+  reader.onload=()=>{const img=new Image();img.onerror=()=>layer4BgStatus('Tệp này không phải ảnh hợp lệ.');img.onload=()=>{
+    try{const maxW=1920,maxH=1200,scale=Math.min(1,maxW/img.naturalWidth,maxH/img.naturalHeight),w=Math.max(1,Math.round(img.naturalWidth*scale)),h=Math.max(1,Math.round(img.naturalHeight*scale)),canvas=document.createElement('canvas');canvas.width=w;canvas.height=h;const cx=canvas.getContext('2d');cx.fillStyle='#fff';cx.fillRect(0,0,w,h);cx.drawImage(img,0,0,w,h);storeLayer4Background(canvas.toDataURL('image/jpeg',.84))}
+    catch(e){layer4BgStatus('Không thể xử lý ảnh này. Hãy thử PNG, JPG hoặc WEBP khác.')}
+  };img.src=String(reader.result||'')};reader.readAsDataURL(file)
+}
+function layer4BackgroundControls(){return `<div class='app-bg-controls'><button type='button' class='app-bg-trigger' id='app-bg-trigger' aria-expanded='${layer4BgOpen}' aria-controls='app-bg-panel' onclick='toggleLayer4BgPanel()'><span aria-hidden='true'>▧</span> Đổi ảnh nền</button><section class='app-bg-panel' id='app-bg-panel' aria-labelledby='app-bg-title' ${layer4BgOpen?'':'hidden'}><h2 id='app-bg-title'>Ảnh nền màn hình chính</h2><p>Nền được lưu riêng cho tài khoản này trên thiết bị. Dán URL ảnh trực tiếp hoặc tải ảnh lên.</p><label for='app-bg-url'>Liên kết ảnh</label><input id='app-bg-url' type='url' placeholder='https://images.unsplash.com/photo-…' inputmode='url'><div class='app-bg-links'>Tìm ảnh tại <a href='https://unsplash.com/' target='_blank' rel='noopener noreferrer'>Unsplash</a><a href='https://www.pexels.com/' target='_blank' rel='noopener noreferrer'>Pexels</a></div><div class='app-bg-actions'><button type='button' class='btn' onclick='applyLayer4BgUrl()'>Dùng liên kết</button><button type='button' class='btn light' onclick='clearLayer4Background()'>Xóa nền</button></div><label for='app-bg-file'>Hoặc tải ảnh lên</label><input id='app-bg-file' type='file' accept='image/png,image/jpeg,image/webp,image/gif' onchange='uploadLayer4Bg(this.files&&this.files[0]);this.value=""'><div class='app-bg-status' id='app-bg-status' role='status'></div></section></div>`}
 function applyLayer4Background(){
   const layout=document.querySelector('#app .layout');
   if(!layout)return;
@@ -92,10 +121,14 @@ function applyLayer4Background(){
   layout.style.removeProperty('background-size');
   layout.style.removeProperty('background-position');
   layout.style.removeProperty('background-repeat');
-  if(data&&/^data:image\//i.test(data))layout.style.setProperty('--layer4-bg-image',`url("${data}")`);
+  let src='';
+  if(/^data:image\/(?:png|jpeg|webp|gif|svg\+xml);base64,[A-Za-z0-9+/=]+$/i.test(data))src=data;
+  else{try{const url=new URL(data);if(url.protocol==='http:'||url.protocol==='https:')src=url.href}catch(e){}}
+  if(src)layout.style.setProperty('--layer4-bg-image',`url("${src}")`);
   else layout.style.removeProperty('--layer4-bg-image');
 }
 function clearLayer4Background(){
-  try{localStorage.removeItem(layer4BackgroundKey())}catch(e){}
-  applyLayer4Background();toast('Đã xóa ảnh nền của layer 4.');openAccount();
+  try{localStorage.removeItem(layer4BackgroundKey())}catch(e){layer4BgStatus('Không xóa được ảnh nền khỏi trình duyệt.');return}
+  applyLayer4Background();layer4BgStatus('Đã xóa ảnh nền và trở về nền mặc định.');toast('Đã xóa ảnh nền màn hình chính.');
+  if(dlg&&dlg.title==='Tài khoản của bạn')openAccount();
 }

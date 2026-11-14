@@ -220,17 +220,17 @@ td{font-size:.84375rem}
 .login.login-dark{color-scheme:dark;--bg:#2c2c2e;--surface:#1c1c1e;--fill:#2c2c2e;--ink:#f5f5f7;--muted:#a1a1a6;--subtle:#a1a1a6;--line:rgba(255,255,255,.1);--line-strong:rgba(255,255,255,.22);--brand:#0a84ff;--brand-ink:#6cb4ff;--brand-soft:rgba(10,132,255,.2);--btn-light:rgba(255,255,255,.1);--btn-light-hover:rgba(255,255,255,.16);--err-bg:rgba(255,69,58,.18);--err-ink:#ff9a92;--shadow:0 0 0 .5px var(--line);--shadow-lg:0 24px 64px -16px rgba(0,0,0,.72)}
 .login-theme-toggle{position:absolute;top:14px;right:14px;z-index:4;display:grid;place-items:center;width:40px;height:40px;padding:0;border:1px solid var(--line-strong);border-radius:13px;background:var(--fill);color:var(--ink);box-shadow:0 2px 8px rgba(0,0,0,.08);transition:transform .18s ease,background .18s ease}
 .login-theme-toggle:hover{transform:translateY(-1px);background:var(--brand-soft);color:var(--brand-ink)}.login-theme-toggle svg{width:20px;height:20px}
-.login-bg-controls{position:fixed;right:18px;bottom:18px;z-index:30;font:400 14px/1.45 var(--font-body)}
-.login-bg-trigger{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;padding:10px 15px;border:1px solid var(--line-strong);border-radius:999px;background:var(--surface);color:var(--ink);font:650 13px/1.2 var(--font-body);box-shadow:var(--shadow-lg);cursor:pointer}
-.login-bg-trigger:hover{transform:translateY(-1px)}
-.login-bg-panel{position:absolute;right:0;bottom:56px;width:min(360px,calc(100vw - 24px));padding:16px;border:1px solid var(--line-strong);border-radius:18px;background:var(--surface);color:var(--ink);box-shadow:var(--shadow-lg)}
-.login-bg-panel[hidden]{display:none!important}
-.login-bg-panel h2{margin:0 0 5px;font-size:16px}.login-bg-panel>p{margin:0 0 12px;color:var(--muted);font-size:12px;line-height:1.45}
-.login-bg-panel label{display:block;margin:10px 0 5px;color:var(--ink);font-size:12px;font-weight:700}
-.login-bg-panel input[type=url],.login-bg-panel input[type=file]{width:100%;min-height:40px;padding:8px 10px;border:1px solid var(--line-strong);border-radius:10px;background:var(--bg);color:var(--ink);font:400 12px/1.3 var(--font-body)}
-.login-bg-actions{display:flex;gap:8px;margin-top:10px}.login-bg-actions .btn{flex:1;width:auto;min-height:38px;margin:0;padding:8px 10px;font-size:12px}
-.login-bg-links{display:flex;gap:12px;flex-wrap:wrap;margin-top:9px;font-size:12px}.login-bg-links a{color:var(--brand-ink);font-weight:650;text-decoration:none}.login-bg-links a:hover{text-decoration:underline}
-.login-bg-status{min-height:18px;margin:8px 0 0;color:var(--muted);font-size:11px}
+.login-bg-controls,.app-bg-controls{position:fixed;right:18px;bottom:18px;z-index:30;font:400 14px/1.45 var(--font-body)}
+.login-bg-trigger,.app-bg-trigger{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;padding:10px 15px;border:1px solid var(--line-strong);border-radius:999px;background:var(--surface);color:var(--ink);font:650 13px/1.2 var(--font-body);box-shadow:var(--shadow-lg);cursor:pointer}
+.login-bg-trigger:hover,.app-bg-trigger:hover{transform:translateY(-1px)}
+.login-bg-panel,.app-bg-panel{position:absolute;right:0;bottom:56px;width:min(360px,calc(100vw - 24px));padding:16px;border:1px solid var(--line-strong);border-radius:18px;background:var(--surface);color:var(--ink);box-shadow:var(--shadow-lg)}
+.login-bg-panel[hidden],.app-bg-panel[hidden]{display:none!important}
+.login-bg-panel h2,.app-bg-panel h2{margin:0 0 5px;font-size:16px}.login-bg-panel>p,.app-bg-panel>p{margin:0 0 12px;color:var(--muted);font-size:12px;line-height:1.45}
+.login-bg-panel label,.app-bg-panel label{display:block;margin:10px 0 5px;color:var(--ink);font-size:12px;font-weight:700}
+.login-bg-panel input[type=url],.login-bg-panel input[type=file],.app-bg-panel input[type=url],.app-bg-panel input[type=file]{width:100%;min-height:40px;padding:8px 10px;border:1px solid var(--line-strong);border-radius:10px;background:var(--bg);color:var(--ink);font:400 12px/1.3 var(--font-body)}
+.login-bg-actions,.app-bg-actions{display:flex;gap:8px;margin-top:10px}.login-bg-actions .btn,.app-bg-actions .btn{flex:1;width:auto;min-height:38px;margin:0;padding:8px 10px;font-size:12px}
+.login-bg-links,.app-bg-links{display:flex;gap:12px;flex-wrap:wrap;margin-top:9px;font-size:12px}.login-bg-links a,.app-bg-links a{color:var(--brand-ink);font-weight:650;text-decoration:none}.login-bg-links a:hover,.app-bg-links a:hover{text-decoration:underline}
+.login-bg-status,.app-bg-status{min-height:18px;margin:8px 0 0;color:var(--muted);font-size:11px}
 .login h1{font-size:1.75rem;letter-spacing:-.028em;line-height:1.1;margin:26px 0 6px}
 .field{display:grid;gap:6px;margin:14px 0}
 .field label{font-size:.8125rem;color:var(--muted);font-weight:600}
