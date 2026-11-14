@@ -74,10 +74,16 @@
 .ab-more .ab-grid{padding:2px 12px 12px}
 .ab-tools{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1.2fr) auto;gap:10px;align-items:end}
 .ab-tools .selectbox{margin:0}
+.ab-tools .selectbox input{background:transparent;box-shadow:none;padding:2px 0;font-weight:600;font-size:1rem;width:100%;letter-spacing:-.01em}
+.ab-tools .selectbox input:focus-visible{box-shadow:none}
 .ab-bank{margin-top:6px;max-height:min(56vh,560px);overflow:auto;padding-right:2px}
 .ab-bank .qgrp{margin-top:14px;border-left:2px solid var(--line);padding-left:12px}
 .ab-bank .qgrp:first-child{margin-top:8px}
 .ab-bank .qrow{margin-top:6px}
+/* Danh sách câu hỏi: ô tick bên trái, nội dung chiếm hết phần còn lại */
+.ab-bank .qrow{display:flex;align-items:flex-start;justify-content:flex-start;gap:12px;cursor:pointer}
+.ab-bank .qrow>input[type="checkbox"]{flex:none;margin-top:3px}
+.ab-bank .qrow>:not(input){flex:1 1 0;min-width:0;text-align:left;overflow-wrap:anywhere}
 .ab-plan{border-radius:14px;background:var(--fill);padding:14px}
 .ab-plan .upbox{background:var(--surface)}
 .ab-objs{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:6px}
