@@ -26,7 +26,7 @@ async function dbLoadTrash() {
 }
 /* Dung lượng tệp dạng dễ đọc: 1,2 MB / 340 KB. */
 const dbFileSize = (n) => (n >= 1048576 ? (n / 1048576).toFixed(1) + ' MB' : Math.max(1, Math.round(n / 1024)) + ' KB');
-/* Nhãn mục tiêu: "MT1 · Nhận biết mạng LAN" */
+/* Nhãn mục tiêu: "LO1 · Nhận biết mạng LAN" */
 const dbObjLabel = (o) => (o ? `${h(o.code)} · ${h(o.description)}` : 'Mục tiêu đã xóa');
 /* Danh sách ô chọn mục tiêu, nhóm theo bài học. name là tên trường của biểu mẫu, picked là tập mã mục tiêu đang chọn.
    opts.fold = true: mỗi bài học là một khối thu gọn có đếm số đã chọn; opts.open = mã bài học được mở sẵn. */
@@ -272,12 +272,12 @@ function dbTrashPanel(d) {
   </section>`;
 }
 
-/* Mã gợi ý cho mục tiêu tiếp theo của bài học: MT1, MT2, … (mã không trùng trong cùng một bài học). */
+/* Mã gợi ý cho mục tiêu tiếp theo của bài học: LO1, LO2, … (mã không trùng trong cùng một bài học). */
 function dbNextObjectiveCode(objectives) {
   const used = new Set(objectives.map((o) => o.code));
   let n = objectives.length + 1;
-  while (used.has('MT' + n)) n++;
-  return 'MT' + n;
+  while (used.has('LO' + n)) n++;
+  return 'LO' + n;
 }
 const dbNextOrder = (list) => list.reduce((m, x) => Math.max(m, x.display_order || 0), 0) + 1;
 
@@ -512,7 +512,7 @@ DB_ACT.deleteLesson = (el) => {
   }, true);
 };
 function dbReadObjective(v) {
-  if (!v.code) throw new Error('Nhập mã mục tiêu (ví dụ MT1).');
+  if (!v.code) throw new Error('Nhập mã mục tiêu (ví dụ LO1).');
   if (!v.description) throw new Error('Nhập nội dung mục tiêu.');
   return { code: v.code, description: v.description };
 }
