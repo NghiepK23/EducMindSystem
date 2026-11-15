@@ -74,19 +74,18 @@ function dbContentRootView(d, lessonsBy, objBy) {
   const cards = d.topics.map((t, i) => {
     const lessons = lessonsBy[t.id] || [];
     const objectiveCount = lessons.reduce((n, l) => n + (objBy[l.id] || []).length, 0);
-    const lessonRows = lessons.map((l) => `<button type="button" class="folder-lesson-row" data-act="openContentLesson" data-id="${h(l.id)}" data-topic-id="${h(t.id)}">
-      <span class="lesson-name"><b>${h(l.title)}</b><small>${(objBy[l.id] || []).length} mục tiêu cần đạt · ${h(l.status === 'PUBLISHED' ? 'Đã xuất bản' : 'Bản nháp')}</small></span>${ic('arrow', 17)}
-    </button>`).join('');
+    const lessonRows = lessons.map((l, index) => dbContentLessonRow(l, objBy, t.id, index, lessons.length)).join('');
     return `<details class="topic-folder">
       <summary><span class="topic-mark">${String(i + 1).padStart(2, '0')}</span><span class="topic-title">${h(t.title)}<small class="muted">${lessons.length} bài học · ${objectiveCount} mục tiêu</small></span>
         <span class="topic-actions">
+          ${dbOrderButtons('topic', t.id, t.title, i, d.topics.length)}
           <span class="pill plain">${lessons.length} bài học</span>
           <button type="button" class="topic-icon-btn" data-act="openContentTopic" data-id="${h(t.id)}" aria-label="Mở chủ đề ${h(t.title)} để thêm bài học" title="Thêm bài học">${ic('plus', 16)}</button>
           <button type="button" class="topic-icon-btn" data-act="editTopic" data-id="${h(t.id)}" aria-label="Sửa chủ đề ${h(t.title)}" title="Sửa chủ đề">${ic('edit', 16)}</button>
           <button type="button" class="topic-icon-btn" data-act="deleteTopic" data-id="${h(t.id)}" aria-label="Xóa chủ đề ${h(t.title)}" title="Xóa chủ đề">${ic('trash', 16)}</button>
         </span>
       </summary>
-      <div class="topic-lessons">${lessonRows || '<div class="folder-empty">Chưa có bài học trong chủ đề này.</div>'}</div>
+      <div class="topic-lessons" data-sort-scope="lessons" data-topic-id="${h(t.id)}">${lessonRows || '<div class="folder-empty">Chưa có bài học trong chủ đề này.</div>'}</div>
     </details>`;
   }).join('');
   return `<section class="panel" aria-labelledby="db-h-topic">
@@ -98,7 +97,7 @@ function dbContentRootView(d, lessonsBy, objBy) {
         </form>
       </details>
     </div>
-    <div class="db-topic-list" aria-label="Danh sách chủ đề">${cards || `<div class="folder-empty">Chưa có chủ đề. Tạo chủ đề để bắt đầu xây dựng nội dung.</div>`}</div>
+    <div class="db-topic-list" data-sort-scope="topics" aria-label="Danh sách chủ đề">${cards || `<div class="folder-empty">Chưa có chủ đề. Tạo chủ đề để bắt đầu xây dựng nội dung.</div>`}</div>
     <details class="db-content-settings"><summary>Cài đặt học tập</summary>
       <label class="db-check db-seq-toggle"><input type="checkbox" data-change="toggleSequential" ${DB.course && DB.course.sequential_unlock ? 'checked' : ''}> Mở bài học tuần tự: học sinh chỉ mở được bài sau khi nắm vững (≥ 0,8) mọi mục tiêu của bài trước</label>
     </details>
@@ -106,10 +105,27 @@ function dbContentRootView(d, lessonsBy, objBy) {
   ${dbTrashPanel(d)}`;
 }
 
+function dbOrderButtons(kind, id, title, index, count, topicId) {
+  const action = kind === 'topic' ? 'moveTopic' : 'moveLesson';
+  const label = kind === 'topic' ? 'chủ đề' : 'bài học';
+  const scope = topicId ? ` data-topic-id="${h(topicId)}"` : '';
+  return `<span class="db-order-actions">
+    <button type="button" class="db-order-btn" data-act="${action}" data-id="${h(id)}" data-direction="up"${scope} aria-label="Đưa ${label} ${h(title)} lên" title="Đưa lên" ${index === 0 ? 'disabled' : ''}>${ic('chevronUp', 16)}</button>
+    <button type="button" class="db-order-btn" data-act="${action}" data-id="${h(id)}" data-direction="down"${scope} aria-label="Đưa ${label} ${h(title)} xuống" title="Đưa xuống" ${index === count - 1 ? 'disabled' : ''}>${ic('chevronDown', 16)}</button>
+  </span>`;
+}
+
+function dbContentLessonRow(lesson, objBy, topicId, index, count) {
+  const objectiveCount = (objBy[lesson.id] || []).length;
+  return `<div class="db-sortable-lesson-row">
+    <button type="button" class="folder-lesson-row" data-act="openContentLesson" data-id="${h(lesson.id)}" data-topic-id="${h(topicId)}">
+      <span class="lesson-name"><b>${h(lesson.title)}</b><small>${objectiveCount} mục tiêu cần đạt · ${h(lesson.status === 'PUBLISHED' ? 'Đã xuất bản' : 'Bản nháp')}</small></span>${ic('arrow', 17)}
+    </button>${dbOrderButtons('lesson', lesson.id, lesson.title, index, count, topicId)}
+  </div>`;
+}
+
 function dbContentTopicView(d, topic, lessons, objBy) {
-  const rows = lessons.map((l) => `<button type="button" class="folder-lesson-row" data-act="openContentLesson" data-id="${h(l.id)}" data-topic-id="${h(topic.id)}">
-    <span class="lesson-name"><b>${h(l.title)}</b><small>${(objBy[l.id] || []).length} mục tiêu cần đạt · ${h(l.status === 'PUBLISHED' ? 'Đã xuất bản' : 'Bản nháp')}</small></span>${ic('arrow', 17)}
-  </button>`).join('');
+  const rows = lessons.map((l, index) => dbContentLessonRow(l, objBy, topic.id, index, lessons.length)).join('');
   const published = topic.status === 'PUBLISHED';
   return `<div class="folder-wrap">
     <nav class="folder-crumb" aria-label="Đường dẫn"><button type="button" data-act="openContentRoot">Thư mục nội dung</button><span aria-hidden="true">›</span><b>${h(topic.title)}</b></nav>
@@ -117,7 +133,7 @@ function dbContentTopicView(d, topic, lessons, objBy) {
       <div class="row between"><div><h2>${h(topic.title)}</h2><p class="lead">${dbStatusPill(topic.status)} · ${lessons.length} bài học${topic.description ? ' · ' + h(topic.description) : ''}</p></div>
         <div class="row">${dbBtn(published ? 'Gỡ xuất bản' : 'Xuất bản', 'toggleTopic', { id: topic.id }, published ? 'light mini' : 'mini')}${dbBtn('Sửa chủ đề', 'editTopic', { id: topic.id }, 'light mini')}${dbBtn('Xóa', 'deleteTopic', { id: topic.id }, 'light mini danger-soft')}</div>
       </div>
-      <div class="topic-lessons">${rows || `<div class="folder-empty">Chủ đề chưa có bài học. Thêm bài học bên dưới để bắt đầu.</div>`}</div>
+      <div class="topic-lessons" data-sort-scope="lessons" data-topic-id="${h(topic.id)}">${rows || `<div class="folder-empty">Chủ đề chưa có bài học. Thêm bài học bên dưới để bắt đầu.</div>`}</div>
       <form data-act="createLesson" data-topic="${h(topic.id)}" class="db-form-row db-add-row" novalidate>
         ${dbField('Tên bài học mới', 'db-nl-' + h(topic.id), `<input id="db-nl-${h(topic.id)}" name="title" maxlength="200" placeholder="Nhập tên bài học" required>`)}
         <button type="submit" class="btn light">${ic('plus', 16)}Thêm bài học</button>${dbFormError()}
@@ -264,6 +280,159 @@ function dbNextObjectiveCode(objectives) {
   return 'MT' + n;
 }
 const dbNextOrder = (list) => list.reduce((m, x) => Math.max(m, x.display_order || 0), 0) + 1;
+
+function dbUnusedDisplayOrder(usedOrders) {
+  const min = Math.min(...usedOrders), max = Math.max(...usedOrders);
+  if (max < 2147483647) return max + 1;
+  if (min > -2147483648) return min - 1;
+  for (let candidate = 0; candidate <= usedOrders.length; candidate++) {
+    if (!usedOrders.includes(candidate)) return candidate;
+  }
+  return null;
+}
+
+async function dbMoveContentItem(el, kind) {
+  const scope = el.closest('[data-sort-scope]');
+  const courseId = DB.course && DB.course.id;
+  if (!scope || scope.dataset.sortBusy === '1' || !courseId || !DB.data) return;
+
+  let items, update;
+  if (kind === 'topic') {
+    if (scope.dataset.sortScope !== 'topics') return;
+    items = DB.data.topics.filter((topic) => topic.course_id === courseId);
+    update = EducMindDB.updateTopic;
+  } else {
+    const topicId = el.dataset.topicId;
+    if (scope.dataset.sortScope !== 'lessons' || !topicId || scope.dataset.topicId !== topicId
+      || !DB.data.topics.some((topic) => topic.id === topicId && topic.course_id === courseId)) return;
+    items = DB.data.lessons.filter((lesson) => lesson.course_id === courseId && lesson.topic_id === topicId);
+    update = EducMindDB.updateLesson;
+  }
+
+  const index = items.findIndex((item) => item.id === el.dataset.id);
+  const nextIndex = index + (el.dataset.direction === 'up' ? -1 : 1);
+  if (index < 0 || nextIndex < 0 || nextIndex >= items.length) return;
+
+  const usedOrders = [];
+  const originalOrders = new Map();
+  for (const item of items) {
+    const order = Number(item.display_order);
+    if (item.display_order == null || !Number.isInteger(order) || order < -2147483648 || order > 2147483647) {
+      return dbMoveContentItemError(scope, new Error('Thứ tự hiện tại không hợp lệ.'));
+    }
+    if (usedOrders.includes(order)) {
+      return dbMoveContentItemError(scope, new Error('Phát hiện giá trị thứ tự bị trùng. Không thể hoán đổi an toàn.'));
+    }
+    usedOrders.push(order);
+    originalOrders.set(item.id, order);
+  }
+
+  const temporaryOrder = dbUnusedDisplayOrder(usedOrders);
+  if (temporaryOrder == null) {
+    return dbMoveContentItemError(scope, new Error('Không tìm được giá trị thứ tự tạm thời chưa sử dụng.'));
+  }
+
+  const ordered = items.slice();
+  [ordered[index], ordered[nextIndex]] = [ordered[nextIndex], ordered[index]];
+  const moved = items[index], neighbor = items[nextIndex];
+  const movedOrder = originalOrders.get(moved.id), neighborOrder = originalOrders.get(neighbor.id);
+  const updates = kind === 'topic' ? EducMindDB.updateTopic : EducMindDB.updateLesson;
+  const buttons = [...scope.querySelectorAll('.db-order-btn')];
+  scope.dataset.sortBusy = '1';
+  scope.setAttribute('aria-busy', 'true');
+  buttons.forEach((button) => { button.disabled = true; });
+
+  try {
+    await dbCall(updates(moved.id, { display_order: temporaryOrder }));
+    await dbCall(updates(neighbor.id, { display_order: movedOrder }));
+    await dbCall(updates(moved.id, { display_order: neighborOrder }));
+
+    if (kind === 'topic') {
+      let position = 0;
+      DB.data.topics = DB.data.topics.map((topic) => {
+        if (topic.course_id !== courseId) return topic;
+        const item = ordered[position++];
+        return { ...item, display_order: originalOrders.get(item.id) };
+      });
+    } else {
+      let position = 0;
+      DB.data.lessons = DB.data.lessons.map((lesson) => {
+        if (lesson.course_id !== courseId || lesson.topic_id !== scope.dataset.topicId) return lesson;
+        const item = ordered[position++];
+        return { ...item, display_order: originalOrders.get(item.id) };
+      });
+    }
+    render();
+    toast(kind === 'topic' ? 'Đã cập nhật thứ tự chủ đề.' : 'Đã cập nhật thứ tự bài học.');
+  } catch (error) {
+    dbLogError(error);
+    const rollbackErrors = [];
+    for (const item of [moved, neighbor]) {
+      try {
+        await dbCall(updates(item.id, { display_order: originalOrders.get(item.id) }));
+      } catch (rollbackError) {
+        dbLogError(rollbackError);
+        rollbackErrors.push(`${item.id}: ${dbErrText(rollbackError)}`);
+      }
+    }
+
+    let reloadError = '';
+    try {
+      const reloaded = await dbReload();
+      reloadError = !reloaded ? 'Tải lại bị gián đoạn.' : DB.loadError;
+    } catch (refreshError) {
+      dbLogError(refreshError);
+      reloadError = dbErrText(refreshError);
+    }
+
+    if (rollbackErrors.length) {
+      toast(reloadError
+        ? `Không lưu được thứ tự (${dbErrText(error)}). Khôi phục thất bại: ${rollbackErrors.join('; ')}. Tải lại cũng thất bại: ${reloadError}`
+        : `Không lưu được thứ tự (${dbErrText(error)}). Khôi phục thất bại: ${rollbackErrors.join('; ')}. Đã tải lại dữ liệu; hãy kiểm tra thứ tự hiện tại.`);
+    } else if (reloadError) {
+      toast(`Không lưu được thứ tự (${dbErrText(error)}). Các yêu cầu khôi phục thành công nhưng không xác nhận được trạng thái sau tải lại: ${reloadError}`);
+    } else {
+      toast(`Không lưu được thứ tự (${dbErrText(error)}). Đã khôi phục thứ tự ban đầu và tải lại dữ liệu từ máy chủ.`);
+    }
+  } finally {
+    buttons.forEach((button) => { button.disabled = false; });
+    if (scope.isConnected) {
+      delete scope.dataset.sortBusy;
+      scope.removeAttribute('aria-busy');
+    }
+  }
+}
+
+async function dbMoveContentItemError(scope, error) {
+  if (scope.dataset.sortBusy === '1') return;
+  const buttons = [...scope.querySelectorAll('.db-order-btn')];
+  scope.dataset.sortBusy = '1';
+  scope.setAttribute('aria-busy', 'true');
+  buttons.forEach((button) => { button.disabled = true; });
+
+  try {
+    let reloadError = '';
+    try {
+      const reloaded = await dbReload();
+      reloadError = !reloaded ? 'Tải lại bị gián đoạn.' : DB.loadError;
+    } catch (refreshError) {
+      dbLogError(refreshError);
+      reloadError = dbErrText(refreshError);
+    }
+    toast(reloadError
+      ? `Không thể đổi thứ tự (${dbErrText(error)}). Tải lại dữ liệu cũng thất bại: ${reloadError}`
+      : `Không thể đổi thứ tự (${dbErrText(error)}). Danh sách đã được tải lại từ máy chủ.`);
+  } finally {
+    buttons.forEach((button) => { button.disabled = false; });
+    if (scope.isConnected) {
+      delete scope.dataset.sortBusy;
+      scope.removeAttribute('aria-busy');
+    }
+  }
+}
+
+DB_ACT.moveTopic = (el) => dbMoveContentItem(el, 'topic');
+DB_ACT.moveLesson = (el) => dbMoveContentItem(el, 'lesson');
 
 DB_ACT.openContentRoot = () => { DB.arg = {}; render(); };
 DB_ACT.openContentTopic = (el) => { DB.arg = { topicId: el.dataset.id }; render(); };

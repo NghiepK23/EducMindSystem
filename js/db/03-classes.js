@@ -152,13 +152,15 @@ function dbReadClassForm(v) {
 }
 DB_ACT.createClass = (form) => dbRun(form, async (v) => {
   const c = dbReadClassForm(v);
-  const made = await dbCall(EducMindDB.createClass(c.name, c.grade, c.year));
+  const grade = dbResolveClassGrade(c.name, c.grade);
+  const courseTitle = `Tin học ${grade}`;
+  const made = await dbCall(EducMindDB.createClass(c.name, grade, c.year));
   const row = Array.isArray(made) ? made[0] : made;
   DB.classId = row.class_id;
   try { localStorage.setItem('educmind.db.class', DB.classId); } catch (_) {}
   DB.course = null;
   /* Mỗi lớp có sẵn một khóa học để chứa bài học, bài tập, câu hỏi. Nếu bước này lỗi, dbEnsureCourse() sẽ tạo lại khi cần. */
-  try { DB.course = await dbCall(EducMindDB.createCourse({ class_id: row.class_id, title: c.name })); } catch (e) { console.warn('Chưa tạo được khóa học mặc định:', e.message); }
+  try { DB.course = await dbCall(EducMindDB.createCourse({ class_id: row.class_id, title: courseTitle })); } catch (e) { console.warn('Chưa tạo được khóa học mặc định:', e.message); }
   toast('Đã tạo lớp ' + c.name + '. Mã lớp: ' + row.join_code);
 });
 DB_ACT.editClass = (el) => {

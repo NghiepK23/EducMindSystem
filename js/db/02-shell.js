@@ -28,6 +28,17 @@ function dbShell(P, body) {
   const classSelect = !P.noClass && !P.hideClass && DB.classes.length
     ? `<div class="selectbox class-select"><label for="classSelect">${T ? 'Lớp đang chọn' : 'Lớp'}</label><select id="classSelect" data-change="setClass">${DB.classes.map((c) => `<option value="${h(c.id)}" ${c.id === DB.classId ? 'selected' : ''}>${h(c.name)}</option>`).join('')}</select></div>`
     : '';
+  const selectedClass = DB.classes.find((c) => c.id === DB.classId);
+  const course = DB.course && DB.course.class_id === DB.classId ? DB.course : null;
+  const courseTitle = typeof course?.title === 'string' ? course.title.trim() : '';
+  const className = typeof selectedClass?.name === 'string' ? selectedClass.name.trim() : '';
+  const courseDescription = typeof course?.description === 'string' ? course.description.trim() : '';
+  const courseContext = ['content', 'lessons'].includes(DB.page) && courseTitle && className
+    ? `<section class="db-course-context" aria-label="Thông tin khóa học">
+        <div class="db-course-context-heading"><span class="db-course-context-label">Khóa học</span><strong class="db-course-context-title">${h(courseTitle)}</strong><span class="db-course-context-class">${h(className)}</span></div>
+        ${courseDescription ? `<p class="db-course-context-description">${h(courseDescription)}</p>` : ''}
+      </section>`
+    : '';
   const iconBtn = (label, icon, attrs, extra, cls) => `<button type="button" class="btn light icon-only ${cls || ''}" data-iconified="1" ${attrs} aria-label="${label}" title="${label}">${ic(icon, 18)}<span class="sr">${label}</span>${extra || ''}</button>`;
   app.innerHTML = `
   <header class="top">
@@ -47,6 +58,7 @@ function dbShell(P, body) {
         <div><h1 id="pageTitle" tabindex="-1">${h(title)}</h1>${sub ? `<p class="sub">${sub}</p>` : ''}</div>
         ${classSelect}
       </div>
+      ${courseContext}
       <div class="view">${body}</div>${dbDialogHtml()}
     </main>
   </div>${layer4BackgroundControls()}`;

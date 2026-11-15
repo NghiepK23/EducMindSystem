@@ -25,6 +25,12 @@
 .db-form-actions{justify-content:flex-end;margin-top:18px}
 .db-label{display:block;font-size:.8125rem;color:var(--muted);font-weight:600;margin-bottom:6px}
 .db-hint{font-size:.78125rem;margin-top:2px}
+.db-course-context{display:grid;gap:4px;min-width:0;margin:0 0 14px;padding:10px 12px;border:1px solid var(--line);border-radius:12px;background:var(--surface)}
+.db-course-context-heading{display:flex;align-items:center;flex-wrap:wrap;gap:6px 9px;min-width:0}
+.db-course-context-label{color:var(--muted);font-size:.75rem;font-weight:600}
+.db-course-context-title{min-width:0;color:var(--ink);font:650 .9375rem/1.35 var(--font-head);overflow-wrap:anywhere}
+.db-course-context-class{max-width:100%;padding:3px 8px;border-radius:999px;background:var(--brand-soft);color:var(--brand-ink,var(--brand));font-size:.75rem;font-weight:600;overflow-wrap:anywhere}
+.db-course-context-description{margin:0;color:var(--muted);font-size:.8125rem;line-height:1.45;overflow-wrap:anywhere}
 .db-check{display:inline-flex;align-items:center;gap:8px;font-weight:500;cursor:pointer;min-height:44px}
 .db-check input{flex:none;margin:0}
 .db-input-score{width:6.5rem!important}
@@ -64,6 +70,14 @@
 .db-topic-list .topic-folder{margin:0}
 .db-topic-list .topic-folder .topic-title small{display:block;margin-top:3px;font-size:.75rem;font-weight:400}
 .db-topic-list .topic-actions .pill{font-size:.7rem}
+.db-order-actions{display:inline-flex;align-items:center;gap:2px;flex:none}
+.db-order-btn{display:grid;place-items:center;width:30px;height:32px;padding:0;border:0;border-radius:8px;background:var(--btn-light);color:var(--muted)}
+.db-order-btn:hover:not(:disabled){background:var(--brand-soft);color:var(--brand-ink,var(--brand))}
+.db-order-btn:disabled{opacity:.38;cursor:not-allowed}
+.db-order-btn:focus-visible{outline:2px solid var(--brand);outline-offset:1px}
+.db-sortable-lesson-row{display:flex;align-items:center;gap:4px;min-width:0}
+.db-sortable-lesson-row+.db-sortable-lesson-row{box-shadow:0 -.5px 0 var(--line)}
+.db-sortable-lesson-row>.folder-lesson-row{flex:1;min-width:0;width:auto}
 .db-topic-create{position:relative;flex:none}
 .db-topic-create>summary{list-style:none}
 .db-topic-create>summary::-webkit-details-marker{display:none}
@@ -170,6 +184,14 @@
 .db-rubric-row{display:flex;justify-content:space-between;align-items:center;gap:10px;font-size:.9375rem}
 .db-rubric-row .db-input-score{width:84px}
 .db-rubric-result{margin-top:8px}
+
+@media(max-width:560px){
+  .db-topic-list .topic-folder>summary{flex-wrap:wrap}
+  .db-topic-list .topic-folder .topic-title{flex:1 1 calc(100% - 40px)}
+  .db-topic-list .topic-folder .topic-actions{margin-left:auto}
+  .db-sortable-lesson-row{gap:2px}
+  .db-order-btn{width:32px;height:36px}
+}
 
 @media (max-width:700px){
   .db-mrow{grid-template-columns:1fr}
