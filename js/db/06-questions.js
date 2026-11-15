@@ -56,15 +56,33 @@ DB_PAGES.questions = {
     });
     return `<section class="panel" aria-labelledby="db-h-q">
       <div class="row between"><div><h2 id="db-h-q">Câu hỏi của lớp</h2><p class="lead">${d.questions.length} câu hỏi</p></div>
-        <div class="row">${dbBtn('Xuất Excel', 'exportQuestions', {}, 'light')}${dbBtn(ic('plus', 16) + 'Thêm câu hỏi', 'go', { page: 'questions', edit: 'new' })}</div></div>
-      <form data-act="importQuestionFile" class="db-form-row db-add-row" novalidate>
-        <div class="field"><label class="db-label" for="db-q-import">Nhập câu hỏi từ Excel hoặc CSV</label>
-          <input type="file" id="db-q-import" name="file" accept=".xlsx,.xls,.csv" class="db-input-file" aria-label="Nhập câu hỏi từ tệp Excel">
-          <div class="muted db-hint">Cần có cột Nội dung và Dạng; câu trắc nghiệm cần thêm Lựa chọn và Đáp án.</div>
-        </div>
-        <button type="submit" class="btn light">Nhập vào ngân hàng câu hỏi</button>
-        ${dbFormError()}
-      </form>
+        <div class="row">${dbBtn('Xuất Excel', 'exportQuestions', {}, 'light')}</div></div>
+      <div class="db-create-source" aria-label="Chọn cách tạo câu hỏi">
+        <article class="db-create-source-card">
+          <h3>Nhập từ Excel hoặc Word</h3>
+          <p class="muted">Tải tệp mẫu, điền câu hỏi rồi xem lại trước khi nhập. Hỗ trợ .xlsx, .xls, .csv và .docx.</p>
+          <form data-act="importQuestionFile" class="db-import-source" novalidate>
+            <label class="db-label" for="db-q-import">Chọn tệp câu hỏi</label>
+            <input type="file" id="db-q-import" name="file" accept=".xlsx,.xls,.csv,.docx" class="db-input-file" aria-label="Chọn tệp câu hỏi Excel hoặc Word">
+            <div class="row db-source-actions">
+              <button type="button" class="btn light" onclick="impTemplate('questions')">Tải mẫu Excel</button>
+              <button type="button" class="btn light" onclick="impTemplateWord('questions')">Tải mẫu Word</button>
+              <button type="submit" class="btn">Xem và nhập</button>
+            </div>
+            ${dbFormError()}
+          </form>
+        </article>
+        <article class="db-create-source-card">
+          <h3>Soạn câu hỏi thủ công</h3>
+          <p class="muted">Tự nhập nội dung, đáp án, độ khó và mục tiêu cho từng câu.</p>
+          ${dbBtn(ic('plus', 16) + 'Thêm câu hỏi', 'go', { page: 'questions', edit: 'new' })}
+        </article>
+        <article class="db-create-source-card">
+          <h3>Từ giáo án với AI</h3>
+          <p class="muted">Tải giáo án hoặc dán nội dung để Gemini đề xuất câu hỏi nháp. Bạn duyệt trước khi lưu.</p>
+          ${dbBtn(ic('spark', 16) + 'Tạo từ giáo án', 'go', { page: 'ai', source: 'plan' }, 'light')}
+        </article>
+      </div>
       ${d.questions.length ? `<div class="row db-filter">
         <label class="sr" for="db-q-search">Tìm câu hỏi</label><input id="db-q-search" type="search" placeholder="Tìm theo nội dung" data-input="filterQuestions">
         <label class="sr" for="db-q-kind">Lọc theo dạng</label><select id="db-q-kind" data-change="filterQuestions"><option value="">Mọi dạng câu hỏi</option>${Object.entries(DB_QKIND).map(([k, v]) => `<option value="${k}">${v}</option>`).join('')}</select>
@@ -149,6 +167,113 @@ function dbReadQuestion(v) {
   } else row.correct_answer = v.ref ? v.ref : null;
   return row;
 }
+function dbQuestionImportPick(o, names) {
+  for (const name of names) {
+    const value = o[nz(name)];
+    if (value != null && String(value).trim() !== '') return String(value).trim();
+  }
+  return '';
+}
+function dbParseQuestionImportRows(rows, lessonId) {
+  if (!rows.length || !rows[0].some((x) => String(x).trim())) throw new Error('Tệp không có hàng tiêu đề.');
+  const headers = rows[0].map((x) => nz(x));
+  const objects = rows.slice(1).map((cells) => Object.fromEntries(headers.map((key, i) => [key, cells[i] == null ? '' : cells[i]])));
+  const kindByText = Object.fromEntries([
+    ...Object.entries(DB_QKIND).map(([key, value]) => [nz(value), key]),
+    ...Object.keys(DB_QKIND).map((key) => [nz(key), key]),
+  ]);
+  const diffByText = Object.fromEntries(Object.entries(DB_QDIFF).map(([key, value]) => [nz(value), key]));
+  const bloomByText = Object.fromEntries(Object.entries(DB_QBLOOM).map(([key, value]) => [nz(value), key]));
+  const objectiveByCode = new Map(), ambiguousCodes = new Set();
+  (DB.data.objectives || []).filter((o) => !lessonId || o.lesson_id === lessonId).forEach((o) => {
+    const code = String(o.code || '').trim().toUpperCase();
+    if (!code || ambiguousCodes.has(code)) return;
+    if (objectiveByCode.has(code)) {
+      objectiveByCode.delete(code);
+      ambiguousCodes.add(code);
+    } else objectiveByCode.set(code, o.id);
+  });
+  const parsed = [], skipped = [], unknownCodes = new Set();
+  objects.forEach((o, i) => {
+    try {
+      const content = dbQuestionImportPick(o, ['nội dung', 'nội dung câu hỏi', 'content', 'câu hỏi']);
+      if (!content) throw new Error('thiếu nội dung');
+      if (content.length > 4000) throw new Error('nội dung dài quá 4.000 ký tự');
+      const answer = dbQuestionImportPick(o, ['đáp án', 'đáp án đúng', 'correct', 'correct answer']);
+      let options = dbQuestionImportPick(o, ['lựa chọn', 'các lựa chọn', 'options'])
+        .split(/\n|\|/).map((x) => x.trim()).filter(Boolean);
+      if (!options.length) {
+        options = ['A', 'B', 'C', 'D', 'E', 'F'].map((letter) =>
+          dbQuestionImportPick(o, ['đáp án ' + letter, 'lựa chọn ' + letter, 'option ' + letter]));
+        options = options.filter(Boolean);
+      }
+      const answerParts = answer.split(/[,;|]|\bvà\b|\band\b/i).map((x) => x.trim()).filter(Boolean);
+      const rawKind = dbQuestionImportPick(o, ['dạng', 'dạng câu hỏi', 'loại', 'kind']).toLowerCase();
+      const kindAliases = {
+        'single choice': 'SINGLE_CHOICE', 'multiple choice': 'MULTIPLE_CHOICE',
+        'trac nghiem': answerParts.length > 1 ? 'MULTIPLE_CHOICE' : 'SINGLE_CHOICE',
+        'trac nghiem mot lua chon': 'SINGLE_CHOICE', 'trac nghiem nhieu lua chon': 'MULTIPLE_CHOICE',
+        'dung sai': 'TRUE_FALSE', 'true false': 'TRUE_FALSE',
+        'tra loi ngan': 'SHORT_ANSWER', 'short answer': 'SHORT_ANSWER', 'tu luan': 'ESSAY', 'essay': 'ESSAY',
+      };
+      let kind = DB_QKIND[rawKind] ? rawKind : (kindByText[nz(rawKind)] || kindAliases[nz(rawKind)]);
+      if (!kind) {
+        if (options.length >= 2) kind = answerParts.length > 1 ? 'MULTIPLE_CHOICE' : 'SINGLE_CHOICE';
+        else if (/^(đúng|sai|true|false)$/i.test(answer)) kind = 'TRUE_FALSE';
+        else kind = answer ? 'SHORT_ANSWER' : 'ESSAY';
+      }
+      const answerIndex = (x) => {
+        const token = x.trim().toUpperCase();
+        return /^[A-Z]$/.test(token) ? token.charCodeAt(0) - 65 : (/^\d+$/.test(token) ? Number(token) - 1 : -1);
+      };
+      let correct_answer = null;
+      if (kind === 'SINGLE_CHOICE' || kind === 'MULTIPLE_CHOICE') {
+        if (options.length < 2 || options.length > DB_QOPTIONS) throw new Error('cần từ 2 đến ' + DB_QOPTIONS + ' lựa chọn');
+        const indices = answerParts.map(answerIndex);
+        if (!indices.length || indices.some((x) => x < 0 || x >= options.length)) throw new Error('đáp án cần là chữ cái đúng (ví dụ A hoặc A, C)');
+        if (kind === 'SINGLE_CHOICE' && indices.length !== 1) throw new Error('câu một lựa chọn chỉ được có một đáp án đúng');
+        correct_answer = kind === 'SINGLE_CHOICE' ? indices[0] : [...new Set(indices)];
+        if (kind === 'MULTIPLE_CHOICE' && correct_answer.length < 2) throw new Error('câu nhiều lựa chọn cần ít nhất hai đáp án đúng');
+      } else if (kind === 'TRUE_FALSE') {
+        if (!/^(đúng|sai|true|false)$/i.test(answer)) throw new Error('đáp án Đúng/Sai không hợp lệ');
+        correct_answer = /^(đúng|true)$/i.test(answer);
+        options = [];
+      } else {
+        options = [];
+        correct_answer = answer || null;
+      }
+      const diffRaw = dbQuestionImportPick(o, ['độ khó', 'difficulty']);
+      const difficulty = diffByText[nz(diffRaw)] || (DB_QDIFF[diffRaw.toUpperCase()] ? diffRaw.toUpperCase() : 'MEDIUM');
+      const bloomRaw = dbQuestionImportPick(o, ['mức bloom', 'cấp độ bloom', 'bloom', 'bloom_level']);
+      const bloom = bloomByText[nz(bloomRaw)] || (DB_QBLOOM[bloomRaw.toUpperCase()] ? bloomRaw.toUpperCase() : null);
+      const gradeRaw = dbQuestionImportPick(o, ['khối', 'grade']);
+      const grade = gradeRaw ? Number(gradeRaw) : null;
+      if (grade != null && !educmindGradeIsValid(grade)) throw new Error(`khối phải là số từ ${EDUCMIND_GRADE_MIN} đến ${EDUCMIND_GRADE_MAX}`);
+      const codes = dbQuestionImportPick(o, ['mục tiêu', 'mã mục tiêu', 'objectives']).split(/[,;|]/).map((x) => x.trim().toUpperCase()).filter(Boolean);
+      const objectiveIds = [...new Set(codes.map((code) => {
+        const id = objectiveByCode.get(code);
+        if (!id || ambiguousCodes.has(code)) unknownCodes.add(code);
+        return id;
+      }).filter(Boolean))];
+      parsed.push({
+        row: { course_id: DB.course.id, content, kind, difficulty, grade, bloom_level: bloom, options, correct_answer },
+        objectiveIds,
+      });
+    } catch (e) {
+      skipped.push('Dòng ' + (i + 2) + ': ' + (e.message || 'dữ liệu không hợp lệ'));
+    }
+  });
+  if (parsed.length > 200) throw new Error('Tệp có ' + parsed.length + ' câu hợp lệ; mỗi lần nhập tối đa 200 câu.');
+  return { parsed, skipped, unknownCodes: [...unknownCodes] };
+}
+async function dbReadQuestionImport(file, lessonId) {
+  if (!file) throw new Error('Hãy chọn tệp câu hỏi.');
+  if (file.size > 20 * 1024 * 1024) throw new Error('Tệp vượt giới hạn 20 MB.');
+  const rows = await readRows(file);
+  const result = dbParseQuestionImportRows(rows, lessonId);
+  if (!result.parsed.length) throw new Error('Không có câu hỏi hợp lệ nào trong tệp.' + (result.skipped.length ? ' ' + result.skipped.slice(0, 3).join(' · ') : ''));
+  return result;
+}
 DB_ACT.saveQuestion = (form) => dbRun(form, async (v) => {
   const id = form.dataset.id, row = dbReadQuestion(v);
   const course = await dbEnsureCourse();
@@ -176,7 +301,7 @@ DB_ACT.deleteQuestion = (el) => {
   }, true);
 };
 
-/* ----- Xuất / nhập ngân hàng câu hỏi bằng Excel ----- */
+/* ----- Xuất / nhập ngân hàng câu hỏi bằng Excel, CSV hoặc Word ----- */
 DB_ACT.exportQuestions = () => {
   const d = DB.data, byObj = dbById(d.objectives), linksBy = dbGroup(d.qlinks, 'question_id');
   const rows = d.questions.map((q) => {
@@ -187,55 +312,23 @@ DB_ACT.exportQuestions = () => {
   DBTF.exportExcel(dbExportName('ngan-hang-cau-hoi', 'xlsx'), [{ name: 'Câu hỏi', headers: ['Nội dung', 'Dạng', 'Độ khó', 'Khối', 'Bloom', 'Lựa chọn', 'Đáp án', 'Mục tiêu'], rows }]);
   toast('Đã xuất ngân hàng câu hỏi ra tệp Excel.');
 };
-/* Đọc tệp Excel/CSV và hỏi xác nhận trước khi nhập vào ngân hàng hoặc gắn vào bài tập. */
+/* Đọc tệp Excel/CSV/Word và hỏi xác nhận trước khi nhập vào ngân hàng hoặc gắn vào bài tập. */
 DB_ACT.importQuestionFile = (form) => dbRun(form, async () => {
   const input = form.querySelector('input[type="file"]');
-  if (!input.files || !input.files[0]) throw new Error('Hãy chọn tệp Excel (.xlsx) hoặc .csv cần nhập.');
-  const sheets = await DBTF.readSheets(input.files[0]);
-  const objs = DBTF.objects(sheets[0].rows);
-  const kindByText = Object.fromEntries(Object.entries(DB_QKIND).map(([k, v]) => [v.toLowerCase(), k]));
-  const diffByText = Object.fromEntries(Object.entries(DB_QDIFF).map(([k, v]) => [v.toLowerCase(), k]));
-  const bloomByText = Object.fromEntries(Object.entries(DB_QBLOOM).map(([k, v]) => [v.toLowerCase(), k]));
-  const parsed = [], skipped = [];
-  objs.forEach((o, i) => {
-    try {
-      const content = String(DBTF.pick(o, ['nội dung', 'content', 'câu hỏi'])).trim();
-      if (!content) throw new Error('thiếu nội dung');
-      const kindRaw = String(DBTF.pick(o, ['dạng', 'loại', 'kind'])).trim(), kindKey = kindByText[kindRaw.toLowerCase()] || (DB_QKIND[kindRaw] ? kindRaw : '');
-      if (!kindKey) throw new Error('dạng câu hỏi không hợp lệ: ' + (kindRaw || '(trống)'));
-      const diffRaw = String(DBTF.pick(o, ['độ khó', 'difficulty'])).trim();
-      const difficulty = diffByText[diffRaw.toLowerCase()] || (DB_QDIFF[diffRaw] ? diffRaw : 'MEDIUM');
-      const gradeRaw = DBTF.pick(o, ['khối', 'grade']), grade = gradeRaw === '' ? null : Number(gradeRaw);
-      if (grade != null && !educmindGradeIsValid(grade)) throw new Error(`khối phải là số từ ${EDUCMIND_GRADE_MIN} đến ${EDUCMIND_GRADE_MAX}`);
-      const bloomRaw = String(DBTF.pick(o, ['bloom', 'cấp độ bloom', 'bloom_level'])).trim().toUpperCase();
-      const bloom_level = DB_QBLOOM[bloomRaw] ? bloomRaw : (bloomByText[bloomRaw.toLowerCase()] || null);
-      const options = String(DBTF.pick(o, ['lựa chọn', 'các lựa chọn', 'options'])).split(/\n|\|/).map((x) => x.trim()).filter(Boolean);
-      const ansRaw = String(DBTF.pick(o, ['đáp án', 'đáp án đúng', 'correct'])).trim();
-      let correct_answer = null;
-      if (kindKey === 'SINGLE_CHOICE' || kindKey === 'MULTIPLE_CHOICE') {
-        const idx = ansRaw.split(/[,;]|và/).map((x) => { const t = x.trim().toUpperCase(); return /^[A-Z]$/.test(t) ? t.charCodeAt(0) - 65 : (/^\d+$/.test(t) ? Number(t) - 1 : -1); }).filter((x) => x >= 0);
-        if (!idx.length) throw new Error('đáp án phải là chữ cái (A, B, C…) của lựa chọn đúng');
-        if (options.length < 2) throw new Error('cần ít nhất 2 lựa chọn');
-        if (idx.some((x) => x >= options.length)) throw new Error('đáp án vượt quá số lựa chọn');
-        correct_answer = kindKey === 'SINGLE_CHOICE' ? idx[0] : idx;
-      } else if (kindKey === 'TRUE_FALSE') {
-        const t = ansRaw.toLowerCase();
-        if (t !== 'đúng' && t !== 'sai' && t !== 'true' && t !== 'false') throw new Error('đáp án Đúng/Sai không hợp lệ');
-        correct_answer = t === 'đúng' || t === 'true';
-      } else correct_answer = ansRaw || null;
-      parsed.push({ course_id: DB.course.id, content, kind: kindKey, difficulty, grade, bloom_level, options, correct_answer });
-    } catch (e) { skipped.push('Dòng ' + (i + 2) + ': ' + e.message); }
-  });
-  if (!parsed.length) throw new Error('Không có câu hỏi hợp lệ nào trong tệp.' + (skipped.length ? ' (' + skipped.length + ' dòng bị bỏ qua)' : ''));
+  const file = input.files && input.files[0], { parsed, skipped, unknownCodes } = await dbReadQuestionImport(file);
   const assignmentId = form.dataset.assignmentId;
   dbOpenDialog({
     title: 'Nhập câu hỏi từ tệp',
-    body: `<p class="muted">Tìm thấy <b>${parsed.length}</b> câu hỏi hợp lệ${skipped.length ? `, bỏ qua <b>${skipped.length}</b> dòng lỗi` : ''} trong tệp <b>${h(input.files[0].name)}</b>.</p>
+    body: `<p class="muted">Tìm thấy <b>${parsed.length}</b> câu hỏi hợp lệ${skipped.length ? `, bỏ qua <b>${skipped.length}</b> dòng lỗi` : ''} trong tệp <b>${h(file.name)}</b>.</p>
       ${skipped.length ? `<p class="muted db-hint">${skipped.slice(0, 5).map(h).join('<br>')}${skipped.length > 5 ? '<br>…' : ''}</p>` : ''}
-      <p class="muted">${assignmentId ? 'Câu hỏi sẽ được thêm vào ngân hàng và gắn trực tiếp với bài tập này.' : 'Các câu nhập mới chưa gắn mục tiêu — bạn có thể gắn sau trong “Ngân hàng câu hỏi”.'}</p>`,
+      ${unknownCodes.length ? `<p class="muted db-hint">Không nhận diện được mã mục tiêu (không tồn tại hoặc trùng giữa các bài học): ${unknownCodes.map(h).join(', ')}. Các câu vẫn được nhập nhưng chưa gắn những mục tiêu này.</p>` : ''}
+      <p class="muted">${assignmentId ? 'Câu hỏi sẽ được thêm vào ngân hàng và gắn trực tiếp với bài tập này.' : 'Mã mục tiêu hợp lệ trong tệp sẽ được gắn tự động; câu chưa có mục tiêu có thể được gắn sau trong “Ngân hàng câu hỏi”.'}</p>`,
     okLabel: (assignmentId ? 'Nhập và thêm ' : 'Nhập ') + parsed.length + ' câu hỏi',
     onOk: async () => {
-      const created = await dbCall(EducMindDB.createQuestions(parsed));
+      const created = await dbCall(EducMindDB.createQuestions(parsed.map((x) => x.row)));
+      if (created.length !== parsed.length) throw new Error('Máy chủ không trả đủ mã câu hỏi đã nhập; hãy tải lại trang để kiểm tra trước khi nhập lại.');
+      const objectiveLinks = parsed.flatMap((item, i) => item.objectiveIds.map((objective_id) => ({ question_id: created[i].id, objective_id })));
+      if (objectiveLinks.length) await dbCall(EducMindDB.addQuestionObjectives(objectiveLinks));
       if (assignmentId) {
         if (!created.length) throw new Error('Đã nhập nhưng máy chủ không trả về danh sách câu hỏi để gắn vào bài tập.');
         const links = await dbCall(EducMindDB.listAssignmentQuestions([assignmentId]));

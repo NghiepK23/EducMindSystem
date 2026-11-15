@@ -1,11 +1,12 @@
 /* EducMind · js/db/14-ai.js
    Trang “AI tạo câu hỏi nháp” (chỉ giáo viên):
-     - Gửi yêu cầu sinh câu hỏi cho một bài học (chọn mục tiêu, loại câu, độ khó, Bloom, số lượng).
+     - Gửi yêu cầu sinh câu hỏi theo mục tiêu bài học, có thể kèm giáo án đã được giáo viên đồng ý.
        Gemini chạy trong hàng đợi nền ở Supabase Edge Function.
      - Bản nháp chưa ảnh hưởng điểm hay mức nắm vững; giáo viên duyệt / sửa-và-duyệt / từ chối
        trước khi câu hỏi thật sự vào ngân hàng (kèm mục tiêu đã chọn). */
 
 const DB_AI_MAX_Q = 20;
+const DB_AI_SOURCE_MAX = 10000;
 const DB_AIRS = { PENDING_REVIEW: 'Chờ duyệt', APPROVED: 'Đã duyệt', REJECTED: 'Đã từ chối', EDITED_AND_APPROVED: 'Đã sửa và duyệt' };
 const DB_AIST = { PROCESSING: ['Đang xử lý', 'prog'], COMPLETED: ['Hoàn tất', 'good'], FAILED: ['Thất bại', 'need'] };
 let dbAiPollTimer = null, dbAiPollBusy = false, dbAiLastResume = 0;
@@ -17,13 +18,14 @@ DB_PAGES.ai = {
     if (!DB.classId) return {};
     const content = await dbLoadContent();
     const requests = await dbCall(EducMindDB.listAiRequests());
+    const assignments = dbIsTeacher() && DB.course ? await dbCall(EducMindDB.listAssignments(DB.course.id)) : [];
     const requestIds = requests.map((r) => r.id);
     const [outputs, jobs] = await Promise.all([
       dbCallIn(EducMindDB.listAiOutputs, requestIds),
       dbCallIn(EducMindDB.listAiJobs, requestIds),
     ]);
     dbAiStartPoll();
-    return { ...content, requests, outputs, jobs };
+    return { ...content, requests, outputs, jobs, assignments };
   },
   view(d) {
     if (!dbIsTeacher()) return `<section class="panel">${dbEmpty('Chỉ giáo viên mới dùng được AI tạo câu hỏi.')}</section>`;
@@ -42,15 +44,30 @@ DB_PAGES.ai = {
 function dbAiForm(d) {
   const lessons = d.lessons;
   const objBy = dbGroup(d.objectives, 'lesson_id');
+  const assignment = (d.assignments || []).find((a) => a.id === DB.arg.assignment_id);
+  const selectedLesson = assignment?.lesson_id || DB.arg.lesson_id || '';
   return `<section class="panel" aria-labelledby="db-h-aif">
     <h2 id="db-h-aif">Tạo câu hỏi bằng AI</h2>
-    <p class="lead">AI chỉ nhận tên lớp, chủ đề, mô tả và mục tiêu bài học đã chọn. Ứng dụng không giới hạn lượt/ngày; Google áp dụng hạn mức của dự án API key riêng của bạn.</p>
+    <p class="lead">Tải giáo án hoặc dán nội dung để Gemini tham khảo cùng mục tiêu bài học. Câu hỏi được lưu ở dạng bản nháp chờ giáo viên duyệt.</p>
     <p class="muted">Trước khi tạo, hãy lưu API key cá nhân tại Tài khoản → Quản lý API key Gemini.</p>
-    <form data-act="aiGenerate" class="db-ai-form" novalidate>
-      ${dbField('Bài học', 'db-ai-lesson', `<select id="db-ai-lesson" name="lesson" data-change="aiLessonPick" required><option value="">Chọn bài học</option>${lessons.map((l) => `<option value="${h(l.id)}">${h(l.title)}</option>`).join('')}</select>`)}
+    ${assignment ? `<div class="notice">${ic('info', 16)}<div>Các câu được duyệt từ yêu cầu này sẽ tự thêm vào bài tập nháp <b>${h(assignment.title)}</b>. Hãy duyệt câu hỏi trước khi xuất bản bài tập.</div></div>` : ''}
+    <form data-act="aiGenerate" class="db-ai-form" novalidate data-assignment-id="${h(assignment ? assignment.id : '')}">
+      ${dbField('Bài học', 'db-ai-lesson', `<select id="db-ai-lesson" name="lesson" data-change="aiLessonPick" required><option value="">Chọn bài học</option>${lessons.map((l) => `<option value="${h(l.id)}" ${l.id === selectedLesson ? 'selected' : ''}>${h(l.title)}</option>`).join('')}</select>`)}
       <div class="field"><span class="db-label">Mục tiêu cần sinh câu hỏi (bỏ trống = mọi mục tiêu của bài)</span>
-        ${lessons.map((l) => `<div class="db-ai-objs" data-lesson="${h(l.id)}" hidden>${(objBy[l.id] || []).map((o) => `<label class="db-check"><input type="checkbox" name="obj" value="${h(o.id)}"> <span class="db-obj-code">${h(o.code)}</span> ${h(o.description)}</label>`).join('') || '<span class="muted">Bài học chưa có mục tiêu.</span>'}</div>`).join('')}
+        ${lessons.map((l) => `<div class="db-ai-objs" data-lesson="${h(l.id)}" ${l.id === selectedLesson ? '' : 'hidden'}>${(objBy[l.id] || []).map((o) => `<label class="db-check"><input type="checkbox" name="obj" value="${h(o.id)}"> <span class="db-obj-code">${h(o.code)}</span> ${h(o.description)}</label>`).join('') || '<span class="muted">Bài học chưa có mục tiêu.</span>'}</div>`).join('')}
       </div>
+      <details class="db-ai-plan" ${DB.arg.source === 'plan' ? 'open' : ''}>
+        <summary>Thêm giáo án làm nguồn câu hỏi (không bắt buộc)</summary>
+        <p class="muted">Định dạng .docx, .txt, .md, .csv hoặc .xlsx. Phần văn bản trích xuất được gửi Gemini và lưu cùng yêu cầu AI trong Supabase.</p>
+        <div class="row db-source-actions">
+          ${dbBtn('Tải mẫu giáo án', 'downloadLessonPlanTemplate', {}, 'light')}
+          <label class="btn light" for="db-ai-plan-file">Chọn tệp giáo án</label>
+          <input id="db-ai-plan-file" class="sr" type="file" accept=".docx,.txt,.md,.csv,.xlsx" data-change="aiPlanFilePicked">
+          <span id="db-ai-plan-file-name" class="muted" role="status">Chưa chọn tệp.</span>
+        </div>
+        ${dbField('Hoặc dán nội dung giáo án', 'db-ai-plan-text', `<textarea id="db-ai-plan-text" name="source_document_text" rows="6" maxlength="${DB_AI_SOURCE_MAX}" placeholder="I. MỤC TIÊU BÀI HỌC&#10;- Trình bày được…&#10;II. NỘI DUNG&#10;…"></textarea>`)}
+        <label class="db-check db-ai-consent"><input type="checkbox" name="source_consent"> Tôi đã kiểm tra và đồng ý gửi nội dung giáo án lên Gemini, đồng thời lưu cùng yêu cầu AI trong Supabase. Không đưa tên, thông tin cá nhân hoặc dữ liệu học sinh vào tệp.</label>
+      </details>
       <div class="db-form-grid">
         ${dbField('Dạng câu hỏi', 'db-ai-kind', `<select id="db-ai-kind" name="kind"><option value="AUTO">Tự động</option>${Object.entries(DB_QKIND).map(([k, v]) => `<option value="${k}">${v}</option>`).join('')}</select>`)}
         ${dbField('Độ khó', 'db-ai-diff', `<select id="db-ai-diff" name="difficulty"><option value="AUTO">Tự động</option>${Object.entries(DB_QDIFF).map(([k, v]) => `<option value="${k}">${v}</option>`).join('')}</select>`)}
@@ -62,6 +79,67 @@ function dbAiForm(d) {
     </form>
   </section>`;
 }
+async function dbInvokeAiRequest(requestId) {
+  if (!supabaseClient) throw new Error('Chưa kết nối được Supabase.');
+  const { data, error } = await supabaseClient.functions.invoke('ai-generate', { body: { request_id: requestId } });
+  if (error) {
+    let message = error.message || 'Không gọi được Edge Function.';
+    if (error.context instanceof Response) {
+      try {
+        const detail = await error.context.clone().json();
+        if (detail && typeof detail.error === 'string') message = detail.error;
+      } catch (_) { /* Phản hồi không phải JSON; giữ thông báo của SDK. */ }
+    }
+    throw new Error(message);
+  }
+  if (!data || data.accepted !== true) throw new Error('Máy chủ chưa xác nhận đã tiếp nhận yêu cầu AI.');
+}
+async function dbEnqueueAiRequest(lessonId, quantity, params, onCreated) {
+  if (!supabaseClient) throw new Error('Chưa kết nối được Supabase.');
+  const req = await dbCall(EducMindDB.createAiRequest(lessonId, quantity, params || {}));
+  if (onCreated) onCreated(req.id);
+  await dbInvokeAiRequest(req.id);
+  return req;
+}
+DB_ACT.downloadLessonPlanTemplate = () => {
+  const text = [
+    'MẪU GIÁO ÁN DÙNG ĐỂ ĐỀ XUẤT CÂU HỎI',
+    '',
+    'Lưu ý: Không ghi tên, thông tin cá nhân hoặc dữ liệu học sinh.',
+    'Giữ nguyên các tiêu đề mục tiêu và nội dung để hệ thống trích xuất chính xác hơn.',
+    '',
+    'TÊN BÀI HỌC:',
+    '',
+    'I. MỤC TIÊU BÀI HỌC',
+    '- [Mã mục tiêu nếu có] Nội dung học sinh cần đạt',
+    '- [Mã mục tiêu nếu có] Nội dung học sinh cần đạt',
+    '',
+    'II. NỘI DUNG TRỌNG TÂM',
+    '- Khái niệm, sự kiện hoặc kiến thức chính:',
+    '- Ví dụ, dữ kiện hoặc cách giải thích:',
+    '',
+    'III. YÊU CẦU KHI TẠO CÂU HỎI (không bắt buộc)',
+    '- Nội dung cần ưu tiên:',
+    '- Nội dung cần tránh:',
+    '',
+    'IV. GHI CHÚ CHO GIÁO VIÊN (không bắt buộc)',
+    '- Kiểm tra lại độ chính xác, đáp án và mức độ phù hợp trước khi duyệt câu hỏi.',
+  ].join('\n');
+  DBTF.download(new Blob(['\ufeff', text], { type: 'text/plain;charset=utf-8' }), 'Mau_giao_an_tao_cau_hoi.txt');
+  toast('Đã tải mẫu giáo án.');
+};
+DB_ACT.aiPlanFilePicked = async (el) => {
+  const file = el.files && el.files[0];
+  if (!file) return;
+  if (file.size > 20 * 1024 * 1024) throw new Error('Tệp giáo án vượt giới hạn 20 MB.');
+  const text = await objPlanFileText(file);
+  if (!text.trim()) throw new Error('Không trích xuất được nội dung từ tệp giáo án.');
+  if (text.length > DB_AI_SOURCE_MAX) throw new Error('Giáo án vượt giới hạn ' + DB_AI_SOURCE_MAX.toLocaleString('vi-VN') + ' ký tự. Hãy rút gọn phần liên quan đến bài học.');
+  const form = el.closest('form'), textarea = form && form.querySelector('#db-ai-plan-text');
+  if (textarea) textarea.value = text;
+  const label = form && form.querySelector('#db-ai-plan-file-name');
+  if (label) label.textContent = `Đã đọc ${file.name} · ${text.length} ký tự.`;
+};
 /* Hiện danh sách mục tiêu của bài học đang chọn (không vẽ lại trang). */
 DB_ACT.aiLessonPick = (el) => {
   document.querySelectorAll('.db-ai-objs').forEach((x) => { x.hidden = x.dataset.lesson !== el.value; });
@@ -113,24 +191,29 @@ DB_ACT.aiGenerate = (form) => dbRun(form, async (v) => {
   const qty = Number(v.qty);
   if (!v.lesson) throw new Error('Hãy chọn bài học cần sinh câu hỏi.');
   if (!Number.isInteger(qty) || qty < 1 || qty > DB_AI_MAX_Q) throw new Error('Số lượng phải từ 1 đến ' + DB_AI_MAX_Q + '.');
+  let sourceText = String(v.source_document_text || '').trim();
+  const sourceFile = form.querySelector('#db-ai-plan-file')?.files?.[0];
+  if (sourceFile && !sourceText) {
+    if (sourceFile.size > 20 * 1024 * 1024) throw new Error('Tệp giáo án vượt giới hạn 20 MB.');
+    sourceText = await objPlanFileText(sourceFile);
+    if (!sourceText.trim()) throw new Error('Không trích xuất được nội dung từ tệp giáo án.');
+  }
+  if (sourceText.length > DB_AI_SOURCE_MAX) throw new Error('Giáo án vượt giới hạn ' + DB_AI_SOURCE_MAX.toLocaleString('vi-VN') + ' ký tự.');
+  if (sourceText && !v.source_consent) throw new Error('Xác nhận đã kiểm tra và đồng ý gửi giáo án lên Gemini.');
+  const assignmentId = form.dataset.assignmentId || '';
+  if (assignmentId) {
+    const assignment = (DB.data.assignments || []).find((a) => a.id === assignmentId);
+    if (!assignment || assignment.lesson_id !== v.lesson) throw new Error('Bài tập nháp không còn khớp với bài học đã chọn. Hãy mở lại bài tập rồi thử lại.');
+    if (assignment.status !== 'DRAFT') throw new Error('Chỉ có thể thêm câu AI vào bài tập đang ở trạng thái nháp.');
+  }
   const params = {
     objectives: [...form.querySelectorAll('.db-ai-objs:not([hidden]) input[name="obj"]:checked')].map((x) => x.value),
     kind: v.kind || 'AUTO', difficulty: v.difficulty || 'AUTO', bloom: v.bloom || 'AUTO',
   };
-  const req = await dbCall(EducMindDB.createAiRequest(v.lesson, qty, params));
-  if (!supabaseClient) throw new Error('Chưa kết nối được Supabase.');
-  const { data, error } = await supabaseClient.functions.invoke('ai-generate', { body: { request_id: req.id } });
-  if (error) {
-    let message = error.message || 'Không gọi được Edge Function.';
-    if (error.context instanceof Response) {
-      try {
-        const detail = await error.context.clone().json();
-        if (detail && typeof detail.error === 'string') message = detail.error;
-      } catch (_) { /* Phản hồi không phải JSON; giữ thông báo lỗi của SDK. */ }
-    }
-    throw new Error(message);
-  }
-  if (!data || data.accepted !== true) throw new Error('Máy chủ chưa xác nhận đã tiếp nhận yêu cầu AI.');
+  if (sourceText) params.source_document_text = sourceText;
+  if (assignmentId) params.assignment_id = assignmentId;
+  if (form.dataset.aiRequestId) await dbInvokeAiRequest(form.dataset.aiRequestId);
+  else await dbEnqueueAiRequest(v.lesson, qty, params, (id) => { form.dataset.aiRequestId = id; });
   toast('Đã đưa yêu cầu vào xử lý nền. Bạn có thể tiếp tục làm việc; kết quả sẽ cập nhật trong lịch sử.');
 });
 
@@ -181,19 +264,43 @@ function dbAiStartPoll() {
 DB_ACT.aiApprove = (el) => dbRun(el, async () => {
   const o = DB.data.outputs.find((x) => x.id === el.dataset.id);
   if (!o) throw new Error('Không tìm thấy bản nháp.');
-  await dbCall(EducMindDB.approveAiOutput(o.id, o.content, o.options, o.correct_answer, o.difficulty, o.bloom_level, null));
-  toast('Đã duyệt — câu hỏi đã vào ngân hàng của lớp.');
+  const linked = await dbApproveAiOutput(o, o.content, o.options, o.correct_answer, o.difficulty, o.bloom_level, null);
+  toast(linked === true ? 'Đã duyệt và thêm câu hỏi vào bài tập nháp.' : (linked === 'bank'
+    ? 'Đã duyệt vào ngân hàng; bài tập không còn ở trạng thái nháp nên câu chưa được thêm vào đó.'
+    : 'Đã duyệt — câu hỏi đã vào ngân hàng của lớp.'));
 });
 DB_ACT.aiApproveAll = (el) => dbRun(el, async () => {
   const pend = DB.data.outputs.filter((o) => o.review_status === 'PENDING_REVIEW');
-  for (const o of pend) await dbCall(EducMindDB.approveAiOutput(o.id, o.content, o.options, o.correct_answer, o.difficulty, o.bloom_level, null));
-  toast('Đã duyệt ' + pend.length + ' bản nháp vào ngân hàng câu hỏi.');
+  let linked = 0, bankOnly = 0;
+  for (const o of pend) {
+    const result = await dbApproveAiOutput(o, o.content, o.options, o.correct_answer, o.difficulty, o.bloom_level, null);
+    if (result === true) linked++;
+    else if (result === 'bank') bankOnly++;
+  }
+  toast('Đã duyệt ' + pend.length + ' bản nháp' + (linked ? ' và thêm vào bài tập nháp.' : ' vào ngân hàng câu hỏi.')
+    + (bankOnly ? ' ' + bankOnly + ' câu được giữ trong ngân hàng vì bài tập không còn ở trạng thái nháp.' : ''));
 });
+async function dbApproveAiOutput(o, content, options, correct, difficulty, bloom, grade) {
+  const request = DB.data.requests.find((r) => r.id === o.request_id), assignmentId = request?.parameters?.assignment_id;
+  if (assignmentId) {
+    const assignment = (DB.data.assignments || []).find((a) => a.id === assignmentId);
+    if (assignment && assignment.status === 'DRAFT') {
+      await dbCall(EducMindDB.approveAiOutputForAssignment(o.id, content, options, correct, difficulty, bloom, grade, assignmentId));
+      return true;
+    }
+    await dbCall(EducMindDB.approveAiOutput(o.id, content, options, correct, difficulty, bloom, grade));
+    return 'bank';
+  }
+  await dbCall(EducMindDB.approveAiOutput(o.id, content, options, correct, difficulty, bloom, grade));
+  return false;
+}
 
 /* Sửa nội dung/đáp án rồi duyệt: một hộp thoại cho từng dạng câu hỏi. */
 DB_ACT.aiEditApprove = (el) => {
   const o = DB.data.outputs.find((x) => x.id === el.dataset.id);
   if (!o) return;
+  const request = DB.data.requests.find((r) => r.id === o.request_id);
+  const assignment = (DB.data.assignments || []).find((a) => a.id === request?.parameters?.assignment_id);
   const opts = Array.isArray(o.options) ? o.options : [], choice = o.kind === 'SINGLE_CHOICE' || o.kind === 'MULTIPLE_CHOICE';
   const ansLetters = o.kind === 'SINGLE_CHOICE' && o.correct_answer != null ? dbLetter(Number(o.correct_answer))
     : o.kind === 'MULTIPLE_CHOICE' && o.correct_answer != null ? [].concat(o.correct_answer).map((i) => dbLetter(Number(i))).join(', ')
@@ -212,11 +319,13 @@ DB_ACT.aiEditApprove = (el) => {
         ${dbField('Cấp độ Bloom', 'db-ae-b', `<select id="db-ae-b" name="bloom_level"><option value="">—</option>${Object.entries(DB_QBLOOM).map(([k, v]) => `<option value="${k}" ${o.bloom_level === k ? 'selected' : ''}>${v}</option>`).join('')}</select>`)}
         ${dbField('Khối', 'db-ae-g', `<select id="db-ae-g" name="grade"><option value="">—</option>${educmindGradeOptions()}</select>`)}
       </div>`,
-    okLabel: 'Duyệt vào ngân hàng',
+    okLabel: assignment && assignment.status === 'DRAFT' ? 'Duyệt và thêm vào bài tập' : 'Duyệt vào ngân hàng',
     onOk: async (v) => {
       const parsed = dbAiParseEdit(o, v);
-      await dbCall(EducMindDB.approveAiOutput(o.id, parsed.content, parsed.options, parsed.correct_answer, parsed.difficulty, parsed.bloom_level, parsed.grade));
-      toast('Đã sửa và duyệt — câu hỏi đã vào ngân hàng của lớp.');
+      const linked = await dbApproveAiOutput(o, parsed.content, parsed.options, parsed.correct_answer, parsed.difficulty, parsed.bloom_level, parsed.grade);
+      toast(linked === true ? 'Đã sửa, duyệt và thêm câu hỏi vào bài tập nháp.' : (linked === 'bank'
+        ? 'Đã sửa và duyệt vào ngân hàng; bài tập không còn ở trạng thái nháp nên câu chưa được thêm vào đó.'
+        : 'Đã sửa và duyệt — câu hỏi đã vào ngân hàng của lớp.'));
     },
   });
 };

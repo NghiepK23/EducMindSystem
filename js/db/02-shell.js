@@ -34,11 +34,6 @@ function dbShell(P, body) {
   const className = typeof selectedClass?.name === 'string' ? selectedClass.name.trim() : '';
   const courseDescription = typeof course?.description === 'string' ? course.description.trim() : '';
   const courseContext = ['content', 'lessons'].includes(DB.page) && courseTitle && className
-    ? `<section class="db-course-context" aria-label="Thông tin khóa học">
-        <div class="db-course-context-heading"><span class="db-course-context-label">Khóa học</span><strong class="db-course-context-title">${h(courseTitle)}</strong><span class="db-course-context-class">${h(className)}</span></div>
-        ${courseDescription ? `<p class="db-course-context-description">${h(courseDescription)}</p>` : ''}
-      </section>`
-    : '';
   const iconBtn = (label, icon, attrs, extra, cls) => `<button type="button" class="btn light icon-only ${cls || ''}" data-iconified="1" ${attrs} aria-label="${label}" title="${label}">${ic(icon, 18)}<span class="sr">${label}</span>${extra || ''}</button>`;
   const studentHero = DB.page === 'home'
     ? `<section class="db-student-hero" aria-label="Chào mừng đến với EducMind AI">
@@ -73,7 +68,6 @@ function dbShell(P, body) {
         <div><h1 id="pageTitle" tabindex="-1">${h(title)}</h1>${sub ? `<p class="sub">${sub}</p>` : ''}</div>
         ${classSelect}
       </div>
-      ${courseContext}
       ${studentHero}
       <div class="view">${body}</div>${dbDialogHtml()}
     </main>

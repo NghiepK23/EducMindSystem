@@ -213,6 +213,7 @@ const EducMindDB=(()=>{
     updateAiOutput:(id,row)=>from('ai_generation_outputs').update({...row,reviewed_by:me(),reviewed_at:now()}).eq('id',id).select().single(),
     /* Duyệt bản nháp: máy chủ tạo câu hỏi thật, gắn mục tiêu và ghi nhận trạng thái duyệt. */
     approveAiOutput:(id,content,options,correct,difficulty,bloom,grade)=>rpc('approve_ai_output',{p_output:id,p_content:content,p_options:options,p_correct_answer:correct,p_difficulty:difficulty,p_bloom_level:bloom,p_grade:grade}),
+    approveAiOutputForAssignment:(id,content,options,correct,difficulty,bloom,grade,assignment)=>rpc('approve_ai_output_for_assignment',{p_output:id,p_content:content,p_options:options,p_correct_answer:correct,p_difficulty:difficulty,p_bloom_level:bloom,p_grade:grade,p_assignment:assignment}),
 
     /* ----- Nhóm 3: trò chơi ôn tập ----- */
     /* Câu hỏi trắc nghiệm cho trò chơi (học sinh chỉ đọc được qua RPC này). */

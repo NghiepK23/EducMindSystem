@@ -358,3 +358,31 @@
 .db-bankfold>.ab-tools{grid-template-columns:repeat(3,minmax(0,1fr))}
 @media(max-width:1000px){.db-bankfold>.ab-tools{grid-template-columns:repeat(2,minmax(0,1fr))}.db-bankfold>.ab-tools .selectbox:last-child{grid-column:span 2}}
 @media(max-width:620px){.db-bankfold>.ab-tools{grid-template-columns:minmax(0,1fr)}.db-bankfold>.ab-tools .selectbox:last-child{grid-column:span 1}}
+
+/* Rõ ràng hóa các nguồn tạo câu hỏi trong chế độ dữ liệu thật */
+.db-create-source{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:14px 0 18px}
+.db-create-source-card{min-width:0;padding:14px;border:1px solid var(--line);border-radius:16px;background:var(--surface)}
+.db-create-source-card h3{margin:0 0 6px;font-size:.95rem}
+.db-create-source-card p{min-height:44px;margin:0 0 12px;font-size:.8rem}
+.db-create-source-card .btn{width:max-content;max-width:100%}
+.db-create-source-compact{margin:10px 0 16px}
+.db-create-source-compact .db-create-source-card{display:flex;align-items:flex-start;gap:10px;cursor:pointer;transition:border-color .18s ease,background .18s ease}
+.db-create-source-compact .db-create-source-card:has(input:checked){border-color:var(--brand);background:var(--brand-soft)}
+.db-create-source-compact .db-create-source-card input{flex:none;margin-top:3px}
+.db-create-source-compact .db-create-source-card span{display:grid;gap:4px}
+.db-create-source-compact .db-create-source-card small{color:var(--muted);font-size:.75rem;line-height:1.4}
+.db-create-source-fieldset{min-width:0;margin:0 0 16px;padding:0;border:0}
+.db-assignment-source{margin:0 0 16px;padding:14px;border:1px solid var(--line);border-radius:16px;background:var(--fill)}
+.db-assignment-source[hidden]{display:none!important}
+.db-assignment-source h3{margin:0 0 6px;font-size:.95rem}
+.db-assignment-source .db-source-actions,.db-import-source .db-source-actions{flex-wrap:wrap;gap:8px;margin:10px 0}
+.db-assignment-source textarea{width:100%}
+.db-ai-consent{align-items:flex-start;margin:12px 0}
+.db-ai-plan{margin:12px 0;padding:12px;border:1px solid var(--line);border-radius:14px;background:var(--fill)}
+.db-ai-plan>summary{cursor:pointer;font-weight:650}
+.db-ai-plan>.field{margin-top:12px}
+.db-ai-plan #db-ai-plan-text{width:100%}
+.db-import-source{min-width:0}
+.db-import-source .db-form-error{margin-top:8px}
+@media(max-width:900px){.db-create-source{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:620px){.db-create-source{grid-template-columns:minmax(0,1fr)}.db-create-source-card p{min-height:0}}
