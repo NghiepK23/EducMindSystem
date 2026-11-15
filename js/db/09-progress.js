@@ -26,7 +26,7 @@ const dbPct = (v) => (v == null ? '—' : pct(v) + '%');
 /* ===== Mức nắm vững ===== */
 DB_PAGES.progress = {
   title: () => (dbIsTeacher() ? 'Mức độ nắm vững' : 'Mức nắm vững'),
-  sub: 'Dưới 40%: Cần ôn · 40–69%: Đang tiến bộ · từ 70%: Vững. Kết quả gần đây được tính nặng hơn kết quả cũ.',
+  sub: '< 40%: Cần ôn | 40–69%: Đang tiến bộ | >= 70%: Vững.',
   load: dbLoadProgress,
   view(d) {
     if (!d.objectives.length) return `<section class="panel">${dbEmpty(dbIsTeacher() ? 'Lớp chưa có mục tiêu học tập. Thêm mục tiêu ở trang “Thư mục học tập”, rồi gắn mục tiêu vào bài tập và câu hỏi.' : 'Lớp chưa có mục tiêu học tập nào được xuất bản.')}</section>`;
