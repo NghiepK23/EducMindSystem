@@ -21,7 +21,7 @@ const codeOf=(c,j)=>{const l=lessonOf(c,j),o=l&&l.objs.find(x=>x.idx===j);return
 const codeMap=c=>{const m={};c.lessonsData.forEach(l=>l.objs.forEach(o=>{m[o.code.toUpperCase()]=o.idx}));return m};
 const offOf=(c,s)=>{const g=s.atts.filter(x=>x.status==='GRADED');return g.length?Math.max(...g.map(x=>x.total)):null};
 /* ===== Ngân hàng câu hỏi dùng chung theo KHỐI =====
-   Mỗi khối (10, 11, 12) do giáo viên dạy có MỘT ngân hàng riêng, dùng chung cho mọi lớp thuộc khối đó.
+   Mỗi khối do giáo viên dạy có MỘT ngân hàng riêng, dùng chung cho mọi lớp thuộc khối đó.
    `c.bank` vẫn dùng được ở mọi nơi như cũ nhưng thực chất trỏ về ngân hàng của khối. */
 const BANK={};
 const bankKeyOf=(owner,grade)=>owner+'|'+grade;

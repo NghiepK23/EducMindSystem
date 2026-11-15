@@ -8,7 +8,7 @@
 
 const DB_QKIND = { SINGLE_CHOICE: 'Một lựa chọn', MULTIPLE_CHOICE: 'Nhiều lựa chọn', TRUE_FALSE: 'Đúng / Sai', SHORT_ANSWER: 'Trả lời ngắn', ESSAY: 'Tự luận' };
 const DB_QDIFF = { EASY: 'Dễ', MEDIUM: 'Trung bình', HARD: 'Khó' };
-/* Phân loại theo khối (1–12) và cấp độ tư duy Bloom. */
+/* Phân loại theo khối (3–12) và cấp độ tư duy Bloom. */
 const DB_QBLOOM = { REMEMBER: 'Nhớ', UNDERSTAND: 'Hiểu', APPLY: 'Vận dụng', ANALYZE: 'Phân tích', EVALUATE: 'Đánh giá', CREATE: 'Sáng tạo' };
 const DB_QAUTO = ['SINGLE_CHOICE', 'MULTIPLE_CHOICE', 'TRUE_FALSE'];
 const DB_QOPTIONS = 6;   // số ô lựa chọn tối đa trong biểu mẫu
@@ -68,7 +68,7 @@ DB_PAGES.questions = {
       ${d.questions.length ? `<div class="row db-filter">
         <label class="sr" for="db-q-search">Tìm câu hỏi</label><input id="db-q-search" type="search" placeholder="Tìm theo nội dung" data-input="filterQuestions">
         <label class="sr" for="db-q-kind">Lọc theo dạng</label><select id="db-q-kind" data-change="filterQuestions"><option value="">Mọi dạng câu hỏi</option>${Object.entries(DB_QKIND).map(([k, v]) => `<option value="${k}">${v}</option>`).join('')}</select>
-        <label class="sr" for="db-q-grade">Lọc theo khối</label><select id="db-q-grade" data-change="filterQuestions"><option value="">Mọi khối</option>${Array.from({ length: 12 }, (_, i) => `<option value="${i + 1}">Khối ${i + 1}</option>`).join('')}</select>
+        <label class="sr" for="db-q-grade">Lọc theo khối</label><select id="db-q-grade" data-change="filterQuestions"><option value="">Mọi khối</option>${educmindGradeOptions()}</select>
         <label class="sr" for="db-q-bloom">Lọc theo Bloom</label><select id="db-q-bloom" data-change="filterQuestions"><option value="">Mọi cấp độ Bloom</option>${Object.entries(DB_QBLOOM).map(([k, v]) => `<option value="${k}">${v}</option>`).join('')}</select>
       </div>` : ''}
       ${rows.length ? dbTable(['Câu hỏi', 'Dạng', 'Độ khó', 'Khối', 'Bloom', 'Mục tiêu', '<span class="sr">Thao tác</span>'], rows, 'Ngân hàng câu hỏi') : dbEmpty('Chưa có câu hỏi nào.')}
@@ -107,7 +107,7 @@ function dbQuestionForm(d, q) {
         ${dbField('Độ khó', 'db-qf-diff', `<select id="db-qf-diff" name="difficulty">${Object.entries(DB_QDIFF).map(([k, v]) => `<option value="${k}" ${(q ? q.difficulty : 'MEDIUM') === k ? 'selected' : ''}>${v}</option>`).join('')}</select>`)}
       </div>
       <div class="db-form-grid">
-        ${dbField('Khối', 'db-qf-grade', `<select id="db-qf-grade" name="grade"><option value="">Chưa chọn</option>${Array.from({ length: 12 }, (_, i) => `<option value="${i + 1}" ${q && Number(q.grade) === i + 1 ? 'selected' : ''}>Khối ${i + 1}</option>`).join('')}</select>`, 'Khối lớp áp dụng cho câu hỏi (tùy chọn).')}
+        ${dbField('Khối', 'db-qf-grade', `<select id="db-qf-grade" name="grade"><option value="">Chưa chọn</option>${educmindGradeOptions(q && q.grade)}</select>`, 'Khối lớp áp dụng cho câu hỏi (tùy chọn).')}
         ${dbField('Cấp độ Bloom', 'db-qf-bloom', `<select id="db-qf-bloom" name="bloom_level"><option value="">Chưa chọn</option>${Object.entries(DB_QBLOOM).map(([k, v]) => `<option value="${k}" ${(q ? q.bloom_level : '') === k ? 'selected' : ''}>${v}</option>`).join('')}</select>`, 'Mức tư duy mà câu hỏi đánh giá (tùy chọn).')}
       </div>
       <div class="field db-only" data-for="SINGLE_CHOICE MULTIPLE_CHOICE">
@@ -128,7 +128,9 @@ DB_ACT.questionKind = (el) => { el.closest('form').dataset.kind = el.value; };
 /* Đọc biểu mẫu câu hỏi thành dòng dữ liệu của bảng questions. */
 function dbReadQuestion(v) {
   if (!v.content) throw new Error('Nhập nội dung câu hỏi.');
-  const row = { content: v.content, kind: v.kind, difficulty: v.difficulty || 'MEDIUM', options: [], correct_answer: null, grade: v.grade ? Number(v.grade) : null, bloom_level: v.bloom_level || null };
+  const grade = v.grade ? Number(v.grade) : null;
+  if (grade != null && !educmindGradeIsValid(grade)) throw new Error(`Khối phải là số từ ${EDUCMIND_GRADE_MIN} đến ${EDUCMIND_GRADE_MAX}.`);
+  const row = { content: v.content, kind: v.kind, difficulty: v.difficulty || 'MEDIUM', options: [], correct_answer: null, grade, bloom_level: v.bloom_level || null };
   if (v.kind === 'SINGLE_CHOICE' || v.kind === 'MULTIPLE_CHOICE') {
     const right = [];
     for (let i = 0; i < DB_QOPTIONS; i++) {
@@ -204,7 +206,7 @@ DB_ACT.importQuestionFile = (form) => dbRun(form, async () => {
       const diffRaw = String(DBTF.pick(o, ['độ khó', 'difficulty'])).trim();
       const difficulty = diffByText[diffRaw.toLowerCase()] || (DB_QDIFF[diffRaw] ? diffRaw : 'MEDIUM');
       const gradeRaw = DBTF.pick(o, ['khối', 'grade']), grade = gradeRaw === '' ? null : Number(gradeRaw);
-      if (grade != null && (!Number.isInteger(grade) || grade < 1 || grade > 12)) throw new Error('khối phải là số từ 1 đến 12');
+      if (grade != null && !educmindGradeIsValid(grade)) throw new Error(`khối phải là số từ ${EDUCMIND_GRADE_MIN} đến ${EDUCMIND_GRADE_MAX}`);
       const bloomRaw = String(DBTF.pick(o, ['bloom', 'cấp độ bloom', 'bloom_level'])).trim().toUpperCase();
       const bloom_level = DB_QBLOOM[bloomRaw] ? bloomRaw : (bloomByText[bloomRaw.toLowerCase()] || null);
       const options = String(DBTF.pick(o, ['lựa chọn', 'các lựa chọn', 'options'])).split(/\n|\|/).map((x) => x.trim()).filter(Boolean);

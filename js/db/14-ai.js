@@ -210,7 +210,7 @@ DB_ACT.aiEditApprove = (el) => {
       <div class="db-form-grid">
         ${dbField('Độ khó', 'db-ae-d', `<select id="db-ae-d" name="difficulty">${Object.entries(DB_QDIFF).map(([k, v]) => `<option value="${k}" ${o.difficulty === k ? 'selected' : ''}>${v}</option>`).join('')}</select>`)}
         ${dbField('Cấp độ Bloom', 'db-ae-b', `<select id="db-ae-b" name="bloom_level"><option value="">—</option>${Object.entries(DB_QBLOOM).map(([k, v]) => `<option value="${k}" ${o.bloom_level === k ? 'selected' : ''}>${v}</option>`).join('')}</select>`)}
-        ${dbField('Khối', 'db-ae-g', `<select id="db-ae-g" name="grade"><option value="">—</option>${Array.from({ length: 12 }, (_, i) => `<option value="${i + 1}">Khối ${i + 1}</option>`).join('')}</select>`)}
+        ${dbField('Khối', 'db-ae-g', `<select id="db-ae-g" name="grade"><option value="">—</option>${educmindGradeOptions()}</select>`)}
       </div>`,
     okLabel: 'Duyệt vào ngân hàng',
     onOk: async (v) => {
@@ -241,7 +241,9 @@ function dbAiParseEdit(o, v) {
     if (t !== 'đúng' && t !== 'sai') throw new Error('Chọn đáp án Đúng hoặc Sai.');
     correct_answer = t === 'đúng';
   }
-  return { content, options, correct_answer, difficulty: v.difficulty || 'MEDIUM', bloom_level: v.bloom_level || null, grade: v.grade ? Number(v.grade) : null };
+  const grade = v.grade ? Number(v.grade) : null;
+  if (grade != null && !educmindGradeIsValid(grade)) throw new Error(`Khối phải là số từ ${EDUCMIND_GRADE_MIN} đến ${EDUCMIND_GRADE_MAX}.`);
+  return { content, options, correct_answer, difficulty: v.difficulty || 'MEDIUM', bloom_level: v.bloom_level || null, grade };
 }
 
 /* Từ chối bản nháp (có ghi lý do). */

@@ -52,7 +52,7 @@ function dbClassesTeacher(d) {
     <h2 id="db-h-newclass">Tạo lớp mới</h2>
     <form data-act="createClass" class="db-form-row" novalidate>
       ${dbField('Tên lớp', 'db-class-name', `<input id="db-class-name" name="name" maxlength="100" placeholder="Ví dụ: 10A1" required>`)}
-      ${dbField('Khối', 'db-class-grade', `<input id="db-class-grade" name="grade" type="number" min="1" max="12" inputmode="numeric" placeholder="1–12">`)}
+      ${dbField('Khối', 'db-class-grade', `<input id="db-class-grade" name="grade" type="number" min="${EDUCMIND_GRADE_MIN}" max="${EDUCMIND_GRADE_MAX}" inputmode="numeric" placeholder="${EDUCMIND_GRADE_RANGE_LABEL}">`)}
       ${dbField('Năm học', 'db-class-year', `<input id="db-class-year" name="year" maxlength="20" placeholder="2026-2027">`)}
       <button type="submit" class="btn">Tạo lớp</button>
       ${dbFormError()}
@@ -146,7 +146,7 @@ function dbReadClassForm(v) {
   let grade = null;
   if (v.grade !== '' && v.grade != null) {
     grade = Number(v.grade);
-    if (!Number.isInteger(grade) || grade < 1 || grade > 12) throw new Error('Khối là số nguyên từ 1 đến 12 (có thể để trống).');
+    if (!educmindGradeIsValid(grade)) throw new Error(`Khối là số nguyên từ ${EDUCMIND_GRADE_MIN} đến ${EDUCMIND_GRADE_MAX} (có thể để trống).`);
   }
   return { name, grade, year: (v.year || '').trim() || null };
 }
@@ -167,7 +167,7 @@ DB_ACT.editClass = (el) => {
   dbOpenDialog({
     title: 'Sửa lớp ' + h(c.name), okLabel: 'Lưu thay đổi',
     body: dbField('Tên lớp', 'db-ec-name', `<input id="db-ec-name" name="name" maxlength="100" value="${h(c.name)}" required>`)
-      + dbField('Khối', 'db-ec-grade', `<input id="db-ec-grade" name="grade" type="number" min="1" max="12" value="${h(c.grade == null ? '' : c.grade)}">`)
+      + dbField('Khối', 'db-ec-grade', `<input id="db-ec-grade" name="grade" type="number" min="${EDUCMIND_GRADE_MIN}" max="${EDUCMIND_GRADE_MAX}" value="${h(c.grade == null ? '' : c.grade)}">`)
       + dbField('Năm học', 'db-ec-year', `<input id="db-ec-year" name="year" maxlength="20" value="${h(c.school_year || '')}">`),
     onOk: async (v) => {
       const x = dbReadClassForm(v);

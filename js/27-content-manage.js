@@ -32,9 +32,9 @@ function parseClassId(name){
   const m=/^([0-9]{1,2})([A-Z][0-9]{1,2})$/.exec(String(name||'').trim().toUpperCase());
   if(!m)return null;
   const g=parseInt(m[1],10);
-  return (g>=1&&g<=12)?{id:m[1]+m[2],grade:g}:null;
+  return educmindGradeIsValid(g)?{id:m[1]+m[2],grade:g}:null;
 }
-const CLS_ERR='Tên lớp phải theo định dạng khối + lớp, ví dụ 10A1 (khối 10, lớp A1), 11B2, 8A1 cho THCS (6–9) hoặc 10A1–12A9 cho THPT.';
+const CLS_ERR=`Tên lớp phải theo định dạng khối + lớp (khối ${EDUCMIND_GRADE_MIN}–${EDUCMIND_GRADE_MAX}), ví dụ 10A1, 11B2 hoặc 8A1.`;
 function newClass(){
   openDlg({title:'Tạo lớp mới',text:'Sau khi lưu, bạn là người phụ trách lớp và có thể thêm học sinh, tạo chủ đề và bài học.',okLabel:'Tạo lớp',fields:[{k:'n',label:'Tên lớp',hint:'Khối lấy theo tên lớp — ví dụ 10A1 là khối 10, lớp A1; 8A1 là khối 8 (THCS).',val:''},{k:'y',label:'Năm học',val:'2026–2027'}],ok:v=>{
     const p=parseClassId(v.n);

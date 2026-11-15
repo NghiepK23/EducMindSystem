@@ -49,6 +49,7 @@ index.html                 Trang duy nhất, nạp toàn bộ CSS/JS theo thứ 
 css/
   01-base.css … 12-db.css  Kiểu dáng; số càng lớn càng được nạp sau (ghi đè)
 js/
+  00-grade-config.js      Dải khối lớp dùng chung cho các biểu mẫu và kiểm tra dữ liệu
   01-sample-data.js … 77-liquid-glass.js
                            Mã giao diện dùng chung (đăng nhập, chủ đề, biểu tượng,
                            nhập/xuất Excel–Word, hộp thoại…); phần giao diện demo cũ
@@ -70,6 +71,8 @@ supabase/
 ```
 
 Quy ước: tệp **số nhỏ nạp trước**, tệp số lớn có thể dùng hàm/định nghĩa của tệp số nhỏ.
+Muốn đổi dải khối lớp trên giao diện, chỉnh `EDUCMIND_GRADE_MIN` và `EDUCMIND_GRADE_MAX` trong `js/00-grade-config.js`.
+Ràng buộc dữ liệu được áp dụng bằng migration trong `supabase/migrations/`; khi đổi dải, cần tạo migration mới tương ứng và không sửa migration đã triển khai.
 `js/03-supabase.js` chứa địa chỉ dự án Supabase, khóa công khai và `EducMindDB` —
 mọi lệnh đọc/ghi cơ sở dữ liệu đều đi qua đối tượng này (mỗi hàm = một lệnh tới Supabase).
 
