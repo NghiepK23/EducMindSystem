@@ -83,3 +83,22 @@ function grList(c,ai,a){
 <div class='ai-bar'>${ic('spark',16)}<span>${(()=>{const p=(a.subs||[]).filter(b=>b&&b.has&&b.score==null),n=p.length,k=p.filter(b=>b.ai).length;if(!n)return 'Mọi bài đã nộp đều đã được giáo viên xác nhận. Mở trung tâm AI để xem lại hoặc chạy lại đề xuất.';return `AI đã chấm điểm, viết nhận xét và phân tích lỗi cho <b>${k||n}</b> bài — còn <b>${n}</b> bài chờ giáo viên xác nhận.`})()}</span><span class='row' style='margin-left:auto'><button class='btn mini' data-noicon='1' onclick='aiCenterDlg("asg",${ai})'>Mở trung tâm AI</button></span></div>
 ${rows.length?`<div class='tablewrap'><table class='grtab'><thead><tr><th scope='col'>Học sinh</th><th scope='col'>Trạng thái</th><th scope='col'>Điểm</th><th scope='col'>Nhận xét</th><th scope='col'><span class='sr'>Thao tác</span></th></tr></thead><tbody>${line}</tbody></table></div>${rows.length>show.length?`<div class='row' style='margin-top:10px'><button class='btn light' onclick='grMoreSet()'>Xem thêm ${Math.min(25,rows.length-show.length)} trong số ${rows.length-show.length} học sinh còn lại</button></div>`:`<div class='muted' style='margin-top:8px;font-size:.8125rem'>Đang hiện đủ ${rows.length} học sinh theo bộ lọc.</div>`}`:`<div class='empty'>Không có học sinh nào khớp bộ lọc đang chọn.</div>`}</section>`;
 }
+
+function gradeFileDlg(ai,si){
+  const c=selected(),a=c.assignments[ai],s=c.students[si],b=a.subs[si];
+  if(!b||!b.has){toast('Học sinh này chưa nộp bài.');return}
+  const work=(b.text?`<div class='muted' style='margin-top:8px;max-height:200px;overflow:auto;white-space:pre-wrap;font:400 .8125rem/1.5 var(--font-body)'>${esc(b.text)}</div>`:'')+(b.file?`<div class='muted' style='margin-top:8px'>Tệp đính kèm: ${esc(b.file.name)}</div>`:'');
+  const hasRubric=!!(a.rubric&&a.rubric.length);
+  const fields=hasRubric?rubricGradeFields(a,b):[{k:'sc',label:'Điểm (0–'+a.max+')',val:b.score==null?'':b.score}];
+  fields.push({k:'fb',label:'Nhận xét chung cho học sinh',val:b.fb||'',area:true});
+  openDlg({title:'Chấm bài nộp · '+s.name,text:`<b>${esc(a.name)}</b>${work}${hasRubric?`<div class='rubric-total-hint'>Nhập điểm theo từng tiêu chí; tổng sẽ tạo thành điểm bài tối đa ${a.max}.</div>`:''}`,okLabel:'Lưu điểm',fields,ok:v=>{
+    let sc,rubricScores=null;
+    if(hasRubric){const parsed=rubricRead(v,a);if(parsed.error)return parsed.error;sc=parsed.total;rubricScores=parsed.scores}
+    else{const raw=String(v.sc||'').trim().replace(',','.');if(raw==='')return 'Hãy nhập điểm (0–'+a.max+').';sc=parseFloat(raw);if(isNaN(sc)||sc<0||sc>a.max)return 'Điểm phải từ 0 đến '+a.max+'.'}
+    b.score=sc;b.fb=String(v.fb||'').trim();b.gradedBy=acctName();if(rubricScores)b.rubricScores=rubricScores;
+    const key='A'+a.aid,before=s.mastery.slice();
+    (a.objs||[]).forEach(j=>{if(!s.ev[j])s.ev[j]=[];const r=sc/a.max,x=s.ev[j].find(e=>e.key===key);if(x){x.s=r;x.day=today}else s.ev[j].push({s:r,day:today,src:'Bài tập',key});recalcPair(s,j)});
+    recalcClass(c);a.graded=a.subs.filter(x=>x.score!=null).length;
+    LOG.unshift('Chấm “'+a.name+'” cho '+s.name+' ('+c.id+'): '+((a.objs||[]).map(j=>c.goals[j]+' '+pct(before[j])+'%→'+pct(s.mastery[j])+'%').join('; ')||'không có mục tiêu gắn'));
+    return null}});
+}

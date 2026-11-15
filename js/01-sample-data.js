@@ -1,12 +1,9 @@
-/* EducMind · js/01-sample-data.js
-   Dữ liệu mẫu demo đã gỡ bỏ (chỉ dùng cho chế độ demo đã ngừng hoạt động). */
-/* ===== Dữ liệu mẫu ===== */
 const DAY0=100;
 let today=DAY0,LOG=[],gradeAi=0;
 const HL=30,T_OPEN=.5,T_CLOSE=.65;
 const classSeed=[];
-const first=['Minh','Lan Anh','Đức Duy','Gia Hân','Hoàng Nam','Khánh Linh','Tuấn Kiệt','Ngọc Mai'];
-const surnames=['Nguyễn','Trần','Lê','Phạm','Võ','Đặng','Bùi','Hoàng'];
+const first=[];
+const surnames=[];
 function jitter(a,b){return (a*3+b*5)%5}
 const classes=classSeed.map((c,ci)=>({...c,owner:c.owner||'co.lan@educmind.vn',
   students:Array.from({length:c.count},(_,i)=>({id:c.id+'-HS'+(i+1),

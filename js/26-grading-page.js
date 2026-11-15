@@ -10,7 +10,7 @@ function gradingPage(){
   if(sel&&sel.kind==='asg')gradeAi=sel.i;
   const options=works.map(w=>`<option value='${w.kind}:${w.i}' ${sel===w?'selected':''}>${esc(w.type)} · ${esc(w.label)} — ${esc(w.meta)}</option>`).join('');
   const tab=`<div class='seg seg-page' role='tablist' aria-label='Chấm điểm, kết quả và phân tích'><button type='button' role='tab' aria-selected='${grTab!=='result'&&grTab!=='analysis'}' onclick="grTabSet('mark')">${ic('grade',16)}<span>Chấm điểm</span></button><button type='button' role='tab' aria-selected='${grTab==='result'}' onclick="grTabSet('result')">${ic('trend',16)}<span>Kết quả</span></button><button type='button' role='tab' aria-selected='${grTab==='analysis'}' onclick="grTabSet('analysis')">${ic('mastery',16)}<span>Phân tích</span></button></div>`;
-  if(!sel)return tab+`<section class='panel'><div class='empty'><div>Chưa có bài tập nào để chấm.</div><div class='row' style='justify-content:center;gap:8px;margin-top:12px'><button class='btn' onclick='seedGradingDemo()'>${ic('spark',16)}Nạp dữ liệu mẫu để kiểm tra</button><button class='btn light' onclick='setPage("assignments")'>Tạo bài tập</button></div></div></section>`;
+  if(!sel)return tab+`<section class='panel'><div class='empty'><div>Chưa có bài tập nào để chấm.</div><div class='row' style='justify-content:center;gap:8px;margin-top:12px'><button class='btn light' onclick='setPage("assignments")'>Tạo bài tập</button></div></div></section>`;
   const isQ=sel.kind==='quiz',a=isQ?null:c.assignments[sel.i];
   const gv=a?a.subs.map(x=>x&&x.score).filter(x=>x!=null):[],pend=a?a.subs.filter(x=>x&&x.has&&x.score==null).length:0;
   const head=`<section class='gr-work-head'>
@@ -20,7 +20,7 @@ function gradingPage(){
 <h2>${esc(sel.label)}</h2>
 <div class='grh-meta'><span>${esc(sel.meta)}</span>${isQ?`<span>${c.quiz.dur} phút</span><span>tối đa ${c.maxAtt} lượt</span>`:`<span>${a.submitted}/${c.count} đã nộp</span><span>${a.graded} đã chấm</span>`}</div>
 </div>
-<div class='grh-right'><div class='selectbox grh-pick'><label for='gr-item'>Chọn bài cụ thể</label><select id='gr-item' onchange='grChooseItem(this.value)'>${options}</select></div><div class='row' style='justify-content:flex-end;gap:8px;margin-top:2px'>${c.assignments.some(x=>x.demo)?`<button class='btn light mini' data-noicon='1' onclick='clearGradingDemo()'>Xoá dữ liệu mẫu</button>`:`<button class='btn light mini' data-noicon='1' onclick='seedGradingDemo()'>${ic('spark',14)}Nạp dữ liệu mẫu</button>`}</div></div>
+<div class='grh-right'><div class='selectbox grh-pick'><label for='gr-item'>Chọn bài cụ thể</label><select id='gr-item' onchange='grChooseItem(this.value)'>${options}</select></div></div>
 </div>${tab}</section>`;
   if(grTab==='analysis')return head+anSection(c,isQ?'quiz':'asg',isQ?0:sel.i);
   if(grTab==='result'){
