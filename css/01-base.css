@@ -87,6 +87,8 @@ button{font:inherit;cursor:pointer;-webkit-tap-highlight-color:transparent;touch
 .user{display:flex;align-items:center;gap:10px;color:var(--muted);font-size:.8125rem;letter-spacing:.005em}
 .avatar{display:grid;place-items:center;width:30px;height:30px;border-radius:50%;background:var(--brand-soft);color:var(--brand-ink);font:700 .6875rem var(--font-head);letter-spacing:.02em;overflow:hidden}
 .avatar>img{width:100%;height:100%;object-fit:cover;display:block}
+.avatar-pick{display:grid;place-items:center;flex:none;padding:0;border:0;border-radius:50%;background:transparent;cursor:pointer}
+.avatar-pick:hover{filter:brightness(.92)}.avatar-pick:focus-visible{outline:2px solid var(--brand);outline-offset:3px}
 .avatar.av-blue{background:#DBEAFE;color:#1D4ED8}
 .avatar.av-green{background:#DCFCE7;color:#15803D}
 .avatar.av-violet{background:#EDE9FE;color:#6D28D9}
@@ -320,3 +322,39 @@ td{font-size:.84375rem}
 #impOv .tablewrap.fmt{max-height:none}
 #impOv .tablewrap.fmt table{min-width:760px}
 #impOv .tablewrap.fmt th:nth-child(2),#impOv .tablewrap.fmt td:nth-child(2){min-width:210px}
+
+/* ---------- Bộ lọc theo bài học và thu gọn khối (js/db/09-progress.js: Mức nắm vững, Lỗ hổng, Gợi ý) ---------- */
+.db-pf-bar{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:12px 16px;padding:16px 20px}
+.db-pf-controls{display:flex;flex-wrap:wrap;align-items:flex-end;gap:12px 16px;flex:1 1 360px;min-width:0}
+.db-pf-field{display:flex;flex-direction:column;gap:5px;min-width:0;flex:0 1 240px}
+.db-pf-field.db-pf-grow{flex:1 1 220px}
+.db-pf-field label{font:600 .6875rem/1.2 var(--font-head);letter-spacing:.04em;color:var(--muted);text-transform:uppercase}
+.db-pf-field select,.db-pf-field input{width:100%;min-width:0}
+.db-pf-actions{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.db-pf-actions .muted{font-size:.8125rem;margin-right:4px}
+.db-pf-actions [hidden]{display:none}
+
+.db-pf-group+.db-pf-group{margin-top:8px}
+.db-pf-head{display:flex;flex-wrap:wrap;align-items:center;gap:4px 10px;width:100%;min-height:44px;padding:10px 14px;border:0;border-radius:var(--radius-sm);background:var(--fill);color:var(--ink);text-align:left;
+  transition:background-color .2s var(--ease)}
+.db-pf-head:hover,.db-pf-head:active{background:var(--fill-2)}
+.db-pf-title{flex:1 1 9rem;min-width:0;font-weight:600;letter-spacing:-.005em}
+.db-pf-meta,.db-pf-sum{flex:none;font-size:.78125rem}
+.db-pf-content{padding:8px 4px 2px}
+.db-pf-content[hidden]{display:none}
+.db-pf-chev{flex:none;width:7px;height:7px;margin:0 4px 2px 2px;border-right:2px solid var(--muted);border-bottom:2px solid var(--muted);transform:rotate(-45deg);transition:transform .25s var(--ease)}
+[aria-expanded="true"]>.db-pf-chev{transform:rotate(45deg) translate(-1px,-1px)}
+
+.db-pf-chips{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 12px}
+.db-pf-chip{display:inline-flex;align-items:center;gap:6px;max-width:16rem;min-height:32px;padding:5px 12px;border:0;border-radius:999px;background:var(--btn-light);color:var(--ink);font:600 .78125rem/1.2 var(--font-body);
+  transition:background-color .2s var(--ease),color .2s var(--ease),transform .4s var(--ease)}
+.db-pf-chip:hover{background:var(--btn-light-hover)}
+.db-pf-chip:active{transform:scale(.96);transition-duration:80ms}
+.db-pf-chip[aria-expanded="true"]{background:var(--brand-soft);color:var(--brand-ink)}
+.db-pf-chip[aria-expanded="true"] .db-pf-chev{border-color:var(--brand-ink)}
+.db-pf-chip-t,.db-pf-th-t{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.db-pf-th{display:inline-flex;align-items:center;gap:6px;max-width:13rem;padding:0;border:0;background:none;color:inherit;font:inherit;letter-spacing:inherit;text-align:left}
+.db-pf-th:hover{color:var(--brand-ink)}
+.db-pf-still .bar span{animation:none}
+@media(pointer:coarse){.db-pf-chip{min-height:44px}}
+@media(max-width:560px){.db-pf-bar{padding:14px}.db-pf-field,.db-pf-field.db-pf-grow{flex:1 1 100%}}
