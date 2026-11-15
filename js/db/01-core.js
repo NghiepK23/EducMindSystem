@@ -28,6 +28,17 @@ const DB_ACT = {};     // tên thao tác -> hàm (phần tử, sự kiện)
 const dbActive = () => !!(logged && sess && sess.backend && DB.me);
 const dbIsTeacher = () => !!DB.me && DB.me.role === 'TEACHER';
 const dbClass = () => DB.classes.find((c) => c.id === DB.classId) || null;
+function dbResolveClassGrade(className, grade) {
+  if (grade != null && grade !== '') {
+    const value = Number(grade);
+    if (Number.isInteger(value) && value >= 1 && value <= 12) return value;
+    throw new Error('Khối là số nguyên từ 1 đến 12.');
+  }
+  const match = String(className || '').trim().match(/^(1[0-2]|[1-9])[\s-]*[A-Za-z]{1,2}[\s-]*\d{1,2}$/);
+  if (!match) throw new Error('Không xác định được khối từ tên lớp. Hãy nhập khối lớp (1–12) để tạo khóa học.');
+  return Number(match[1]);
+}
+const dbDefaultCourseTitle = (className, grade) => `Tin học ${dbResolveClassGrade(className, grade)}`;
 
 /* ===== Hàm tiện ích ===== */
 /* Thoát ký tự HTML cho MỌI dữ liệu đưa vào giao diện (cả trong thuộc tính dùng nháy đơn lẫn nháy kép). */
@@ -218,7 +229,7 @@ async function dbEnsureCourse() {
   const c = dbClass();
   if (!c) throw new Error('Hãy tạo hoặc chọn một lớp trước.');
   await dbLoadCourse();
-  if (!DB.course) DB.course = await dbCall(EducMindDB.createCourse({ class_id: c.id, title: c.name }));
+  if (!DB.course) DB.course = await dbCall(EducMindDB.createCourse({ class_id: c.id, title: dbDefaultCourseTitle(c.name, c.grade) }));
   return DB.course;
 }
 

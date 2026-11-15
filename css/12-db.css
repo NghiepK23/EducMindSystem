@@ -25,6 +25,12 @@
 .db-form-actions{justify-content:flex-end;margin-top:18px}
 .db-label{display:block;font-size:.8125rem;color:var(--muted);font-weight:600;margin-bottom:6px}
 .db-hint{font-size:.78125rem;margin-top:2px}
+.db-course-context{display:grid;gap:4px;min-width:0;margin:0 0 14px;padding:10px 12px;border:1px solid var(--line);border-radius:12px;background:var(--surface)}
+.db-course-context-heading{display:flex;align-items:center;flex-wrap:wrap;gap:6px 9px;min-width:0}
+.db-course-context-label{color:var(--muted);font-size:.75rem;font-weight:600}
+.db-course-context-title{min-width:0;color:var(--ink);font:650 .9375rem/1.35 var(--font-head);overflow-wrap:anywhere}
+.db-course-context-class{max-width:100%;padding:3px 8px;border-radius:999px;background:var(--brand-soft);color:var(--brand-ink,var(--brand));font-size:.75rem;font-weight:600;overflow-wrap:anywhere}
+.db-course-context-description{margin:0;color:var(--muted);font-size:.8125rem;line-height:1.45;overflow-wrap:anywhere}
 .db-check{display:inline-flex;align-items:center;gap:8px;font-weight:500;cursor:pointer;min-height:44px}
 .db-check input{flex:none;margin:0}
 .db-input-score{width:6.5rem!important}
