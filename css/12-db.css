@@ -326,3 +326,87 @@
 .db-bankfold>.ab-tools{grid-template-columns:repeat(3,minmax(0,1fr))}
 @media(max-width:1000px){.db-bankfold>.ab-tools{grid-template-columns:repeat(2,minmax(0,1fr))}.db-bankfold>.ab-tools .selectbox:last-child{grid-column:span 2}}
 @media(max-width:620px){.db-bankfold>.ab-tools{grid-template-columns:minmax(0,1fr)}.db-bankfold>.ab-tools .selectbox:last-child{grid-column:span 1}}
+
+/* Student-facing shell and home: refreshed visual design; navigation and data actions stay unchanged. */
+.top.student-top{height:56px;padding-inline:clamp(14px,2vw,28px);gap:12px}
+.student-top-title{position:absolute;left:50%;max-width:38vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;transform:translateX(-50%);color:var(--ink);font-size:.875rem;font-weight:600;letter-spacing:-.01em}
+.student-top .user{margin-left:auto}
+.layout.student-layout{width:100%;max-width:none;min-height:calc(100vh - 56px);grid-template-columns:minmax(196px,236px) minmax(0,1fr);gap:20px;padding:12px 20px 30px 12px;background:linear-gradient(135deg,#f5f7ff 0%,#f0f3ff 48%,#f8f6ff 100%)}
+:root[data-theme="dark"] .layout.student-layout{background:linear-gradient(135deg,#111827 0%,#12172b 52%,#1d1730 100%)}
+.student-layout>.side{top:68px;max-height:calc(100vh - 82px);overflow-y:auto;padding:12px 10px;border:1px solid rgba(118,132,174,.18);border-radius:23px;background:rgba(255,255,255,.82);box-shadow:0 12px 36px -24px rgba(34,49,89,.38),inset 0 1px 0 rgba(255,255,255,.8);-webkit-backdrop-filter:blur(20px);backdrop-filter:blur(20px)}
+:root[data-theme="dark"] .student-layout>.side{background:rgba(28,30,44,.9);border-color:rgba(255,255,255,.1)}
+.student-layout .grp{margin-top:15px}
+.student-layout .grp h2{padding:5px 12px;color:var(--muted);font-size:.63rem;font-weight:750;letter-spacing:.08em;text-transform:uppercase}
+.student-layout .nav{min-height:38px;margin:2px 0;padding:8px 11px;gap:10px;border-radius:12px;color:var(--ink);font-size:.82rem;font-weight:550}
+.student-layout .nav .ic{width:17px;height:17px;color:var(--muted)}
+.student-layout .nav[aria-current="page"]{background:linear-gradient(100deg,#e5f1ff,#eff6ff);color:#075cae;box-shadow:inset 0 0 0 1px rgba(32,123,218,.08),0 4px 12px -9px rgba(14,86,163,.45);font-weight:750}
+.student-layout .nav[aria-current="page"] .ic{color:#1475c9}
+:root[data-theme="dark"] .student-layout .nav[aria-current="page"]{background:rgba(38,112,197,.26);color:#a7d2ff}
+:root[data-theme="dark"] .student-layout .nav[aria-current="page"] .ic{color:#8ac4ff}
+.student-layout .main{min-width:0;padding:2px 2px 20px 0}
+.student-layout .head{align-items:center;margin:3px 0 16px}
+.student-layout .head h1{font-size:clamp(1.35rem,1rem + 1vw,1.8rem);letter-spacing:-.035em}
+.student-layout .head .sub{font-size:.8rem}
+.student-layout .class-select{min-width:145px;padding:7px 12px;border:1px solid var(--line);border-radius:15px;background:var(--surface)}
+.student-layout .class-select label{font-size:.6rem}
+.student-layout .class-select select{font-size:.86rem}
+.student-layout .view>.grid.db-metrics{gap:12px;margin-bottom:14px}
+.student-layout .db-metrics>.metric{min-height:112px;align-items:center;padding:17px;border:1px solid rgba(118,132,174,.16);border-radius:19px;background:var(--surface);box-shadow:0 9px 24px -19px rgba(34,49,89,.42)}
+.student-layout .db-metrics>.metric .mi{width:40px;height:40px;border-radius:14px;background:#edf0ff;color:#6554b8}
+.student-layout .db-metrics>.metric .label{font-size:.78rem;font-weight:650;color:var(--ink)}
+.student-layout .db-metrics>.metric strong{margin:5px 0 1px;font-size:1.55rem}
+.student-layout .db-metrics>.metric .hint{font-size:.72rem}
+.student-layout .cols{gap:14px}
+.student-layout .cols>.panel,.student-layout .view>.panel{border:1px solid rgba(118,132,174,.15);border-radius:20px;background:var(--surface);box-shadow:0 10px 28px -22px rgba(34,49,89,.4)}
+.student-layout .panel h2{font-size:1.08rem}
+.db-student-hero{position:relative;display:flex;align-items:center;min-height:188px;overflow:hidden;margin:0 0 16px;padding:25px clamp(22px,3vw,34px);border:1px solid rgba(255,255,255,.25);border-radius:22px;background:linear-gradient(110deg,#3521a8 0%,#5737db 34%,#3987ef 69%,#82c9f3 100%);color:#fff;isolation:isolate;box-shadow:0 16px 34px -23px rgba(54,58,172,.75)}
+.db-student-hero:before,.db-student-hero:after{position:absolute;z-index:-1;content:"";pointer-events:none}
+.db-student-hero:before{inset:-50% 20% -90% 38%;border:1px solid rgba(255,255,255,.18);border-radius:50%;transform:rotate(-18deg);box-shadow:0 0 0 27px rgba(255,255,255,.045),0 0 0 58px rgba(255,255,255,.035)}
+.db-student-hero:after{width:340px;height:240px;right:5%;top:-90px;border-radius:50%;background:radial-gradient(ellipse,rgba(161,226,255,.48),transparent 68%)}
+.db-student-hero-copy{position:relative;z-index:2;max-width:620px}
+.db-student-hero-kicker{font-size:.65rem;font-weight:800;letter-spacing:.15em;color:rgba(255,255,255,.8)}
+.db-student-hero h2{margin:2px 0;font-size:clamp(2rem,4vw,2.7rem);font-weight:850;line-height:1.05;letter-spacing:-.06em}
+.db-student-hero h2 em{color:#ffe66e;font-style:italic}
+.db-student-hero h3{margin:5px 0;font-size:clamp(.98rem,1.7vw,1.25rem);font-weight:750;letter-spacing:-.025em}
+.db-student-hero p{margin:4px 0 13px;color:rgba(255,255,255,.86);font-size:.79rem}
+.db-student-hero p span{padding:0 4px;color:#ffe66e}
+.db-student-hero-action{min-height:34px;padding:8px 15px;border:1px solid rgba(255,255,255,.25);background:#fff;color:#4532b4;font-weight:750;box-shadow:0 5px 16px rgba(29,22,106,.2)}
+.db-student-hero-action:hover{background:#f4f1ff;color:#36258e}
+.db-student-hero-art{position:absolute;inset:0 0 0 auto;width:55%;overflow:hidden;pointer-events:none}
+.db-student-hero-art img{display:block;width:100%;height:100%;object-fit:cover;object-position:center 38%;-webkit-mask-image:linear-gradient(90deg,transparent 0%,rgba(0,0,0,.4) 12%,#000 29%);mask-image:linear-gradient(90deg,transparent 0%,rgba(0,0,0,.4) 12%,#000 29%)}
+.student-layout .side-toggle{border:1px solid var(--line);background:var(--surface);color:var(--muted);box-shadow:0 4px 14px rgba(28,42,76,.12)}
+.layout.student-layout.sidebar-collapsed{grid-template-columns:76px minmax(0,1fr)}
+@media(max-width:1100px){
+  .layout.student-layout{grid-template-columns:200px minmax(0,1fr);gap:14px;padding-right:14px}
+  .student-layout .grid.db-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media(max-width:900px){
+  .student-top-title{display:none}
+  .layout.student-layout,.layout.student-layout.sidebar-collapsed{grid-template-columns:minmax(0,1fr)!important;gap:0!important;padding:0!important}
+  .student-layout>.side{max-height:none!important;margin:8px 0 12px!important;padding:10px 88px 10px 10px!important;border-radius:18px!important;background:var(--surface)!important}
+  .student-layout>.side .nav[aria-current="page"]{background:#e5f1ff!important;color:#075cae!important}
+  :root[data-theme="dark"] .student-layout>.side .nav[aria-current="page"]{background:#0a84ff!important;color:#fff!important}
+  .student-layout>.main{padding:0 12px 16px!important}
+  .layout.student-layout.sidebar-collapsed{grid-template-columns:minmax(0,1fr)!important}
+}
+@media(max-width:620px){
+  .top.student-top{gap:7px;padding-inline:10px}
+  .student-top .logo{gap:7px;font-size:1rem}
+  .student-top .logo-mark{width:31px;height:31px}
+  .student-top .user{gap:5px;font-size:.68rem}
+  .student-top .user>span:last-child{max-width:92px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .student-top .btn.icon-only{width:34px;min-width:34px;height:34px;padding:7px}
+  .student-layout .head{align-items:flex-start;flex-direction:column;gap:9px}
+  .student-layout .class-select{width:100%}
+  .db-student-hero{min-height:176px;padding:20px 17px;border-radius:18px}
+  .db-student-hero-copy{max-width:64%}
+  .db-student-hero h2{font-size:1.75rem}
+  .db-student-hero h3{max-width:190px;font-size:.88rem}
+  .db-student-hero p{max-width:180px;font-size:.64rem}
+  .db-student-hero-art{width:46%;opacity:.76}
+  .db-student-hero-art img{object-position:center 38%;-webkit-mask-image:linear-gradient(90deg,transparent 0%,rgba(0,0,0,.6) 18%,#000 42%);mask-image:linear-gradient(90deg,transparent 0%,rgba(0,0,0,.6) 18%,#000 42%)}
+  .student-layout .view>.grid.db-metrics{gap:8px}
+  .student-layout .db-metrics>.metric{min-height:95px;padding:11px;border-radius:16px;gap:9px}
+  .student-layout .db-metrics>.metric .mi{width:34px;height:34px}
+  .student-layout .cols{grid-template-columns:minmax(0,1fr)}
+}
