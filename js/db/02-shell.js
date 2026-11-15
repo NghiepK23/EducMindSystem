@@ -40,9 +40,24 @@ function dbShell(P, body) {
       </section>`
     : '';
   const iconBtn = (label, icon, attrs, extra, cls) => `<button type="button" class="btn light icon-only ${cls || ''}" data-iconified="1" ${attrs} aria-label="${label}" title="${label}">${ic(icon, 18)}<span class="sr">${label}</span>${extra || ''}</button>`;
+  const studentHero = DB.page === 'home'
+    ? `<section class="db-student-hero" aria-label="Chào mừng đến với EducMind AI">
+        <div class="db-student-hero-copy">
+          <span class="db-student-hero-kicker">${T ? 'GIẢNG DẠY THÔNG MINH' : 'HỌC TẬP THÔNG MINH'}</span>
+          <h2>EducMind <em>AI</em></h2>
+          <h3>Kiến tạo hành trình học tập thông minh</h3>
+          <p>${T ? 'Truyền cảm hứng' : 'Học chủ động'} <span>·</span> ${T ? 'Kiến tạo tri thức' : 'Khám phá tri thức'} <span>·</span> Vươn tới tương lai</p>
+          ${dbBtn(T ? 'Bắt đầu soạn bài' : 'Bắt đầu học ngay', 'go', { page: T ? 'content' : 'lessons' }, 'db-student-hero-action')}
+        </div>
+        <div class="db-student-hero-art" aria-hidden="true">
+          <img src="assets/student-characters.png" alt="" fetchpriority="high">
+        </div>
+      </section>`
+    : '';
   app.innerHTML = `
-  <header class="top">
+  <header class="top db-student-top">
     ${brandLogoHtml()}
+    <span class="db-student-top-title"><span> Hệ thống quản lý dạy học số phổ thông </span></span>
     <span class="spacer"></span>
     <div class="user">${avatarPickerHtml(`<span class="avatar" aria-hidden="true">${avatarPhoto ? `<img src="${h(avatarPhoto)}" alt="">` : h(dbInitials(DB.me.full_name || DB.me.email))}</span>`)}<span>${h(dbName(DB.me))} · ${T ? 'Giáo viên' : 'Học sinh'}</span></div>
     ${iconBtn(bellLabel, 'bell', 'data-act="openNotifs" id="db-bell"', unread ? `<span class="nb" aria-hidden="true">${unread > 9 ? '9+' : unread}</span>` : '', 'notif-btn')}
@@ -59,6 +74,7 @@ function dbShell(P, body) {
         ${classSelect}
       </div>
       ${courseContext}
+      ${studentHero}
       <div class="view">${body}</div>${dbDialogHtml()}
     </main>
   </div>${layer4BackgroundControls()}`;

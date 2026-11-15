@@ -31,6 +31,38 @@
 .db-course-context-title{min-width:0;color:var(--ink);font:650 .9375rem/1.35 var(--font-head);overflow-wrap:anywhere}
 .db-course-context-class{max-width:100%;padding:3px 8px;border-radius:999px;background:var(--brand-soft);color:var(--brand-ink,var(--brand));font-size:.75rem;font-weight:600;overflow-wrap:anywhere}
 .db-course-context-description{margin:0;color:var(--muted);font-size:.8125rem;line-height:1.45;overflow-wrap:anywhere}
+
+/* ----- Nhận diện và banner trang tổng quan ----- */
+.db-student-top{gap:clamp(8px,1.3vw,16px)}
+.db-student-top-title{flex:0 1 auto;min-width:0;max-width:min(42vw,420px);overflow:hidden;color:var(--muted);font-size:.8rem;font-weight:500;letter-spacing:-.01em;text-overflow:ellipsis;white-space:nowrap}
+.db-student-top-title strong{color:var(--brand-ink,var(--brand));font-weight:750}
+.db-student-top-title>span{color:var(--muted)}
+.db-student-hero{position:relative;display:flex;align-items:center;min-height:188px;overflow:hidden;margin:0 0 16px;padding:25px clamp(22px,3vw,34px);border:1px solid rgba(255,255,255,.25);border-radius:22px;background:linear-gradient(110deg,#3521a8 0%,#5737db 34%,#3987ef 69%,#82c9f3 100%);color:#fff;isolation:isolate;box-shadow:0 16px 34px -23px rgba(54,58,172,.75)}
+.db-student-hero::before,.db-student-hero::after{position:absolute;z-index:-1;content:"";pointer-events:none}
+.db-student-hero::before{inset:-50% 20% -90% 38%;border:1px solid rgba(255,255,255,.18);border-radius:50%;transform:rotate(-18deg);box-shadow:0 0 0 27px rgba(255,255,255,.045),0 0 0 58px rgba(255,255,255,.035)}
+.db-student-hero::after{width:340px;height:240px;right:5%;top:-90px;border-radius:50%;background:radial-gradient(ellipse,rgba(161,226,255,.48),transparent 68%)}
+.db-student-hero-copy{position:relative;z-index:2;max-width:58%}
+.db-student-hero-kicker{display:block;color:rgba(255,255,255,.8);font-size:.65rem;font-weight:800;letter-spacing:.15em}
+.db-student-hero h2{margin:2px 0;color:#fff;font:850 clamp(2rem,4vw,2.7rem)/1.05 var(--font-head);letter-spacing:-.06em}
+.db-student-hero h2 em{color:#ffe66e;font-style:italic}
+.db-student-hero h3{margin:5px 0;color:#fff;font:750 clamp(.98rem,1.7vw,1.25rem)/1.3 var(--font-head);letter-spacing:-.025em}
+.db-student-hero p{margin:4px 0 13px;color:rgba(255,255,255,.86);font-size:.79rem;line-height:1.5}
+.db-student-hero p span{padding:0 4px;color:#ffe66e}
+.db-student-hero-action{min-height:34px;padding:8px 15px;border:1px solid rgba(255,255,255,.25);background:#fff;color:#4532b4;font-weight:750;box-shadow:0 5px 16px rgba(29,22,106,.2)}
+.db-student-hero-action:hover{background:#f4f1ff;color:#36258e}
+.db-student-hero-art{position:absolute;inset:0 0 0 auto;width:55%;overflow:hidden;pointer-events:none}
+.db-student-hero-art img{display:block;width:100%;height:100%;object-fit:cover;object-position:center 38%;-webkit-mask-image:linear-gradient(90deg,transparent 0%,rgba(0,0,0,.4) 12%,#000 29%,#000 88%,rgba(0,0,0,.55) 96%,transparent 100%),linear-gradient(0deg,transparent 0%,#000 13%,#000 87%,transparent 100%);-webkit-mask-composite:source-in;mask-image:linear-gradient(90deg,transparent 0%,rgba(0,0,0,.4) 12%,#000 29%,#000 88%,rgba(0,0,0,.55) 96%,transparent 100%),linear-gradient(0deg,transparent 0%,#000 13%,#000 87%,transparent 100%);mask-composite:intersect}
+@media(max-width:620px){
+  .db-student-top-title{max-width:26vw;font-size:.7rem}
+  .db-student-top-title>span{display:none}
+  .db-student-hero{min-height:176px;padding:20px 17px;border-radius:18px}
+  .db-student-hero-copy{max-width:64%}
+  .db-student-hero h2{font-size:1.75rem}
+  .db-student-hero h3{max-width:190px;font-size:.88rem}
+  .db-student-hero p{max-width:180px;font-size:.64rem}
+  .db-student-hero-art{width:46%;opacity:.76}
+  .db-student-hero-art img{-webkit-mask-image:linear-gradient(90deg,transparent 0%,rgba(0,0,0,.6) 18%,#000 42%,#000 88%,rgba(0,0,0,.5) 97%,transparent 100%),linear-gradient(0deg,transparent 0%,#000 16%,#000 84%,transparent 100%);-webkit-mask-composite:source-in;mask-image:linear-gradient(90deg,transparent 0%,rgba(0,0,0,.6) 18%,#000 42%,#000 88%,rgba(0,0,0,.5) 97%,transparent 100%),linear-gradient(0deg,transparent 0%,#000 16%,#000 84%,transparent 100%);mask-composite:intersect}
+}
 .db-check{display:inline-flex;align-items:center;gap:8px;font-weight:500;cursor:pointer;min-height:44px}
 .db-check input{flex:none;margin:0}
 .db-input-score{width:6.5rem!important}
