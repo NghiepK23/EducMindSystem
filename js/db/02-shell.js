@@ -35,14 +35,14 @@ function dbShell(P, body) {
   const courseDescription = typeof course?.description === 'string' ? course.description.trim() : '';
   const courseContext = ['content', 'lessons'].includes(DB.page) && courseTitle && className
   const iconBtn = (label, icon, attrs, extra, cls) => `<button type="button" class="btn light icon-only ${cls || ''}" data-iconified="1" ${attrs} aria-label="${label}" title="${label}">${ic(icon, 18)}<span class="sr">${label}</span>${extra || ''}</button>`;
-  const studentHero = DB.page === 'home'
-    ? `<section class="db-student-hero" aria-label="Chào mừng đến với EducMind AI">
+  const studentHero = !T && DB.page === 'home'
+    ? `<section class="db-student-hero db-home-hero db-home-hero--student" aria-label="Tổng quan học tập">
         <div class="db-student-hero-copy">
-          <span class="db-student-hero-kicker">${T ? 'GIẢNG DẠY THÔNG MINH' : 'HỌC TẬP THÔNG MINH'}</span>
-          <h2>EducMind <em>AI</em></h2>
-          <h3>Kiến tạo hành trình học tập thông minh</h3>
-          <p>${T ? 'Truyền cảm hứng' : 'Học chủ động'} <span>·</span> ${T ? 'Kiến tạo tri thức' : 'Khám phá tri thức'} <span>·</span> Vươn tới tương lai</p>
-          ${dbBtn(T ? 'Bắt đầu soạn bài' : 'Bắt đầu học ngay', 'go', { page: T ? 'content' : 'lessons' }, 'db-student-hero-action')}
+          <span class="db-student-hero-kicker">HÀNH TRÌNH HỌC TẬP CỦA EM</span>
+          <h2>Chào ${h(dbName(DB.me))}!</h2>
+          <h3>Mỗi bước học hôm nay đưa em tiến xa hơn.</h3>
+          <p>Bài học · mục tiêu · gợi ý dành riêng cho em</p>
+          ${dbBtn('Bắt đầu học ngay', 'go', { page: 'lessons' }, 'db-student-hero-action')}
         </div>
         <div class="db-student-hero-art" aria-hidden="true">
           <img src="assets/student-characters.png" alt="" fetchpriority="high">

@@ -200,17 +200,17 @@
 .db-dlg-actions{justify-content:flex-end;margin-top:16px}
 .db-dlg-wide{max-width:620px}
 .db-notifs{display:grid;gap:6px;max-height:60vh;overflow:auto;margin-top:8px}
-.db-notif-row{display:flex;align-items:stretch;gap:6px}
-.db-notif{display:grid;gap:2px;text-align:left;border:0;border-radius:12px;padding:10px 12px;background:var(--fill);color:inherit;font:inherit;cursor:pointer}
-.db-notif-row .db-notif{flex:1;min-width:0}
-.db-notif-delete{flex:none}
+.db-notif-row{position:relative;display:flex;align-items:center;min-width:0}
+.db-notif{display:grid;gap:2px;width:100%;min-width:0;padding:10px 58px 10px 12px;border:0;border-radius:12px;background:var(--fill);color:inherit;font:inherit;text-align:left;cursor:pointer}
+.db-notif-delete{position:absolute;top:50%;right:8px;z-index:1;transform:translateY(-50%)}
 .db-notif:hover{background:var(--fill-2,var(--fill))}
 .db-notif.unread{box-shadow:inset 3px 0 0 var(--brand)}
 .db-notif .muted{font-size:.8125rem}
 .db-notif-time{font-size:.75rem!important}
-.demo-notif-row{display:flex;align-items:stretch;gap:6px;margin:0 0 6px}
-.demo-notif-entry{flex:1;min-width:0;width:100%;text-align:left;border:1px solid;border-radius:9px;padding:9px 11px;cursor:pointer;font:inherit;color:inherit}
-.demo-notif-delete{flex:none}
+.demo-notif-row{position:relative;display:flex;align-items:center;min-width:0;margin:0 0 6px}
+.demo-notif-entry{flex:1;min-width:0;width:100%;border:1px solid;border-radius:9px;padding:9px 11px;text-align:left;cursor:pointer;font:inherit;color:inherit}
+.demo-notif-row:not(.is-pinned) .demo-notif-entry{padding-right:56px}
+.demo-notif-delete{position:absolute;top:50%;right:8px;transform:translateY(-50%)}
 
 /* ----- Tài liệu và tệp bài nộp ----- */
 .db-files{margin-top:12px;display:grid;gap:6px}
