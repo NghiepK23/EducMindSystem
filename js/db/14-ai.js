@@ -35,7 +35,7 @@ DB_PAGES.ai = {
     const pending = d.outputs.filter((o) => o.review_status === 'PENDING_REVIEW');
     return `${dbAiForm(d)}
     <section class="panel" aria-labelledby="db-h-aip">
-      <div class="row between"><div><h2 id="db-h-aip">Bản nháp chờ duyệt</h2><p class="lead">${pending.length} bản nháp${pending.length ? ' · duyệt để đưa vào ngân hàng câu hỏi' : ''}</p></div>${pending.length ? dbBtn('Duyệt tất cả', 'aiApproveAll', {}, 'light') : ''}</div>
+      <div class="row between"><div><h2 id="db-h-aip">Bản nháp chờ duyệt</h2><p class="lead">${pending.length} bản nháp${pending.length ? ' · duyệt để đưa vào ngân hàng câu hỏi' : ''}</p></div>${pending.length ? `<div class="db-ai-bulk-actions">${dbBtn('Duyệt tất cả', 'aiApproveAll', {}, 'light')}${dbBtn('Từ chối tất cả', 'aiRejectAll', {}, 'light danger-soft')}</div>` : ''}</div>
       ${pending.length ? pending.map((o, i) => dbAiRow(o, byObj, byLesson, i)).join('') : dbEmpty('Chưa có bản nháp nào. Gửi yêu cầu AI ở khung trên để bắt đầu.')}
     </section>
     ${dbAiHistory(d, byLesson)}`;
@@ -158,6 +158,11 @@ function dbAiRow(o, byObj, byLesson, index) {
   const obj = byObj[o.objective_id] || {};
   const lesson = byLesson[obj.lesson_id] || {};
   const options = Array.isArray(o.options) ? o.options : [];
+  const correctIndexes = o.kind === 'SINGLE_CHOICE' && o.correct_answer != null ? [Number(o.correct_answer)]
+    : o.kind === 'MULTIPLE_CHOICE' && o.correct_answer != null ? [].concat(o.correct_answer).map(Number)
+    : o.kind === 'TRUE_FALSE' && o.correct_answer != null ? [o.correct_answer === true || String(o.correct_answer).toLowerCase() === 'true' ? 0 : 1]
+    : [];
+  const hasOptionAnswers = ['SINGLE_CHOICE', 'MULTIPLE_CHOICE', 'TRUE_FALSE'].includes(o.kind);
   return `<article class="db-ai-row" data-id="${h(o.id)}">
     <div class="db-ai-row-body">
       <span class="db-ai-number" aria-hidden="true">${String(index + 1).padStart(2, '0')}</span>
@@ -169,7 +174,13 @@ function dbAiRow(o, byObj, byLesson, index) {
           ${o.bloom_level ? `<span class="db-ai-tag">${h(DB_QBLOOM[o.bloom_level] || o.bloom_level)}</span>` : ''}
           <span class="db-ai-tag db-ai-objective">Mục tiêu <b>${h(obj.code || '—')}</b>${lesson.title ? ` · ${h(lesson.title)}` : ''}</span>
         </div>
-        ${options.length ? `<ul class="db-ai-options" aria-label="Các lựa chọn">${options.map((x, i) => `<li><span class="db-ai-option-letter">${dbLetter(i)}</span><span>${h(x)}</span></li>`).join('')}</ul>` : ''}
+        ${options.length ? `<ul class="db-ai-options" aria-label="Các lựa chọn; dấu tích cho biết đáp án đúng">${options.map((x, i) => {
+          const correct = correctIndexes.includes(i);
+          return `<li class="${correct ? 'is-correct' : ''}"><span class="db-ai-option-letter">${dbLetter(i)}</span><span class="db-ai-option-text">${h(x)}</span>${correct ? '<span class="db-ai-correct-label">✓ Đáp án đúng</span>' : ''}</li>`;
+        }).join('')}</ul>` : ''}
+        ${!hasOptionAnswers ? `<div class="db-ai-answer">${o.correct_answer == null
+          ? '<b>Chấm điểm:</b> Giáo viên chấm tay (chưa có đáp án tham khảo).'
+          : `<b>Đáp án tham khảo:</b> ${h(dbAnswerKeyText(o))}`}</div>` : ''}
       </div>
     </div>
     <div class="db-ai-actions" role="group" aria-label="Thao tác bản nháp">
@@ -320,6 +331,53 @@ DB_ACT.aiApproveAll = (el) => dbRun(el, async () => {
   toast('Đã duyệt ' + pend.length + ' bản nháp' + (linked ? ' và thêm vào bài tập nháp.' : ' vào ngân hàng câu hỏi.')
     + (bankOnly ? ' ' + bankOnly + ' câu được giữ trong ngân hàng vì bài tập không còn ở trạng thái nháp.' : ''));
 });
+DB_ACT.aiRejectAll = () => {
+  const pending = DB.data.outputs.filter((o) => o.review_status === 'PENDING_REVIEW');
+  if (!pending.length) {
+    toast('Không có bản nháp nào đang chờ duyệt.');
+    return;
+  }
+  dbOpenDialog({
+    title: `Từ chối ${pending.length} bản nháp?`,
+    body: `<p class="muted">Tất cả bản nháp đang chờ duyệt sẽ bị loại khỏi hàng chờ và không vào ngân hàng câu hỏi.</p>
+      ${dbField('Lý do (không bắt buộc)', 'db-aj-all-n', '<input id="db-aj-all-n" name="note" maxlength="300" placeholder="Ví dụ: Nội dung chưa phù hợp">')}`,
+    okLabel: 'Từ chối tất cả',
+    danger: true,
+    onOk: async (v) => {
+      const current = DB.data.outputs.filter((o) => o.review_status === 'PENDING_REVIEW');
+      if (!current.length) {
+        DB.dialog = null;
+        render();
+        toast('Không còn bản nháp nào đang chờ duyệt.');
+        return false;
+      }
+      const note = (v.note || '').trim();
+      const results = await Promise.allSettled(current.map((o) => dbCall(EducMindDB.updateAiOutput(o.id, {
+        review_status: 'REJECTED',
+        review_note: note,
+      }))));
+      const rejected = new Set();
+      const failures = [];
+      results.forEach((result, i) => {
+        if (result.status === 'fulfilled') rejected.add(current[i].id);
+        else {
+          dbLogError(result.reason);
+          failures.push(result.reason);
+        }
+      });
+      DB.data.outputs = DB.data.outputs.map((o) => rejected.has(o.id)
+        ? { ...o, review_status: 'REJECTED', review_note: note }
+        : o);
+      if (failures.length) {
+        DB.dialog = null;
+        render();
+        toast(`Đã từ chối ${rejected.size}/${current.length} bản nháp. ${failures.length} bản chưa cập nhật: ${dbErrText(failures[0])}`);
+        return false;
+      }
+      toast(`Đã từ chối ${current.length} bản nháp.`);
+    },
+  });
+};
 async function dbApproveAiOutput(o, content, options, correct, difficulty, bloom, grade) {
   const request = DB.data.requests.find((r) => r.id === o.request_id), assignmentId = request?.parameters?.assignment_id;
   if (assignmentId) {

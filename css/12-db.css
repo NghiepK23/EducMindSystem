@@ -294,6 +294,7 @@
 .db-ai-history-summary::-webkit-details-marker{display:none}
 .db-ai-history-summary>span:first-child{font-size:1.125rem;font-weight:700}
 .db-ai-history[open]>.db-ai-history-summary{margin-bottom:12px}
+.db-ai-bulk-actions{display:flex;flex-wrap:wrap;gap:8px}
 .db-ai-row{display:grid;gap:14px;padding:16px;border:1px solid var(--line,#d8dde5);border-radius:14px;margin:10px 0;background:var(--surface,transparent)}
 .db-ai-row-body{display:grid;grid-template-columns:34px minmax(0,1fr);align-items:start;gap:12px}
 .db-ai-number{display:grid;place-items:center;width:34px;height:34px;border-radius:10px;background:var(--brand-soft);color:var(--brand-ink,var(--brand));font-size:.75rem;font-weight:700;font-variant-numeric:tabular-nums}
@@ -304,7 +305,11 @@
 .db-ai-tag.db-ai-objective{border-color:transparent;background:var(--brand-soft);color:var(--brand-ink,var(--brand))}
 .db-ai-options{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:7px;list-style:none;padding:0;margin:0}
 .db-ai-options li{display:flex;align-items:flex-start;gap:9px;min-width:0;padding:9px 10px;border-radius:9px;background:var(--fill);font-size:.875rem;line-height:1.45;overflow-wrap:anywhere}
+.db-ai-options li.is-correct{border:1px solid color-mix(in srgb,var(--good-bar,#34b25f) 55%,var(--line,#d8dde5));background:color-mix(in srgb,var(--good-bar,#34b25f) 14%,var(--fill))}
 .db-ai-option-letter{display:grid;place-items:center;flex:none;width:22px;height:22px;border:1px solid var(--line,#d8dde5);border-radius:6px;background:var(--surface,var(--bg,#fff));font-size:.7rem;font-weight:700}
+.db-ai-option-text{min-width:0;flex:1}
+.db-ai-correct-label{flex:none;color:var(--good,#17753a);font-size:.75rem;font-weight:700}
+.db-ai-answer{padding:10px 12px;border-radius:9px;background:var(--fill);font-size:.875rem;line-height:1.5;overflow-wrap:anywhere}
 .db-ai-actions{display:flex;justify-content:flex-end;flex-wrap:wrap;gap:8px;padding-top:12px;border-top:1px solid var(--line,#d8dde5)}
 .db-ai-actions .btn{min-width:116px;white-space:nowrap}
 @media (max-width:700px){
