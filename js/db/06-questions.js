@@ -174,6 +174,12 @@ function dbQuestionImportPick(o, names) {
   }
   return '';
 }
+function dbQuestionObjectiveCode(code) {
+  return String(code || '').trim().toUpperCase();
+}
+function dbQuestionObjectiveCodeKey(code) {
+  return dbQuestionObjectiveCode(code).replace(/^LO0+(?=\d+$)/, 'LO');
+}
 function dbParseQuestionImportRows(rows, lessonId) {
   if (!rows.length || !rows[0].some((x) => String(x).trim())) throw new Error('Tệp không có hàng tiêu đề.');
   const headers = rows[0].map((x) => nz(x));
@@ -184,16 +190,18 @@ function dbParseQuestionImportRows(rows, lessonId) {
   ]);
   const diffByText = Object.fromEntries(Object.entries(DB_QDIFF).map(([key, value]) => [nz(value), key]));
   const bloomByText = Object.fromEntries(Object.entries(DB_QBLOOM).map(([key, value]) => [nz(value), key]));
-  const objectiveByCode = new Map(), ambiguousCodes = new Set();
+  const objectiveByCode = new Map(), objectivesByCodeKey = new Map();
+  const addObjective = (map, code, id) => {
+    if (!map.has(code)) map.set(code, new Set());
+    map.get(code).add(id);
+  };
   (DB.data.objectives || []).filter((o) => !lessonId || o.lesson_id === lessonId).forEach((o) => {
-    const code = String(o.code || '').trim().toUpperCase();
-    if (!code || ambiguousCodes.has(code)) return;
-    if (objectiveByCode.has(code)) {
-      objectiveByCode.delete(code);
-      ambiguousCodes.add(code);
-    } else objectiveByCode.set(code, o.id);
+    const code = dbQuestionObjectiveCode(o.code);
+    if (!code || !o.id) return;
+    addObjective(objectiveByCode, code, o.id);
+    addObjective(objectivesByCodeKey, dbQuestionObjectiveCodeKey(code), o.id);
   });
-  const parsed = [], skipped = [], unknownCodes = new Set();
+  const parsed = [], skipped = [], unknownCodes = new Set(), ambiguousCodes = new Set();
   objects.forEach((o, i) => {
     try {
       const content = dbQuestionImportPick(o, ['nội dung', 'nội dung câu hỏi', 'content', 'câu hỏi']);
@@ -251,9 +259,10 @@ function dbParseQuestionImportRows(rows, lessonId) {
       if (grade != null && !educmindGradeIsValid(grade)) throw new Error(`khối phải là số từ ${EDUCMIND_GRADE_MIN} đến ${EDUCMIND_GRADE_MAX}`);
       const codes = dbQuestionImportPick(o, ['mục tiêu', 'mã mục tiêu', 'objectives']).split(/[,;|]/).map((x) => x.trim().toUpperCase()).filter(Boolean);
       const objectiveIds = [...new Set(codes.map((code) => {
-        const id = objectiveByCode.get(code);
-        if (!id || ambiguousCodes.has(code)) unknownCodes.add(code);
-        return id;
+        const matches = objectiveByCode.get(dbQuestionObjectiveCode(code)) || objectivesByCodeKey.get(dbQuestionObjectiveCodeKey(code));
+        if (!matches || !matches.size) { unknownCodes.add(code); return null; }
+        if (matches.size > 1) { ambiguousCodes.add(code); return null; }
+        return matches.values().next().value;
       }).filter(Boolean))];
       parsed.push({
         row: { course_id: DB.course.id, content, kind, difficulty, grade, bloom_level: bloom, options, correct_answer },
@@ -264,7 +273,7 @@ function dbParseQuestionImportRows(rows, lessonId) {
     }
   });
   if (parsed.length > 200) throw new Error('Tệp có ' + parsed.length + ' câu hợp lệ; mỗi lần nhập tối đa 200 câu.');
-  return { parsed, skipped, unknownCodes: [...unknownCodes] };
+  return { parsed, skipped, unknownCodes: [...unknownCodes], ambiguousCodes: [...ambiguousCodes] };
 }
 async function dbReadQuestionImport(file, lessonId) {
   if (!file) throw new Error('Hãy chọn tệp câu hỏi.');
@@ -315,13 +324,14 @@ DB_ACT.exportQuestions = () => {
 /* Đọc tệp Excel/CSV/Word và hỏi xác nhận trước khi nhập vào ngân hàng hoặc gắn vào bài tập. */
 DB_ACT.importQuestionFile = (form) => dbRun(form, async () => {
   const input = form.querySelector('input[type="file"]');
-  const file = input.files && input.files[0], { parsed, skipped, unknownCodes } = await dbReadQuestionImport(file);
+  const file = input.files && input.files[0], { parsed, skipped, unknownCodes, ambiguousCodes } = await dbReadQuestionImport(file);
   const assignmentId = form.dataset.assignmentId;
   dbOpenDialog({
     title: 'Nhập câu hỏi từ tệp',
     body: `<p class="muted">Tìm thấy <b>${parsed.length}</b> câu hỏi hợp lệ${skipped.length ? `, bỏ qua <b>${skipped.length}</b> dòng lỗi` : ''} trong tệp <b>${h(file.name)}</b>.</p>
       ${skipped.length ? `<p class="muted db-hint">${skipped.slice(0, 5).map(h).join('<br>')}${skipped.length > 5 ? '<br>…' : ''}</p>` : ''}
-      ${unknownCodes.length ? `<p class="muted db-hint">Không nhận diện được mã mục tiêu (không tồn tại hoặc trùng giữa các bài học): ${unknownCodes.map(h).join(', ')}. Các câu vẫn được nhập nhưng chưa gắn những mục tiêu này.</p>` : ''}
+      ${unknownCodes.length ? `<p class="muted db-hint">Không tìm thấy mã mục tiêu trong lớp hiện tại: ${unknownCodes.map(h).join(', ')}. Các câu vẫn được nhập nhưng chưa gắn những mục tiêu này.</p>` : ''}
+      ${ambiguousCodes.length ? `<p class="muted db-hint">Mã mục tiêu trùng giữa nhiều bài học nên chưa thể chọn mục tiêu tương ứng: ${ambiguousCodes.map(h).join(', ')}. Hãy nhập từ chi tiết bài tập sau khi chọn bài học hoặc gắn mục tiêu thủ công trong Ngân hàng câu hỏi.</p>` : ''}
       <p class="muted">${assignmentId ? 'Câu hỏi sẽ được thêm vào ngân hàng và gắn trực tiếp với bài tập này.' : 'Mã mục tiêu hợp lệ trong tệp sẽ được gắn tự động; câu chưa có mục tiêu có thể được gắn sau trong “Ngân hàng câu hỏi”.'}</p>`,
     okLabel: (assignmentId ? 'Nhập và thêm ' : 'Nhập ') + parsed.length + ' câu hỏi',
     onOk: async () => {

@@ -12,7 +12,7 @@ const DB_GAME_MODES = {
   SURVIVAL: { name: 'Sinh tồn', desc: '3 mạng — sai là mất một mạng', icon: 'target', maxQ: 10 },
 };
 const DB_GAME_MODE_LABEL = Object.fromEntries(Object.entries(DB_GAME_MODES).map(([k, v]) => [k, v.name]));
-let DB_GAME = null, DB_GAME_RESULT = null, DB_GAME_TICK = null;
+let DB_GAME = null, DB_GAME_RESULT = null, DB_GAME_TICK = null, DB_GAME_MODE_PICK = 'BLITZ';
 
 DB_PAGES.games = {
   title: 'Trò chơi ôn tập',
@@ -47,29 +47,55 @@ function dbGamePool(d, source) {
 function dbGameLobby(d) {
   const lessonsWithQ = d.lessons.map((l) => ({ l, n: dbGamePool(d, l.id).length })).filter((x) => x.n);
   const bankN = dbGamePool(d, 'BANK').length;
-  return `<section class="panel" aria-labelledby="db-h-gl">
-    <h2 id="db-h-gl">Chọn cách chơi</h2>
-    <p class="lead">Câu hỏi trắc nghiệm một đáp án từ ngân hàng của lớp. Kết quả chỉ để luyện tập.</p>
-    <div class="grid db-game-modes">${Object.entries(DB_GAME_MODES).map(([k, m]) => `
-      <button type="button" class="db-game-mode" data-act="gamePickMode" data-mode="${k}">
-        ${ic(m.icon, 20)}<b>${m.name}</b><span class="muted">${m.desc}</span>
-      </button>`).join('')}</div>
-    <form data-act="gameStart" class="db-form-row" novalidate>
-      ${dbField('Nguồn câu hỏi', 'db-game-src', `<select id="db-game-src" name="source" required>
-        <option value="BANK">Toàn bộ ngân hàng (${bankN} câu)</option>
-        ${lessonsWithQ.map((x) => `<option value="${h(x.l.id)}">Bài: ${h(x.l.title)} (${x.n} câu)</option>`).join('')}
-      </select>`)}
-      ${dbField('Chế độ', 'db-game-mode', `<select id="db-game-mode" name="mode" required>${Object.entries(DB_GAME_MODES).map(([k, m]) => `<option value="${k}">${m.name}</option>`).join('')}</select>`)}
-      <button type="submit" class="btn" ${bankN ? '' : 'disabled'}>${ic('play', 16)} Bắt đầu chơi</button>
-      ${dbFormError()}
-    </form>
-    ${bankN ? '' : dbEmpty('Ngân hàng chưa có câu trắc nghiệm nào. Giáo viên thêm câu hỏi trong “Ngân hàng câu hỏi”.')}
-  </section>`;
+  const modes = Object.entries(DB_GAME_MODES).map(([k, m]) => `
+    <button type="button" class="db-game-mode${DB_GAME_MODE_PICK === k ? ' chosen' : ''}" aria-pressed="${DB_GAME_MODE_PICK === k}" data-act="gamePickMode" data-mode="${k}">
+      <span class="db-game-mode-icon">${ic(m.icon, 21)}</span>
+      <span class="db-game-mode-copy"><b>${m.name}</b><small>${m.desc}</small></span>
+      <span class="db-game-mode-radio" aria-hidden="true">${DB_GAME_MODE_PICK === k ? '✓' : ''}</span>
+    </button>`).join('');
+  return `<div class="db-game-lobby-layout">
+    <section class="panel db-game-lobby" aria-labelledby="db-h-gl">
+      <header class="db-game-lobby-hero">
+        <span class="db-game-lobby-kicker">✦ LUYỆN TẬP THEO CÁCH CỦA EM</span>
+        <h2 id="db-h-gl">Chọn cách chơi</h2>
+        <p>Chọn thử thách phù hợp và ôn tập câu hỏi trắc nghiệm từ ngân hàng của lớp.</p>
+      </header>
+      <div class="db-game-lobby-body">
+        <div class="db-game-lobby-heading"><div><h3>Chế độ chơi</h3><p>Chọn một cách luyện tập để bắt đầu</p></div><span>${bankN} câu khả dụng</span></div>
+        <div class="db-game-modes" role="group" aria-label="Chọn chế độ chơi">${modes}</div>
+        <form data-act="gameStart" class="db-game-start-form" novalidate>
+          ${dbField('Nguồn câu hỏi', 'db-game-src', `<select id="db-game-src" name="source" required>
+            <option value="BANK">Toàn bộ ngân hàng (${bankN} câu)</option>
+            ${lessonsWithQ.map((x) => `<option value="${h(x.l.id)}">Bài: ${h(x.l.title)} (${x.n} câu)</option>`).join('')}
+          </select>`)}
+          <input type="hidden" id="db-game-mode" name="mode" value="${h(DB_GAME_MODE_PICK)}">
+          ${dbFormError()}
+          <button type="submit" class="btn db-game-start" ${bankN ? '' : 'disabled'}>${ic('play', 16)} Bắt đầu ${DB_GAME_MODES[DB_GAME_MODE_PICK].name}</button>
+        </form>
+        ${bankN ? '' : dbEmpty('Ngân hàng chưa có câu trắc nghiệm nào. Giáo viên thêm câu hỏi trong “Ngân hàng câu hỏi”.')}
+      </div>
+    </section>
+    <aside class="panel db-game-lobby-aside" aria-label="Thông tin trò chơi">
+      <h3>Thông tin trò chơi</h3>
+      <div class="db-game-lobby-fact"><span aria-hidden="true">📚</span><div><b>Nguồn câu hỏi</b><small>${bankN} câu trắc nghiệm trong ngân hàng</small></div></div>
+      <div class="db-game-lobby-fact"><span aria-hidden="true">🗂️</span><div><b>Bài học có câu hỏi</b><small>${lessonsWithQ.length} bài học</small></div></div>
+      <div class="db-game-lobby-note">Đây là hoạt động ôn tập độc lập. Kết quả được lưu trong lịch sử trò chơi, không thay thế điểm bài tập chính thức.</div>
+    </aside>
+  </div>`;
 }
 DB_ACT.gamePickMode = (el) => {
   const sel = document.getElementById('db-game-mode');
-  if (sel) sel.value = el.dataset.mode;
-  document.querySelectorAll('.db-game-mode').forEach((b) => b.classList.toggle('chosen', b.dataset.mode === el.dataset.mode));
+  DB_GAME_MODE_PICK = el.dataset.mode;
+  if (sel) sel.value = DB_GAME_MODE_PICK;
+  document.querySelectorAll('.db-game-mode').forEach((b) => {
+    const chosen = b.dataset.mode === DB_GAME_MODE_PICK;
+    b.classList.toggle('chosen', chosen);
+    b.setAttribute('aria-pressed', String(chosen));
+    const radio = b.querySelector('.db-game-mode-radio');
+    if (radio) radio.textContent = chosen ? '✓' : '';
+  });
+  const start = document.querySelector('.db-game-start');
+  if (start) start.innerHTML = ic('play', 16) + ' Bắt đầu ' + DB_GAME_MODES[DB_GAME_MODE_PICK].name;
 };
 
 function dbGameShuffle(list) {

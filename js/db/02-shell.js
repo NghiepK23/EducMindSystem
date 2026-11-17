@@ -7,11 +7,11 @@ const DB_NAV_T = [
   ['', [['home', 'Tổng quan', 'dashboard'], ['schedule', 'Lịch & cần làm', 'calendar']]],
   ['Dạy học', [['content', 'Thư mục học tập', 'lessons'], ['assignments', 'Bài tập', 'navAsg'], ['questions', 'Ngân hàng câu hỏi', 'questions'], ['assessments', 'Bài kiểm tra', 'assessments'], ['ai', 'AI tạo câu hỏi', 'spark']]],
   ['Đánh giá học tập', [['progress', 'Mức độ nắm vững', 'mastery'], ['gaps', 'Lỗ hổng kiến thức', 'gaps'], ['recommend', 'Gợi ý học tập', 'recommend'], ['report', 'Báo cáo tiến bộ', 'trend']]],
-  ['Quản lý', [['classes', 'Lớp học phụ trách', 'classes'], ['history', 'Lịch sử chỉnh sửa', 'calendar']]],
+  ['Quản lý', [['classes', 'Lớp học phụ trách', 'classes'], ['trash', 'Thùng rác', 'trash'], ['history', 'Lịch sử chỉnh sửa', 'calendar']]],
 ];
 const DB_NAV_S = [
   ['', [['home', 'Tổng quan', 'dashboard'], ['schedule', 'Lịch & cần làm', 'calendar']]],
-  ['Học tập', [['lessons', 'Bài học', 'lessons'], ['assignments', 'Bài tập', 'assignments'], ['assessments', 'Bài kiểm tra', 'assessments'], ['games', 'Trò chơi', 'play']]],
+  ['Học tập', [['lessons', 'Bài học', 'lessons'], ['assignments', 'Bài tập', 'assignments'], ['assessments', 'Bài kiểm tra', 'assessments']]],
   ['Kết quả', [['progress', 'Mức nắm vững', 'mastery'], ['gaps', 'Lỗ hổng kiến thức', 'gaps'], ['recommend', 'Gợi ý học tập', 'recommend'], ['report', 'Báo cáo tiến bộ', 'trend']]],
   ['Lớp học', [['classes', 'Lớp của em', 'classes']]],
 ];
@@ -77,15 +77,20 @@ function dbShell(P, body) {
 
 /* ===== Thông báo ===== */
 const DB_NOTIF_EVERY = 60000;
-async function dbLoadNotifications() {
-  if (!dbActive()) return;
+async function dbLoadNotifications(reportError = false) {
+  if (!dbActive()) return false;
   try {
     const list = await dbCall(EducMindDB.listNotifications(30));
-    if (!dbActive()) return;
+    if (!dbActive()) return false;
     const before = DB.notifs.filter((n) => !n.is_read).length, after = list.filter((n) => !n.is_read).length;
     DB.notifs = list;
     if (before !== after) dbPaintBell();
-  } catch (e) { console.warn('Không tải được thông báo:', e.message || e); }
+    return true;
+  } catch (e) {
+    console.warn('Không tải được thông báo:', e.message || e);
+    if (reportError) throw e;
+    return false;
+  }
 }
 /* Chỉ cập nhật con số trên chuông, không vẽ lại cả trang (tránh làm mất nội dung người dùng đang nhập). */
 function dbPaintBell() {
@@ -123,14 +128,33 @@ function dbNotifTarget(n) {
   Object.keys(t[1]).forEach((k) => t[1][k] == null && delete t[1][k]);
   return { page: t[0], arg: t[1], classId: p.class_id || '' };
 }
-DB_ACT.openNotifs = async () => {
-  await dbLoadNotifications();
-  const rows = DB.notifs.map((n) => `<button type="button" class="db-notif${n.is_read ? '' : ' unread'}" data-act="openNotif" data-id="${h(n.id)}">
-      <b>${h(n.title)}</b>${n.content ? `<span class="muted">${h(n.content)}</span>` : ''}<span class="muted db-notif-time">${dbDateTime(n.created_at)}${n.is_read ? '' : ' · chưa xem'}</span></button>`).join('');
+function dbShowNotifications() {
+  const rows = DB.notifs.map((n) => `<div class="db-notif-row">
+      <button type="button" class="db-notif${n.is_read ? '' : ' unread'}" data-act="openNotif" data-id="${h(n.id)}">
+        <b>${h(n.title)}</b>${n.content ? `<span class="muted">${h(n.content)}</span>` : ''}<span class="muted db-notif-time">${dbDateTime(n.created_at)}${n.is_read ? '' : ' · chưa xem'}</span>
+      </button><button type="button" class="btn light icon-only mini danger-soft db-notif-delete" data-iconified="1" data-act="hideNotification" data-id="${h(n.id)}" aria-label="Ẩn thông báo" title="Ẩn thông báo">${ic('trash', 18)}<span class="sr">Ẩn thông báo</span></button>
+    </div>`).join('');
   dbOpenDialog({
     title: 'Thông báo', wide: true,
     body: (DB.notifs.some((n) => !n.is_read) ? `<div class="row" style="justify-content:flex-end">${dbBtn('Đánh dấu tất cả đã xem', 'readAllNotifs', {}, 'light mini')}</div>` : '') + (rows ? `<div class="db-notifs">${rows}</div>` : dbEmpty('Chưa có thông báo nào.')),
   });
+}
+DB_ACT.openNotifs = async () => {
+  await dbLoadNotifications(true);
+  dbShowNotifications();
+};
+DB_ACT.hideNotification = (el) => {
+  const n = DB.notifs.find((x) => x.id === el.dataset.id);
+  if (!n) throw new Error('Không tìm thấy thông báo cần ẩn.');
+  dbConfirm('Ẩn thông báo?', `Thông báo “${h(n.title)}” sẽ không còn hiển thị trong danh sách của bạn.`, 'Ẩn thông báo', async () => {
+    const hidden = await dbCall(EducMindDB.hideNotification(n.id));
+    if (!hidden.length) throw new Error('Thông báo không còn tồn tại hoặc không thuộc tài khoản của bạn.');
+    DB.notifs = DB.notifs.filter((x) => x.id !== n.id);
+    dbPaintBell();
+    toast('Đã ẩn thông báo khỏi danh sách của bạn.');
+    dbShowNotifications();
+    return false;
+  }, true);
 };
 DB_ACT.readAllNotifs = (el) => dbRun(el, async () => {
   await dbCall(EducMindDB.markAllNotificationsRead());

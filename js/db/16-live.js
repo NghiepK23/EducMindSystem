@@ -1,6 +1,6 @@
 /* EducMind · js/db/16-live.js
    Realtime cho chuông thông báo: đăng ký kênh Supabase Realtime theo dòng thông báo của người dùng;
-   khi có thông báo mới thì chuông tự cập nhật mà không cần tải lại trang.
+   khi có thông báo mới hoặc thông báo gộp được cập nhật thì chuông tự làm mới.
    Nếu không có dịch vụ realtime (chạy localhost, mất kết nối…) thì tự chuyển sang chế độ dự phòng:
    tự nạp lại danh sách thông báo định kỳ. */
 
@@ -21,6 +21,11 @@ function dbLiveStart() {
         DB.notifs.unshift(n);
         if (DB.notifs.length > 30) DB.notifs.length = 30;
         dbPaintBell();
+      })
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'notifications', filter: 'user_id=eq.' + DB.me.id }, () => {
+        void dbLoadNotifications().then(() => {
+          if (DB.dialog && DB.dialog.title === 'Thông báo') dbShowNotifications();
+        });
       })
       .subscribe((status) => {
         if (status === 'SUBSCRIBED') {

@@ -22,7 +22,17 @@ function notifBtn(){
 }
 function openNotifs(){
   const L=myNotifs().slice().sort((a,b)=>isPinned(b)-isPinned(a)).slice(0,20);
-  openDlg({title:'Thông báo',okLabel:'Đánh dấu tất cả đã xem',text:L.length?L.map(n=>{const pn=isPinned(n);return `<button type='button' onclick='openNotif(${n.id})' style='display:block;width:100%;text-align:left;border:1px solid ${pn?'var(--need-bar)':'var(--line)'};background:${n.read?'var(--surface)':'var(--brand-soft)'};border-radius:9px;padding:9px 11px;margin:0 0 6px;cursor:pointer;font:inherit;color:inherit'><b>${n.read?'':'● '}${esc(n.title)}</b>${pn?` <span class='pill need'>Bắt buộc</span>`:''}<div class='muted' style='font-size:12px'>${pn?'Không thể bỏ qua hoặc xóa. Bấm vào để đặt mật khẩu riêng; thông báo tự mất sau khi đổi mật khẩu thành công.':n.at}</div></button>`}).join(''):'Chưa có thông báo nào.',ok:()=>{myNotifs().forEach(n=>{if(!n.read&&!isPinned(n)){n.read=true;n.readAt=stamp()}});if(myNotifs().some(isPinned))toast('Thông báo đặt mật khẩu riêng không thể bỏ qua: nó chỉ mất sau khi em đổi mật khẩu thành công.');return null}});
+  openDlg({title:'Thông báo',okLabel:'Đánh dấu tất cả đã xem',text:L.length?L.map(n=>{const pn=isPinned(n);return `<div class='demo-notif-row'><button type='button' class='demo-notif-entry' onclick='openNotif(${n.id})' style='border-color:${pn?'var(--need-bar)':'var(--line)'};background:${n.read?'var(--surface)':'var(--brand-soft)'}'><b>${n.read?'':'● '}${esc(n.title)}</b>${pn?` <span class='pill need'>Bắt buộc</span>`:''}<div class='muted' style='font-size:12px'>${pn?'Không thể bỏ qua hoặc xóa. Bấm vào để đặt mật khẩu riêng; thông báo tự mất sau khi đổi mật khẩu thành công.':n.at}</div></button>${pn?'':`<button type='button' class='btn light icon-only demo-notif-delete' aria-label='Ẩn thông báo' title='Ẩn thông báo' onclick='event.stopPropagation();hideNotif(${n.id})'>${ic('trash',16)}</button>`}</div>`}).join(''):'Chưa có thông báo nào.',ok:()=>{myNotifs().forEach(n=>{if(!n.read&&!isPinned(n)){n.read=true;n.readAt=stamp()}});if(myNotifs().some(isPinned))toast('Thông báo đặt mật khẩu riêng không thể bỏ qua: nó chỉ mất sau khi em đổi mật khẩu thành công.');return null}});
+}
+function hideNotif(id){
+  const n=NOTIFS.find(x=>x.id===id);
+  if(!n||!sess||n.to!==sess.email)return;
+  if(isPinned(n)){toast('Thông báo bắt buộc không thể xóa.');return}
+  const index=NOTIFS.indexOf(n);
+  if(index<0)return;
+  NOTIFS.splice(index,1);
+  openNotifs();
+  toast('Đã ẩn thông báo khỏi danh sách của bạn.');
 }
 /* Mỗi loại thông báo mở đúng màn hình nghiệp vụ:
    bài học mới → đúng bài học đó; bài tập mới → đúng thẻ bài tập của lớp;

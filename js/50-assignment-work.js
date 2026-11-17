@@ -25,7 +25,7 @@ classes.forEach(c=>c.students.forEach((s,i)=>c.assignments.forEach((a,ai)=>{cons
 
 /* --- Học sinh: làm bài / luyện tập lại --- */
 const rdR=()=>{if(!redo)return null;const b=redo.a.subs[redo.c.students.indexOf(redo.s)];return b&&b.redo||null};
-const rdPresentation=(b,a)=>['survival','race','blitz'].includes(b&&b.presentation)?b.presentation:(a&&['survival','race','blitz'].includes(a.gameMode)?a.gameMode:'classic');
+const rdPresentation=(b,a)=>['survival','race','blitz'].includes(b&&b.presentation)?b.presentation:(a&&['survival','race','blitz'].includes(a.gameMode)?a.gameMode:'race');
 const rdAllowed=(c,s,a,b)=>b.has?pCanRedo(c,s,a):(asgIsQ(a)&&inWin(a)&&!pAsgBlock(c,s,a));
 const rdAnswered=(q,v)=>q.type==='MULTIPLE_CHOICE'?Array.isArray(v)&&v.length>0:(q.type==='SHORT_ANSWER'||q.type==='ESSAY')?typeof v==='string'&&v.trim()!=='':typeof v==='number';
 const rdAnsTxt=(q,v)=>{
@@ -41,6 +41,7 @@ function workOpen(ai,selectedPresentation){
   if(!rdAllowed(c,s,a,b)){toast(b.has?'Hiện không thể luyện tập lại bài này.':'Hiện không thể làm bài này.');return}
   if(!b.redo)b.redo={qs:rdBuild(c,a),ans:{},miss:[],presentation:selectedPresentation||rdPresentation(b,a),playMode:'solo',gameIndex:0,hp:3,feedback:{}};
   else if(selectedPresentation)b.redo.presentation=selectedPresentation;
+  else if(!['survival','race','blitz'].includes(b.redo.presentation))b.redo.presentation=rdPresentation(b,a);
   else if(!Object.keys(b.redo.ans||{}).length)b.redo.presentation=rdPresentation(b,a);
   if(b.redo.presentation==='survival'){b.redo.playMode=b.redo.playMode||'solo';b.redo.hp=Number.isFinite(b.redo.hp)?b.redo.hp:3;b.redo.feedback=b.redo.feedback||{}}
   page='assignments';redo={c,a,s};focusId='rd-top';render();window.scrollTo(0,0);
@@ -67,6 +68,10 @@ function rdTouch(qi){
   if(R.miss.length&&rdAnswered(q,R.ans[q.id])){R.miss=R.miss.filter(x=>x!==qi);const m=document.getElementById('rd-miss-'+qi);if(m)m.remove()}
   const done=R.qs.filter(x=>rdAnswered(x,R.ans[x.id])).length,n=document.getElementById('rd-count');
   if(n)n.textContent='Đã trả lời '+done+'/'+R.qs.length+' câu';
+  const progress=document.getElementById('rd-progress-bar'),progressTrack=document.getElementById('rd-progress'),progressText=document.getElementById('rd-progress-text');
+  if(progress)progress.style.width=(R.qs.length?Math.round(done/R.qs.length*100):0)+'%';
+  if(progressTrack)progressTrack.setAttribute('aria-valuenow',String(done));
+  if(progressText)progressText.textContent='Đã trả lời '+done+'/'+R.qs.length+' câu';
   if(R.presentation==='race'){raceSync(done,R.qs.length,R.gameIndex||0);const cur=R.qs[R.gameIndex||0];raceSetStatus(raceAnswerState(cur,R.ans[cur&&cur.id]))}else if(R.presentation==='survival')survivalSync(R)
 }
 function rdSet(qi,v){const R=rdR();if(!R)return;R.ans[R.qs[qi].id]=v;rdTouch(qi)}
@@ -101,10 +106,10 @@ function rdSubmit(){
   }
   const qa=R.qs.map(q=>{const v=R.ans[q.id],bq=qOf(c,q.id),ob=!!(bq&&isObj(bq));return {q:q.content,t:q.type,a:rdAnsTxt(q,v),w:q.w,objs:q.objs,got:ob?autoScore(bq,q.w,v):null,fb:'',ok:ob?autoScore(bq,1,v)===1:null}});
   const txt='Bài làm dạng bộ câu hỏi: đã trả lời '+qa.length+'/'+qa.length+' câu';
-  const playedAs=R.presentation||a.gameMode||'classic';
+  const playedAs=R.presentation||a.gameMode||'race';
   if(first){b.presentation=playedAs;b.has=true;b.tries=1;b.status=simNow()<=dueMs(a)?'SUBMITTED':'LATE';b.score=null;b.fb='';b.qa=qa;b.text=txt;b.file=null;b.edited=false;b.redo=null;a.submitted=a.subs.filter(x=>x.has).length}
   else{
-    (b.hist=b.hist||[]).push({score:b.score,fb:b.fb||'',text:b.text||'',file:b.file||null,qa:b.qa||null,presentation:b.presentation||'classic'});
+    (b.hist=b.hist||[]).push({score:b.score,fb:b.fb||'',text:b.text||'',file:b.file||null,qa:b.qa||null,presentation:b.presentation||'race'});
     b.presentation=playedAs;b.tries=(b.tries||1)+1;b.score=null;b.fb='';b.qa=qa;b.text=txt;b.file=null;b.edited=false;b.redo=null;
     notify('SUBMISSION_RESUBMITTED',s.name+' đã luyện tập lại: '+a.name,{page:'assignments',c,ref:a},c.owner);
   }
@@ -116,7 +121,14 @@ function rdSubmit(){
   if(completedSurvival){survivalResult={name:a.name,score:b.score,max:a.max,count:qa.length,correct:qa.filter(x=>x.ok===true).length,waiting:b.score==null};page='assignments';focusId='as-'+i}
   else{page='results';focusId='result-'+i}
   redo=null;render();window.scrollTo(0,0);
-  toast(done?'Đã nộp bài và chấm tự động: '+b.score+'/'+a.max+'.':'Đã nộp bài. Các câu tự luận hoặc trả lời ngắn đang chờ giáo viên chấm.');
+  openDlg({
+    title:'Nộp bài thành công!',
+    text:done
+      ?'Bài “'+esc(a.name)+'” đã được nộp và chấm tự động. Kết quả: '+b.score+'/'+a.max+' điểm.'
+      :'Bài “'+esc(a.name)+'” đã được nộp. Các câu cần giáo viên chấm sẽ cập nhật điểm sau.',
+    okLabel:'Xem kết quả',
+    ok:()=>null,
+  });
 }
 function redoPanel(){
   if(!redo)return '';
@@ -124,6 +136,7 @@ function redoPanel(){
   if(role!=='S'||!s||redo.c!==c||redo.s!==s){redo=null;return ''}
   const a=redo.a,b=a.subs[c.students.indexOf(s)];
   if(!b||!b.redo||!rdAllowed(c,s,a,b)){redo=null;return ''}
+  if(!['survival','race','blitz'].includes(b.redo.presentation))b.redo.presentation=rdPresentation(b,a);
   return examHtml(c,a,b,b.redo,!b.has,false);
 }
 /* Giao diện làm bài dùng chung cho học sinh và cho bản xem trước của giáo viên (pv=true: không nộp, không lưu) */
@@ -134,12 +147,47 @@ function examHtml(c,a,b,R,first,pv){
   if((R.presentation||a.gameMode)==='survival')return examSurvivalHtml(c,a,b,R,first,pv,prev,tw,tot,done);
   if((R.presentation||a.gameMode)==='race')return examRaceHtml(c,a,b,R,first,pv,prev,tw,tot,done);
   if((R.presentation||a.gameMode)==='blitz')return examBlitzHtml(c,a,b,R,first,pv,prev,tw,tot,done);
-  const inp=(q,qi)=>{const v=R.ans[q.id];
-    if(q.type==='MULTIPLE_CHOICE')return q.opts.map((o,oi)=>`<label style='display:block;padding:3px 0'><input type='checkbox' ${(v||[]).includes(oi)?'checked':''} onchange='rdTog(${qi},${oi},this.checked)'> ${esc(o)}</label>`).join('');
-    if(q.type==='SHORT_ANSWER')return `<input style='width:100%' value='${esc(v||'')}' oninput='rdSet(${qi},this.value)' aria-label='Câu trả lời câu ${qi+1}'>`;
-    if(q.type==='ESSAY')return `<textarea rows='5' style='width:100%' oninput='rdSet(${qi},this.value)' aria-label='Câu trả lời câu ${qi+1}'>${esc(v||'')}</textarea>`;
-    return q.opts.map((o,oi)=>`<label style='display:block;padding:3px 0'><input type='radio' name='${pv?'pv':'rd'}${qi}' ${v===oi?'checked':''} onchange='rdSet(${qi},${oi})'> ${esc(o)}</label>`).join('')};
-  return `<section class='${pv?'':'panel'}' ${pv?'':`id='rd-top' tabindex='-1'`} aria-labelledby='h-rd'><h2 id='h-rd'>${first?'Làm bài':'Luyện tập lại'}: ${esc(a.name)}</h2><p class='lead'>Lần làm ${pTriesOf(b)+1}/${pMax(a,b)} · ${tot} câu · tổng ${tw} điểm. Em phải trả lời tất cả ${tot} câu mới nộp được${first?'':' (làm lại toàn bộ bài tập)'}. Câu trả lời được lưu ngay khi chọn; nếu tạm dừng, em quay lại làm tiếp mà chưa tốn lượt (lượt chỉ tính khi nộp).${first?' Hạn nộp '+a.due+'.':' Hạn nộp không áp dụng cho lần luyện tập lại.'}</p>${a.desc?`<p class='muted' style='margin:0 0 4px'>Hướng dẫn: ${esc(a.desc)}</p>`:''}${prev?`<p class='muted' style='margin:0 0 4px'>${prev}</p>`:''}<p class='muted' id='rd-count' role='status' style='margin:0 0 6px'>Đã trả lời ${done}/${tot} câu</p>${R.qs.map((q,qi)=>`<fieldset class='item' id='rd-q${qi}' style='display:block;border-left:0;border-right:0;border-bottom:0;padding:12px 0'><legend><b>Câu ${qi+1} (${q.w} điểm).</b> ${esc(q.content)} <span class='muted'>(${QT[q.type]||''})</span></legend>${inp(q,qi)}${R.miss.includes(qi)?`<div id='rd-miss-${qi}' role='alert' style='background:var(--err-bg);color:var(--err-ink);padding:6px 10px;border-radius:var(--radius-sm);margin-top:6px'>Câu này chưa được trả lời.</div>`:''}</fieldset>`).join('')}${pv?'':`<div class='row'><button class='btn' onclick='rdSubmit()'>Nộp bài</button><button class='btn light' onclick='rdPause()'>Tạm dừng</button></div>`}</section>`;
+  const inp=(q,qi)=>{
+    const v=R.ans[q.id],disabled=pv?'disabled':'';
+    if(q.type==='MULTIPLE_CHOICE')return `<div class='assignment-answer-list'>${q.opts.map((o,oi)=>`<label class='assignment-answer-option'><input type='checkbox' ${disabled} ${(v||[]).includes(oi)?'checked':''} onchange='rdTog(${qi},${oi},this.checked)'><span>${esc(o)}</span></label>`).join('')}</div>`;
+    if(q.type==='SHORT_ANSWER')return `<input class='assignment-answer-input' ${disabled} value='${esc(v||'')}' oninput='rdSet(${qi},this.value)' aria-label='Câu trả lời câu ${qi+1}'>`;
+    if(q.type==='ESSAY')return `<textarea class='assignment-answer-input assignment-answer-textarea' ${disabled} rows='5' oninput='rdSet(${qi},this.value)' aria-label='Câu trả lời câu ${qi+1}'>${esc(v||'')}</textarea>`;
+    return `<div class='assignment-answer-list'>${q.opts.map((o,oi)=>`<label class='assignment-answer-option'><input type='radio' ${disabled} name='${pv?'pv':'rd'}${qi}' ${v===oi?'checked':''} onchange='rdSet(${qi},${oi})'><span>${esc(o)}</span></label>`).join('')}</div>`;
+  };
+  const questions=R.qs.map((q,qi)=>`
+    <fieldset class='assignment-question-card ${R.miss.includes(qi)?'has-error':''}' id='rd-q${qi}'>
+      <legend class='assignment-question-legend'>
+        <span class='assignment-question-number'>${String(qi+1).padStart(2,'0')}</span>
+        <span><b>Câu ${qi+1}</b><small>${esc(q.w)} điểm · ${esc(QT[q.type]||'Câu hỏi')}</small></span>
+      </legend>
+      <p class='assignment-question-text'>${esc(q.content)}</p>
+      ${inp(q,qi)}
+      ${R.miss.includes(qi)?`<div id='rd-miss-${qi}' class='assignment-question-error' role='alert'>Câu này chưa được trả lời.</div>`:''}
+    </fieldset>`).join('');
+  const progress=tot?Math.round(done/tot*100):0;
+  return `<section class='${pv?'':'panel'} assignment-practice' ${pv?'':`id='rd-top' tabindex='-1'`} aria-labelledby='h-rd'>
+    <header class='assignment-practice-hero'>
+      <div>
+        <span class='assignment-practice-kicker'>${pv?'MẪU GIAO DIỆN':'NHIỆM VỤ HỌC TẬP · '+tot+' CÂU'}</span>
+        <h2 id='h-rd'>${first?'Cùng bắt đầu nhé!':'Luyện tập lại'} <span>${esc(a.name)}</span></h2>
+        <p>${first?'Làm từng câu theo nhịp độ của em. Câu trả lời được lưu trong lúc làm.':'Làm lại toàn bộ bài tập để củng cố kiến thức.'} ${first?'Hạn nộp '+esc(a.due)+'.':'Lần luyện tập lại không áp dụng hạn nộp.'}</p>
+      </div>
+      <div class='assignment-practice-count'><b>${tot}</b><span>câu hỏi</span></div>
+    </header>
+    <div class='assignment-practice-body'>
+      <div class='assignment-practice-summary'>
+        <div class='assignment-practice-summary-top'>
+          <div><b>Lượt làm ${pTriesOf(b)+1}/${pMax(a,b)}</b><span>${tot} câu · tổng ${tw} điểm</span></div>
+          <span id='rd-progress-text' role='status'>Đã trả lời ${done}/${tot} câu</span>
+        </div>
+        <div class='assignment-practice-progress' id='rd-progress' role='progressbar' aria-label='Tiến độ làm bài' aria-valuemin='0' aria-valuemax='${tot}' aria-valuenow='${done}'><span id='rd-progress-bar' style='width:${progress}%'></span></div>
+      </div>
+      ${a.desc?`<p class='assignment-practice-instructions'><b>Hướng dẫn:</b> ${esc(a.desc)}</p>`:''}
+      ${prev?`<p class='assignment-practice-previous'>${prev}</p>`:''}
+      <div class='assignment-practice-questions'>${questions}</div>
+      ${pv?'':`<div class='assignment-practice-actions'><span class='assignment-practice-save-note'>Câu trả lời được lưu tự động.</span><div class='row'><button class='btn light' onclick='rdPause()'>Tạm dừng</button><button class='btn assignment-practice-submit' onclick='rdSubmit()'>Nộp bài ${ic('arrow',17)}</button></div></div>`}
+    </div>
+  </section>`;
 }
 /* Xem lại bài làm từng câu: học sinh (kèm điểm sau khi chấm), giáo viên (kèm gợi ý đúng/sai câu trắc nghiệm) */
 function qaView(b,t){

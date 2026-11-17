@@ -59,7 +59,7 @@ async function dbSyncLinks(current, wanted, add, remove) {
 DB_PAGES.content = {
   title: 'Thư mục học tập',
   sub: 'Quản lý nội dung theo Chủ đề → Bài học → Mục tiêu và tài liệu.',
-  load: async () => ({ ...(await dbLoadContent()), ...(await dbLoadTrash()) }),
+  load: dbLoadContent,
   view(d) {
     const lessonsBy = dbGroup(d.lessons, 'topic_id'), objBy = dbGroup(d.objectives, 'lesson_id');
     const topic = d.topics.find((t) => t.id === DB.arg.topicId);
@@ -68,6 +68,15 @@ DB_PAGES.content = {
     if (topic) return dbContentTopicView(d, topic, lessonsBy[topic.id] || [], objBy);
     return dbContentRootView(d, lessonsBy, objBy);
   },
+};
+DB_PAGES.trash = {
+  title: 'Thùng rác',
+  sub: 'Khôi phục mục đã xóa hoặc xem dữ liệu liên quan trước khi xóa vĩnh viễn.',
+  async load() {
+    if (!dbIsTeacher()) throw new Error('Thùng rác chỉ dành cho giáo viên.');
+    return dbLoadTrash();
+  },
+  view: dbTrashPanel,
 };
 
 function dbContentRootView(d, lessonsBy, objBy) {
@@ -101,8 +110,7 @@ function dbContentRootView(d, lessonsBy, objBy) {
     <details class="db-content-settings"><summary>Cài đặt học tập</summary>
       <label class="db-check db-seq-toggle"><input type="checkbox" data-change="toggleSequential" ${DB.course && DB.course.sequential_unlock ? 'checked' : ''}> Mở bài học tuần tự: học sinh chỉ mở được bài sau khi nắm vững (≥ 0,8) mọi mục tiêu của bài trước</label>
     </details>
-  </section>
-  ${dbTrashPanel(d)}`;
+  </section>`;
 }
 
 function dbOrderButtons(kind, id, title, index, count, topicId) {
@@ -258,17 +266,27 @@ function dbLessonResources(l, resources) {
 /* Thùng rác của lớp (chỉ giáo viên): mục đã xóa mềm, bấm Khôi phục để đưa trở lại. */
 function dbTrashPanel(d) {
   const list = d.trash || [];
-  const rows = list.map((x) => `<tr>
+  const rows = list.map((x) => `<tr data-trash-row data-trash-type="${h(x.type)}" data-trash-search="${h(`${x.title || ''} ${x.label}`.toLowerCase())}">
     <th scope="row">${h(String(x.title || '').slice(0, 90))}</th>
     <td>${x.label}</td>
     <td>${dbDateTime(x.deleted_at)}</td>
-    <td class="db-cell-actions">${dbBtn('Khôi phục', 'restoreItem', { id: x.id }, 'mini')}</td>
+    <td class="db-cell-actions">${dbBtn('Khôi phục', 'restoreItem', { id: x.id }, 'mini')}${dbBtn('Xóa vĩnh viễn', 'deleteTrashItem', { id: x.id }, 'light mini danger-soft')}</td>
   </tr>`);
+  const typeOptions = [...new Set(list.map((x) => x.type))].map((type) => {
+    const item = list.find((x) => x.type === type);
+    return `<option value="${h(type)}">${h(item.label)}</option>`;
+  }).join('');
   return `
   <section class="panel" aria-labelledby="db-h-trash">
-    <h2 id="db-h-trash">Thùng rác</h2>
-    <p class="lead">Mục đã xóa vẫn được giữ trong cơ sở dữ liệu. Bấm “Khôi phục” để đưa trở lại. Lớp đã lưu trữ được khôi phục ở trang “Lớp học phụ trách”.</p>
-    ${rows.length ? dbTable(['Mục', 'Loại', 'Đã xóa lúc', '<span class="sr">Thao tác</span>'], rows, 'Mục đã xóa') : dbEmpty('Thùng rác trống.')}
+    <div class="row between"><div><h2 id="db-h-trash">Thùng rác</h2><p class="lead"><span id="db-trash-count" aria-live="polite">${list.length}</span> mục · Lớp đã lưu trữ được khôi phục ở trang “Lớp học phụ trách”.</p></div>
+      ${list.length ? `<div class="row">${dbBtn('Khôi phục tất cả', 'restoreAllTrash', {}, 'light mini')}${dbBtn('Xóa sạch thùng rác', 'deleteAllTrash', {}, 'light mini danger-soft')}</div>` : ''}
+    </div>
+    ${list.length ? `<div class="row db-filter">
+      <label class="sr" for="db-trash-search">Tìm trong thùng rác</label><input id="db-trash-search" type="search" placeholder="Tìm theo tên mục" data-input="filterTrash">
+      <label class="sr" for="db-trash-type">Lọc theo loại</label><select id="db-trash-type" data-change="filterTrash"><option value="">Mọi loại</option>${typeOptions}</select>
+      ${dbBtn('Xóa bộ lọc', 'clearTrashFilters', {}, 'light mini')}
+    </div>` : ''}
+    ${rows.length ? dbTable(['Mục', 'Loại', 'Đã xóa lúc', '<span class="sr">Thao tác</span>'], [...rows, '<tr class="db-trash-no-results" hidden><td colspan="4">Không tìm thấy mục phù hợp.</td></tr>'], 'Mục đã xóa') : dbEmpty('Thùng rác trống.')}
   </section>`;
 }
 
@@ -633,17 +651,128 @@ DB_ACT.addResourceLink = (form) => dbRun(form, async (v) => {
 }, 'Đã thêm liên kết.');
 
 /* ===== Thùng rác ===== */
+function dbTrashRestore(it) {
+  const fn = { topic: EducMindDB.restoreTopic, lesson: EducMindDB.restoreLesson, assignment: EducMindDB.restoreAssignment, question: EducMindDB.restoreQuestion }[it.type];
+  if (!fn) throw new Error('Loại mục trong thùng rác không được hỗ trợ.');
+  return dbCall(fn(it.id)).then((result) => {
+    if (!result.length) throw new Error(`Không thể khôi phục “${it.title}”. Mục này có thể đã được xử lý ở nơi khác.`);
+  });
+}
+async function dbTrashPurge(it) {
+  try {
+    await dbCall(EducMindDB.purgeTrashedItem(it.type, it.id));
+    return true;
+  } catch (e) {
+    if (e.raw && e.raw.code === '23503') return false;
+    throw e;
+  }
+}
+async function dbRefreshTrashData() {
+  DB.data = { ...(DB.data || {}), ...(await dbLoadTrash()) };
+}
+function dbTrashOperationSummary(action, succeeded, blocked) {
+  const verb = action === 'restore' ? 'khôi phục' : 'xóa vĩnh viễn';
+  if (!blocked.length) return `Đã ${verb} ${succeeded} mục.`;
+  const examples = blocked.slice(0, 3).map((x) => `“${String(x.title || '').slice(0, 45)}”`).join(', ');
+  const suffix = blocked.length > 3 ? ` và ${blocked.length - 3} mục khác` : '';
+  if (action === 'delete') return `Đã ${verb} ${succeeded} mục. ${blocked.length} mục còn dữ liệu liên quan nên được giữ nguyên: ${examples}${suffix}. Mở từng mục để xem chi tiết.`;
+  return `Đã ${verb} ${succeeded} mục. ${blocked.length} mục còn lại vì vẫn có dữ liệu liên quan: ${examples}${suffix}.`;
+}
+function dbRunTrashBulk(action) {
+  const items = (DB.data.trash || []).slice();
+  if (!items.length) return;
+  const order = action === 'restore'
+    ? { topic: 0, lesson: 1, assignment: 2, question: 3 }
+    : { assignment: 0, question: 1, lesson: 2, topic: 3 };
+  items.sort((a, b) => order[a.type] - order[b.type]);
+  const restore = action === 'restore';
+  dbConfirm(
+    restore ? 'Khôi phục tất cả mục?' : 'Xóa sạch thùng rác?',
+    restore
+      ? `Khôi phục ${items.length} mục trong lớp đang chọn.`
+      : `Thử xóa vĩnh viễn ${items.length} mục trong lớp đang chọn. Mục còn dữ liệu phụ thuộc sẽ được giữ lại; bài nộp, điểm và dữ liệu học tập không bị xóa.`,
+    restore ? 'Khôi phục tất cả' : 'Xóa sạch',
+    async () => {
+      let succeeded = 0;
+      const blocked = [];
+      try {
+        for (const item of items) {
+          if (restore) {
+            await dbTrashRestore(item);
+            succeeded++;
+          } else if (await dbTrashPurge(item)) {
+            succeeded++;
+          } else {
+            blocked.push(item);
+          }
+        }
+      } catch (e) {
+        try { await dbRefreshTrashData(); } catch (refreshError) { dbLogError(refreshError); }
+        throw new Error(`Đã xử lý ${succeeded} mục trước khi dừng do lỗi: ${dbErrText(e)}`);
+      }
+      toast(dbTrashOperationSummary(action, succeeded, blocked));
+    },
+    !restore,
+  );
+}
+DB_ACT.filterTrash = () => {
+  const input = document.getElementById('db-trash-search'), select = document.getElementById('db-trash-type');
+  if (!input || !select) return;
+  const text = input.value.trim().toLowerCase(), type = select.value;
+  let visible = 0;
+  document.querySelectorAll('#main tbody tr[data-trash-row]').forEach((row) => {
+    const show = (!type || row.dataset.trashType === type) && (!text || row.dataset.trashSearch.includes(text));
+    row.hidden = !show;
+    if (show) visible++;
+  });
+  const count = document.getElementById('db-trash-count');
+  const empty = document.querySelector('.db-trash-no-results');
+  if (count) count.textContent = `${visible} / ${(DB.data.trash || []).length}`;
+  if (empty) empty.hidden = visible !== 0;
+};
+DB_ACT.clearTrashFilters = () => {
+  const input = document.getElementById('db-trash-search'), select = document.getElementById('db-trash-type');
+  if (!input || !select) return;
+  input.value = '';
+  select.value = '';
+  DB_ACT.filterTrash();
+  input.focus();
+};
 DB_ACT.restoreItem = (el) => dbRun(el, async () => {
   const it = (DB.data.trash || []).find((x) => x.id === el.dataset.id);
   if (!it) throw new Error('Không tìm thấy mục cần khôi phục.');
-  const fn = { topic: EducMindDB.restoreTopic, lesson: EducMindDB.restoreLesson, assignment: EducMindDB.restoreAssignment, question: EducMindDB.restoreQuestion }[it.type];
-  await dbCall(fn(it.id));
+  await dbTrashRestore(it);
   if (it.type === 'lesson' && (DB.data.trash || []).some((x) => x.type === 'topic' && x.id === it.topic_id)) {
     await dbReload();
     toast('Đã khôi phục bài học. Chủ đề của bài học cũng đang bị xóa — hãy khôi phục cả chủ đề để học sinh thấy được.');
     return false;
   }
 }, 'Đã khôi phục mục này.');
+DB_ACT.deleteTrashItem = (el) => dbRun(el, async () => {
+  const it = (DB.data.trash || []).find((x) => x.id === el.dataset.id);
+  if (!it) throw new Error('Không tìm thấy mục cần xóa.');
+  const dependencies = await dbCall(EducMindDB.trashItemDependencies(it.type, it.id));
+  const linked = dependencies.filter((dependency) => Number(dependency.item_count) > 0);
+  if (linked.length) {
+    const rows = linked.map((dependency) => `<li><strong>${h(dependency.label)}: ${Number(dependency.item_count)}</strong><br><span class="muted">${h(dependency.impact)}</span></li>`).join('');
+    const historyNote = linked.some((dependency) => dependency.preserves_history)
+      ? '<p class="muted">Lịch sử bài nộp, chấm điểm, bằng chứng học tập hoặc tạo nội dung được bảo toàn; không thể xóa mục này bằng cách xóa các dữ liệu lịch sử đó.</p>'
+      : '<p class="muted">Hệ thống không tự xóa các liên kết nội dung này.</p>';
+    dbOpenDialog({
+      title: 'Chưa thể xóa vĩnh viễn',
+      wide: true,
+      body: `<p>Mục “${h(it.title || '')}” còn dữ liệu liên quan. Các mục dưới đây đang chặn thao tác:</p><ul>${rows}</ul><p class="muted">Không có dữ liệu nào bị xóa.</p>${historyNote}`,
+    });
+    return false;
+  }
+  dbConfirm('Xóa vĩnh viễn?', `Không tìm thấy dữ liệu liên quan cho “${h(it.title || '')}”. Thao tác này không thể hoàn tác.`, 'Xóa vĩnh viễn', async () => {
+    if (!await dbTrashPurge(it)) throw new Error('Dữ liệu liên quan đã thay đổi sau bước kiểm tra. Không có dữ liệu nào bị xóa; hãy kiểm tra lại mục này trong thùng rác.');
+    toast('Đã xóa vĩnh viễn mục này.');
+  }, true);
+  return false;
+});
+DB_ACT.restoreAllTrash = () => dbRunTrashBulk('restore');
+DB_ACT.deleteAllTrash = () => dbRunTrashBulk('delete');
 
 /* ===== Học sinh: Bài học ===== */
 DB_PAGES.lessons = {

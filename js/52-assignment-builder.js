@@ -19,7 +19,7 @@ const asgScopes=c=>c.lessonsData.map(l=>'Bài học: '+l.name).concat(c.topics.m
 const lesOfScope=s=>s.indexOf('Bài học: ')===0?s.slice(9):'all';
 function addAssignment(src){
   const c=selected(),sc=asgScopes(c);
-  asgDraft={cid:c.id,name:'',desc:'',kind:'QUIZ',gameMode:'classic',scopeSel:sc[0],due:dmyStr(simNow()+7*864e5),tries:'3',late:false,lc:'',m:'10',qs:[],objs:[],max:0,subs:[],status:'Nháp',autoName:true};
+  asgDraft={cid:c.id,name:'',desc:'',kind:'QUIZ',gameMode:'race',scopeSel:sc[0],due:dmyStr(simNow()+7*864e5),tries:'3',late:false,lc:'',m:'10',qs:[],objs:[],max:0,subs:[],status:'Nháp',autoName:true};
   asgQ=null;asgLes=lesOfScope(sc[0]);asgDefW='1';asgFind='';asgFT='all';asgFD='all';
   asgSrc=src==='FILE'||src==='UPLOAD'?src:'BANK';asgDraft.kind=asgSrc==='FILE'?'FILE':'QUIZ';
   asgStepN=1;asgAutoName();focusId='ab-name';render();abReveal();
@@ -28,7 +28,7 @@ function addAssignment(src){
 function abReveal(){try{requestAnimationFrame(()=>{const el=document.querySelector('.asg-builder');if(el&&el.scrollIntoView)el.scrollIntoView({behavior:'smooth',block:'start'})})}catch(e){}}
 function asgOpen(i){const c=selected(),a=c.assignments[i];asgFind='';asgFT='all';asgFD='all';asgDraft=null;asgQ=i;asgLes=a.scope&&a.scope.type==='lesson'&&a.scope.ref?a.scope.ref.name:'all';asgDefW='1';focusId='h-ab';render();abReveal()}
 function asgF(k,v){if(!asgDraft)return;if(k==='name'){asgDraft.name=v;asgDraft.autoName=false}else asgDraft[k]=v}
-function asgModeSet(v){const c=selected(),a=asgCur(c);if(!a||!asgIsQ(a))return;if(asgDraft){asgDraft.gameMode=v;return}if(asgWork(a)){toast('Bài đã có học sinh làm nên không đổi được giao diện.');render();return}a.gameMode=v==='survival'?'survival':'classic';a.upd=stamp();render()}
+function asgModeSet(v){const c=selected(),a=asgCur(c);if(!a||!asgIsQ(a))return;if(asgDraft){asgDraft.gameMode=['race','survival','blitz'].includes(v)?v:'race';return}if(asgWork(a)){toast('Bài đã có học sinh làm nên không đổi được giao diện.');render();return}a.gameMode=['race','survival','blitz'].includes(v)?v:'race';a.upd=stamp();render()}
 /* tiêu đề được đặt sẵn theo bài học đã chọn để giáo viên không phải gõ; chỉ áp dụng khi chưa tự sửa */
 function asgAutoName(){const d=asgDraft;if(!d||!d.autoName)return;d.name='Bài tập · '+String(d.scopeSel||'').replace(/^Bài học: /,'').replace(/^Chủ đề: /,'')}
 function asgKind(k){if(!asgDraft)return;asgSetSrc(k==='FILE'?'FILE':(asgSrc==='UPLOAD'?'UPLOAD':'BANK'))}

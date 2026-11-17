@@ -1,5 +1,5 @@
 /* EducMind · js/14-student-game-lobby.js
-   Học sinh chọn cách làm bài tập: cổ điển, trò chơi, sảnh chờ “sinh tồn”. */
+   Học sinh chọn trò chơi để làm bài tập và sảnh chờ “sinh tồn”. */
 /* Bài sinh tồn: lựa chọn cá nhân hoặc nhiều người khi bắt đầu. Chế độ nhiều người dùng adapter realtime nếu được triển khai. */
 let gameLaunch=null,gameLobby=null,survivalResult=null;
 function openAssignmentMode(ai){
@@ -7,12 +7,12 @@ function openAssignmentMode(ai){
   gameLobby=null;survivalResult=null;page='assignments';
   gameLaunch={type:'asg',ai,mode:'solo',game:rdPresentation(b,a),returnPage};render();window.scrollTo(0,0)
 }
-function chooseAssignmentGame(game){if(!gameLaunch||!['classic','race','survival','blitz'].includes(game))return;gameLaunch.game=game;if(game!=='survival')gameLaunch.mode='solo';render()}
+function chooseAssignmentGame(game){if(!gameLaunch||!['race','survival','blitz'].includes(game))return;gameLaunch.game=game;if(game!=='survival')gameLaunch.mode='solo';render()}
 function chooseAssignmentMode(mode){if(!gameLaunch)return;gameLaunch.mode=mode;render()}
 function cancelAssignmentMode(){const back=gameLaunch&&gameLaunch.returnPage||'assignments';gameLaunch=null;page=back;render();window.scrollTo(0,0)}
 function startAssignmentGame(ai,mode,game){
   const c=selected(),s=me(),a=c.assignments[ai],b=a.subs[c.students.indexOf(s)];
-  if(!a||!asgIsQ(a)||!['classic','race','survival','blitz'].includes(game)){toast('Không mở được trò chơi này cho bài tập.');return}
+  if(!a||!asgIsQ(a)||!['race','survival','blitz'].includes(game)){toast('Không mở được trò chơi này cho bài tập.');return}
   gameLaunch=null;survivalResult=null;
   if(game==='survival'&&mode==='multi'){gameLobby={type:'asg',ai,status:'idle',players:[],selected:[]};render();scanSurvivalPlayers();return}
   gameLobby=null;
@@ -42,17 +42,61 @@ async function inviteSurvivalPlayers(){
   catch(e){gameLobby.error=e&&e.message||'Không gửi được lời mời.';gameLobby.status='error'}render();
 }
 function survivalModePage(c,a,ai){
-  const game=gameLaunch&&gameLaunch.game||'classic',mode=gameLaunch&&gameLaunch.mode||'solo',cards=[
+  const game=gameLaunch&&gameLaunch.game||'race',mode=gameLaunch&&gameLaunch.mode||'solo';
+  const questions=Array.isArray(a.qs)?a.qs:[];
+  const objectives=objLabels(c).filter(o=>(a.objs||[]).includes(o.j))
+    .sort((x,y)=>String(x.code||'').localeCompare(String(y.code||''),undefined,{numeric:true,sensitivity:'base'}));
+  const objectiveSummary=objectives.length
+    ?objectives.map(o=>esc(o.label)).join('<br>')
+    :'Bài tập chưa gắn mục tiêu học tập.';
+  const cards=[
     {id:'race',icon:'🪢',title:'Kéo co tri thức',desc:'Trả lời lần lượt từng chặng, kéo đội mình tiến gần vạch đích. Mỗi câu đều tính vào kết quả bài.'},
     {id:'survival',icon:'🏝️',title:'Sinh tồn tri thức',desc:'Khám phá từng trạm, giữ khiên và nhận lời giải thích ngay sau mỗi câu sai.'},
     {id:'blitz',icon:'⚡',title:'Combo chớp nhoáng',desc:'Trả lời liên tiếp để xây chuỗi đúng. Nhận phản hồi từng câu và thử phá kỷ lục combo của mình.'},
-    {id:'classic',icon:'🧠',title:'Ôn luyện tự do',desc:'Xem toàn bộ câu hỏi cùng lúc, tự chọn nhịp làm rồi nộp khi đã sẵn sàng.'}
   ];
-  const cardsHtml=cards.map(x=>`<button type='button' class='survival-mode-card game-choice-card ${game===x.id?'chosen':''}' aria-pressed='${game===x.id}' onclick="chooseAssignmentGame('${x.id}')"><span class='survival-mode-icon'>${x.icon}</span><span><b>${x.title}</b><small>${x.desc}</small></span><span class='survival-radio' aria-hidden='true'>${game===x.id?'✓':''}</span></button>`).join('');
+  const cardsHtml=cards.map(x=>`
+    <button type='button' class='survival-mode-card game-choice-card game-choice-card--${x.id} ${game===x.id?'chosen':''}' aria-pressed='${game===x.id}' onclick="chooseAssignmentGame('${x.id}')">
+      <span class='survival-mode-icon game-choice-icon--${x.id}' aria-hidden='true'>${x.icon}</span>
+      <span class='game-choice-copy'><b>${x.title}</b><small>${x.desc}</small></span>
+      <span class='survival-radio' aria-hidden='true'>${game===x.id?'✓':''}</span>
+    </button>`).join('');
   const multi=game==='survival';
-  const playOptions=`<div class='game-play-mode'><div class='game-choice-label'>Cách tham gia</div><button type='button' class='game-mode-chip ${mode==='solo'?'chosen':''}' aria-pressed='${mode==='solo'}' onclick="chooseAssignmentMode('solo')">🧭 Cá nhân</button>${multi?`<button type='button' class='game-mode-chip ${mode==='multi'?'chosen':''}' aria-pressed='${mode==='multi'}' onclick="chooseAssignmentMode('multi')">👥 Nhiều người · chỉ bạn đang online</button>`:`<span class='muted game-mode-note'>Chế độ nhiều người hiện áp dụng cho Sinh tồn tri thức khi có dịch vụ realtime.</span>`}</div>`;
+  const modeNote=multi?'Chọn chơi một mình hoặc mời bạn cùng lớp nếu dịch vụ realtime sẵn sàng.':'Chế độ nhiều người chỉ khả dụng với Sinh tồn tri thức khi dịch vụ realtime sẵn sàng.';
   const action=multi&&mode==='multi'?`<button type='button' class='btn survival-primary' data-noicon='1' onclick='openSurvivalLobby(${ai})'>Tìm bạn đang online ${ic('arrow',18)}</button>`:`<button type='button' class='btn survival-primary' data-noicon='1' onclick="startAssignmentGame(${ai},'solo','${game}')">Bắt đầu ${game==='race'?'kéo co':game==='survival'?'sinh tồn':game==='blitz'?'combo':'ôn luyện'} ${ic('arrow',18)}</button>`;
-  return `<section class='panel survival-mode game-mode-picker' aria-labelledby='survival-mode-title'><div class='survival-mode-hero'><span class='survival-kicker'>BỘ CÂU HỎI · ${esc((a.qs||[]).length)} CHẶNG</span><h2 id='survival-mode-title'>Chọn cách luyện tập</h2><p><b>${esc(a.name)}</b> · Cùng một bộ câu hỏi, em có thể đổi trò chơi ở từng lượt. Câu trả lời, điểm và kết quả theo mục tiêu vẫn được lưu để giáo viên phân tích.</p></div><div class='game-picker-body'><div class='game-choice-label'>Chọn trò chơi</div><div class='survival-mode-options' role='group' aria-label='Chọn trò chơi luyện tập'>${cardsHtml}</div>${playOptions}</div><div class='survival-mode-actions'><button type='button' class='btn light' data-noicon='1' onclick='cancelAssignmentMode()'>Quay lại</button>${action}</div></section>`;
+  return `<div class='assignment-game-layout'>
+    <section class='panel survival-mode game-mode-picker assignment-game-main' aria-labelledby='survival-mode-title'>
+      <div class='survival-mode-hero'>
+        <span class='survival-kicker'>✦ NHIỆM VỤ HỌC TẬP · ${esc(questions.length)} CÂU · ${esc(a.max)} ĐIỂM</span>
+        <h2 id='survival-mode-title'>Chọn cách luyện tập</h2>
+        <p><b>${esc(a.name)}</b> · Cùng một bộ câu hỏi, em có thể chọn thử thách phù hợp. Tiến độ, câu trả lời và kết quả vẫn được ghi nhận cho bài tập này.</p>
+      </div>
+      <div class='assignment-game-content'>
+        <div class='assignment-game-heading'>
+          <div><h3>Chọn trò chơi</h3><p>Chọn một cách học để bắt đầu nhiệm vụ</p></div>
+          <span class='assignment-game-step'>BƯỚC 1 / 2</span>
+        </div>
+        <div class='survival-mode-options assignment-game-options' role='group' aria-label='Chọn trò chơi luyện tập'>${cardsHtml}</div>
+        <div class='game-play-mode'>
+          <div class='game-choice-label'>Cách tham gia</div>
+          <button type='button' class='game-mode-chip ${mode==='solo'?'chosen':''}' aria-pressed='${mode==='solo'}' onclick="chooseAssignmentMode('solo')">🧭 Cá nhân</button>
+          ${multi?`<button type='button' class='game-mode-chip ${mode==='multi'?'chosen':''}' aria-pressed='${mode==='multi'}' onclick="chooseAssignmentMode('multi')">👥 Nhiều người</button>`:''}
+          <span class='muted game-mode-note'>${modeNote}</span>
+        </div>
+        <div class='assignment-game-actions'>
+          <button type='button' class='btn light' data-noicon='1' onclick='cancelAssignmentMode()'>Quay lại</button>
+          ${action}
+        </div>
+        <p class='assignment-game-privacy'>Lựa chọn trò chơi chỉ thay đổi cách luyện tập; câu trả lời và kết quả vẫn được lưu theo bài tập.</p>
+      </div>
+    </section>
+    <aside class='panel assignment-game-aside' aria-labelledby='assignment-mission-title'>
+      <h3 id='assignment-mission-title'>Mục tiêu học tập</h3>
+      <div class='assignment-mission'>
+        <span class='assignment-mission-icon' aria-hidden='true'>🎯</span>
+        <div><span>${objectiveSummary}</span></div>
+      </div>
+    </aside>
+  </div>`;
 }
 
 function survivalLobbyPage(c,a,ai){

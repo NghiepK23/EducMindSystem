@@ -18,7 +18,7 @@ if(supabaseClient)supabaseClient.auth.onAuthStateChange((event)=>{
 
 /* EducMindDB: mỗi hàm là MỘT lệnh gửi tới Supabase và trả về { data, error } như supabase-js.
    Quy ước:
-   - Các bảng do máy chủ tự ghi (learning_evidence, mastery, knowledge_gaps, content_revisions, notifications) chỉ được đọc ở đây.
+   - Các bảng do máy chủ quản lý không cho trình duyệt tạo hoặc xóa vật lý; notifications cho phép cập nhật trạng thái đã đọc và ẩn mềm.
    - Việc có nhiều bước (bắt đầu / nộp bài kiểm tra, tạo lớp, vào lớp) gọi hàm RPC để máy chủ kiểm tra và ghi trong một giao dịch.
    - Không nhúng bảng liên quan trong select; màn hình tự ghép dữ liệu theo mã (id). */
 const EducMindDB=(()=>{
@@ -151,6 +151,8 @@ const EducMindDB=(()=>{
     restoreLesson:(id)=>from('lessons').update({deleted_at:null}).eq('id',id).select('id'),
     restoreAssignment:(id)=>from('assignments').update({deleted_at:null}).eq('id',id).select('id'),
     restoreQuestion:(id)=>from('questions').update({deleted_at:null}).eq('id',id).select('id'),
+    trashItemDependencies:(type,id)=>rpc('trash_item_dependencies',{p_type:type,p_id:id}),
+    purgeTrashedItem:(type,id)=>rpc('purge_trashed_item',{p_type:type,p_id:id}),
 
     /* ----- Ngân hàng câu hỏi -----
        options: mảng chuỗi lựa chọn. correct_answer: SINGLE_CHOICE = số thứ tự lựa chọn (từ 0); MULTIPLE_CHOICE = mảng số thứ tự;
@@ -196,9 +198,10 @@ const EducMindDB=(()=>{
     respondRecommendation:(id,status)=>from('recommendations').update({status,responded_at:now()}).eq('id',id).select('id,status').single(),
 
     /* ----- Thông báo ----- */
-    listNotifications:(limit)=>from('notifications').select('id,type,title,content,is_read,created_at,payload').order('created_at',{ascending:false}).limit(limit||30),
-    markNotificationRead:(id)=>from('notifications').update({is_read:true,read_at:now()}).eq('id',id).select('id'),
-    markAllNotificationsRead:()=>from('notifications').update({is_read:true,read_at:now()}).eq('user_id',me()).eq('is_read',false).select('id'),
+    listNotifications:(limit)=>from('notifications').select('id,type,title,content,is_read,created_at,payload').is('deleted_at',null).order('created_at',{ascending:false}).limit(limit||30),
+    markNotificationRead:(id)=>from('notifications').update({is_read:true,read_at:now()}).eq('id',id).is('deleted_at',null).select('id'),
+    markAllNotificationsRead:()=>from('notifications').update({is_read:true,read_at:now()}).eq('user_id',me()).eq('is_read',false).is('deleted_at',null).select('id'),
+    hideNotification:(id)=>from('notifications').update({deleted_at:now()}).eq('id',id).eq('user_id',me()).is('deleted_at',null).select('id'),
 
     /* ----- Lịch sử chỉnh sửa (trigger ở máy chủ ghi; giáo viên chỉ đọc) ----- */
     listRevisions:(classId,limit)=>from('content_revisions').select('id,class_id,entity_type,entity_id,action,actor_id,before_state,after_state,created_at').eq('class_id',classId).order('created_at',{ascending:false}).limit(limit||200),

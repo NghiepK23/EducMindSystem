@@ -87,7 +87,7 @@ function dbClassMembersPanel(c, d) {
       <div><h2 id="db-h-members">Học sinh lớp ${h(c.name)}</h2><p class="lead">${list.length} học sinh</p></div>
       <div class="db-codebox"><span class="muted">Mã lớp</span><b class="db-code" id="db-join-code">${h(code || '—')}</b>${code ? dbBtn('Sao chép', 'copyCode', { code }, 'light mini') : ''}${dbBtn('Tạo mã mới', 'regenCode', { id: c.id }, 'light mini')}</div>
     </div>
-    <form data-act="addStudent" class="db-form-row" novalidate>
+    <form data-act="addStudent" class="db-form-row db-class-member-add" novalidate>
       ${dbField('Thêm học sinh bằng email', 'db-add-email', `<input id="db-add-email" name="email" type="email" placeholder="email học sinh đã đăng ký" autocomplete="off" required>`)}
       <button type="submit" class="btn light">Thêm vào lớp</button>
       ${dbBtn('Tạo tài khoản học sinh', 'createStudentAccount', { id: c.id, name: c.name }, 'light')}

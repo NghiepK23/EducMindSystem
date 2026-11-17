@@ -3,7 +3,6 @@
 
 DB_PAGES.home = {
   title: 'Tổng quan',
-  sub: () => { const c = dbClass(); return c ? 'Lớp ' + h(c.name) + (dbClassMeta(c) ? ' · ' + dbClassMeta(c) : '') : ''; },
   async load() {
     if (!DB.classId) return {};
     const content = await dbLoadContent();
@@ -99,11 +98,51 @@ DB_PAGES.history = {
     const what = (r) => {
       const s = r.after_state || r.before_state || {};
       if (r.action === 'GRADE') { const b = r.before_state || {}, a = r.after_state || {}; return 'Điểm ' + (b.score == null ? 'chưa chấm' : dbNum(b.score)) + ' → ' + (a.score == null ? 'chưa chấm' : dbNum(a.score)); }
-      if (s.objective_id && objById[s.objective_id]) return dbObjLabel(objById[s.objective_id]);
-      return h(String(s.title || s.content || s.description || s.file_name || s.code || '').slice(0, 140));
+      if (s.objective_id && objById[s.objective_id]) {
+        const o = objById[s.objective_id];
+        return `${o.code} · ${o.description}`;
+      }
+      return String(s.title || s.content || s.description || s.file_name || s.code || '').slice(0, 140);
     };
-    const rows = d.revisions.map((r) => `<tr><td>${dbDateTime(r.created_at)}</td><td>${dbPill((DB_REV_ACTION[r.action] || [r.action, 'plain'])[0], (DB_REV_ACTION[r.action] || [r.action, 'plain'])[1])}</td><td>${h(DB_REV_ENTITY[r.entity_type] || r.entity_type)}</td><td>${what(r)}</td></tr>`);
+    const rows = d.revisions.map((r) => {
+      const actionLabel = (DB_REV_ACTION[r.action] || [r.action, 'plain'])[0], entityLabel = DB_REV_ENTITY[r.entity_type] || r.entity_type;
+      const summary = what(r), date = dbDateTime(r.created_at);
+      return `<tr data-history-row data-history-action="${h(r.action)}" data-history-entity="${h(r.entity_type)}" data-history-search="${h(`${date} ${actionLabel} ${entityLabel} ${summary}`.toLowerCase())}">
+        <td>${date}</td><td>${dbPill(actionLabel, (DB_REV_ACTION[r.action] || [r.action, 'plain'])[1])}</td><td>${h(entityLabel)}</td><td>${h(summary)}</td></tr>`;
+    });
+    const filters = rows.length ? `<div class="row db-filter">
+      <label class="sr" for="db-history-search">Tìm lịch sử chỉnh sửa</label><input id="db-history-search" type="search" placeholder="Tìm theo nội dung hoặc thời điểm" data-input="filterHistory">
+      <label class="sr" for="db-history-entity">Lọc theo đối tượng</label><select id="db-history-entity" data-change="filterHistory"><option value="">Mọi đối tượng</option>${Object.entries(DB_REV_ENTITY).map(([k, label]) => `<option value="${h(k)}">${h(label)}</option>`).join('')}</select>
+      <label class="sr" for="db-history-action">Lọc theo thao tác</label><select id="db-history-action" data-change="filterHistory"><option value="">Mọi thao tác</option>${Object.entries(DB_REV_ACTION).map(([k, value]) => `<option value="${h(k)}">${h(value[0])}</option>`).join('')}</select>
+      ${dbBtn('Xóa bộ lọc', 'clearHistoryFilters', {}, 'light mini')}
+    </div>` : '';
     return `<section class="panel" aria-labelledby="db-h-h"><h2 id="db-h-h">Thay đổi gần đây</h2><p class="lead">${d.revisions.length ? d.revisions.length + ' thay đổi gần nhất của lớp.' : ''}</p>
-      ${rows.length ? dbTable(['Thời điểm', 'Thao tác', 'Đối tượng', 'Nội dung'], rows, 'Lịch sử chỉnh sửa') : dbEmpty('Chưa có thay đổi nào được ghi.')}</section>`;
+      ${filters}
+      ${rows.length ? dbTable(['Thời điểm', 'Thao tác', 'Đối tượng', 'Nội dung'], [...rows, '<tr class="db-history-no-results" hidden><td colspan="4">Không tìm thấy thay đổi phù hợp.</td></tr>'], 'Lịch sử chỉnh sửa') : dbEmpty('Chưa có thay đổi nào được ghi.')}
+      ${rows.length ? `<p class="muted" id="db-history-count" aria-live="polite">${rows.length} thay đổi</p>` : ''}
+    </section>`;
   },
+};
+DB_ACT.filterHistory = () => {
+  const input = document.getElementById('db-history-search'), entity = document.getElementById('db-history-entity'), action = document.getElementById('db-history-action');
+  if (!input || !entity || !action) return;
+  const text = input.value.trim().toLowerCase();
+  let visible = 0;
+  document.querySelectorAll('#main tbody tr[data-history-row]').forEach((row) => {
+    const show = (!entity.value || row.dataset.historyEntity === entity.value) && (!action.value || row.dataset.historyAction === action.value) && (!text || row.dataset.historySearch.includes(text));
+    row.hidden = !show;
+    if (show) visible++;
+  });
+  const count = document.getElementById('db-history-count'), empty = document.querySelector('.db-history-no-results');
+  if (count) count.textContent = `${visible} / ${(DB.data.revisions || []).length} thay đổi`;
+  if (empty) empty.hidden = visible !== 0;
+};
+DB_ACT.clearHistoryFilters = () => {
+  const input = document.getElementById('db-history-search'), entity = document.getElementById('db-history-entity'), action = document.getElementById('db-history-action');
+  if (!input || !entity || !action) return;
+  input.value = '';
+  entity.value = '';
+  action.value = '';
+  DB_ACT.filterHistory();
+  input.focus();
 };
