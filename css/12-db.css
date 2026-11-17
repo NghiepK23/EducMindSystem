@@ -156,6 +156,12 @@
 .db-prose{white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.6;margin:12px 0}
 .db-work summary{cursor:pointer;font-weight:600;color:var(--brand-ink,var(--brand))}
 .db-work .db-prose{max-width:46ch;max-height:260px;overflow:auto;padding:10px 12px;border-radius:10px;background:var(--fill)}
+.db-submission-toggle{display:grid;gap:3px;width:100%;padding:0;border:0;background:none;color:var(--brand-ink,var(--brand));font:600 .875rem/1.35 var(--font-body);text-align:left;cursor:pointer}
+.db-submission-toggle .muted{font-size:.75rem;font-weight:400}
+.db-submission-toggle:focus-visible{outline:2px solid var(--brand);outline-offset:3px;border-radius:4px}
+.db-submission-row.is-expanded>th,.db-submission-row.is-expanded>td{vertical-align:top}
+.db-submission-row:not(.is-expanded) .db-submission-expanded,.db-submission-row.is-expanded .db-submission-collapsed{display:none}
+.db-submission-expanded{min-width:200px}
 .db-grade{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
 .db-grade textarea{flex:1 1 100%;min-width:200px}
 .db-grade label:not(.sr){font-size:.8125rem;color:var(--muted);font-weight:600}
@@ -169,6 +175,9 @@
 .db-assignment-questions .db-question{margin:0;padding:14px;border:1px solid var(--line);border-radius:14px;background:var(--surface)}
 .db-assignment-questions .db-question legend{padding:0 6px}
 .db-assignment-questions .db-prose{margin:6px 0 12px}
+.db-assignment-question-fold{margin-top:14px}
+.db-assignment-question-fold>summary{padding:10px 12px;border-radius:12px;background:var(--fill);font-size:.875rem;font-weight:600}
+.db-assignment-question-fold[open]>summary{margin-bottom:8px}
 .db-assignment-answers{margin:10px 0;padding:12px;border-radius:12px;background:var(--fill)}
 .db-assignment-answers>div+div{margin-top:14px;padding-top:14px;border-top:1px solid var(--line)}
 .db-assignment-answers p{margin:6px 0}

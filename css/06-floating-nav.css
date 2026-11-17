@@ -267,8 +267,8 @@ select,textarea,.selectbox{
 @media(min-width:901px){
   .layout>.side{scrollbar-width:auto;scrollbar-color:auto}
   .layout>.side::-webkit-scrollbar{width:11px}
-  .layout>.side::-webkit-scrollbar-track{background:rgba(107,147,201,.16);border-radius:99px;margin:8px 2px}
-  .layout>.side::-webkit-scrollbar-thumb{background:rgba(99,148,210,.9);border:2px solid transparent;background-clip:padding-box;border-radius:99px}
+  .layout>.side::-webkit-scrollbar-track{background:rgba(107,147,201,.16);border-radius:8px;margin:28px 4px}
+  .layout>.side::-webkit-scrollbar-thumb{background:rgba(99,148,210,.9);border:2px solid transparent;background-clip:padding-box;border-radius:8px}
   .layout>.side::-webkit-scrollbar-thumb:hover{background:rgba(78,130,196,1);background-clip:padding-box}
 }
 /* Firefox: dùng thuộc tính chuẩn với màu đủ rõ */

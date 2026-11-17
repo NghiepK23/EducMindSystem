@@ -471,7 +471,7 @@ function dbAssignmentTeacherQuestions(d, a) {
   return `<section class="panel" aria-labelledby="db-h-asq">
     <div class="row between"><div><h2 id="db-h-asq">Câu hỏi của bài tập</h2><p class="lead">${links.length} câu · học sinh trả lời trực tiếp; giáo viên chấm điểm trong bài nộp.</p></div>
     ${locked ? '' : dbBtn(ic('plus', 16) + 'Tạo câu hỏi mới', 'go', { page: 'questions', edit: 'new', return_to: 'assignment', assignment_id: a.id }, 'light')}</div>
-    ${rows.length ? dbTable(['#', 'Câu hỏi', '<span class="sr">Thao tác</span>'], rows, 'Câu hỏi trong bài tập') : dbEmpty('Chưa có câu hỏi nào.')}
+    ${rows.length ? `<details class="db-assignment-question-fold" open><summary>Danh sách câu hỏi · ${links.length} câu</summary>${dbTable(['#', 'Câu hỏi', '<span class="sr">Thao tác</span>'], rows, 'Câu hỏi trong bài tập')}</details>` : dbEmpty('Chưa có câu hỏi nào.')}
     ${picker}
     ${locked ? '' : `<form data-act="importQuestionFile" data-assignment-id="${h(a.id)}" class="db-form-row db-add-row" novalidate>
       <div class="field"><label class="db-label" for="db-asg-import-${h(a.id)}">Nhập câu hỏi từ Excel hoặc CSV</label>
@@ -511,17 +511,30 @@ function dbAssignmentAnswerReview(d, a, answers) {
     return `<div><b>Câu ${i + 1} · ${h(DB_QKIND[q.kind] || q.kind)}</b><div class="db-prose">${h(q.content)}</div><p><b>Trả lời:</b> ${text ? h(text) : '<span class="muted">Chưa trả lời</span>'}</p></div>`;
   }).join('')}</div>`;
 }
+function dbToggleSubmission(button) {
+  const row = button.closest('.db-submission-row');
+  if (!row) return;
+  const expand = !row.classList.contains('is-expanded');
+  row.parentElement.querySelectorAll('.db-submission-row.is-expanded').forEach((openRow) => {
+    openRow.classList.remove('is-expanded');
+    openRow.querySelector('.db-submission-toggle').setAttribute('aria-expanded', 'false');
+  });
+  if (expand) {
+    row.classList.add('is-expanded');
+    button.setAttribute('aria-expanded', 'true');
+  }
+}
 function dbAssignmentTeacherDetail(d, a) {
   const subs = Object.fromEntries(d.submissions.filter((s) => s.assignment_id === a.id).map((s) => [s.student_id, s]));
   const answersBySubmission = dbGroup(d.assignmentAnswers, 'submission_id');
   const rows = d.members.map((m) => {
     const p = d.profiles[m.student_id], s = subs[m.student_id];
     if (!s) return `<tr><th scope="row">${h(dbName(p))}</th><td>${dbPill('Chưa nộp', 'plain')}</td><td class="muted">—</td><td class="muted">—</td></tr>`;
-    return `<tr>
-      <th scope="row">${h(dbName(p))}<div class="muted">${dbDateTime(s.submitted_at)}${s.is_edited ? ' · đã sửa' : ''}</div></th>
+    return `<tr class="db-submission-row">
+      <th scope="row"><button type="button" class="db-submission-toggle" aria-expanded="false" onclick="dbToggleSubmission(this)">${h(dbName(p))}<span class="muted">${dbDateTime(s.submitted_at)}${s.is_edited ? ' · đã sửa' : ''}</span></button></th>
       <td>${s.score != null ? dbPill('Đã chấm', 'good') : s.status === 'LATE' ? dbPill('Nộp muộn', 'need') : dbPill('Chờ chấm', 'prog')}</td>
-      <td><details class="db-work"><summary>Xem bài làm</summary>${s.text_content ? `<div class="db-prose">${h(s.text_content)}</div>` : ''}${dbAssignmentAnswerReview(d, a, answersBySubmission[s.id] || [])}${s.storage_path ? `<div class="db-file"><span class="db-file-name">${ic('overview', 14)}<span class="db-file-title">${h(dbSubName(s))}</span></span><span class="row db-file-actions">${dbBtn('Xem trước', 'previewSubmission', { path: s.storage_path, name: dbSubName(s) }, 'light mini')}${dbBtn('Tải tệp bài nộp', 'downloadSubmission', { path: s.storage_path, name: dbSubName(s) }, 'light mini')}</span></div>` : ''}${!s.text_content && !s.storage_path && !d.assignmentQuestions.some((x) => x.assignment_id === a.id) ? '<div class="muted">(không có nội dung văn bản)</div>' : ''}</details></td>
-      <td>${dbGradeCell(d, a, p, s)}</td>
+      <td><span class="db-submission-collapsed muted">Bấm tên để xem bài làm</span><div class="db-submission-expanded">${s.text_content ? `<div class="db-prose">${h(s.text_content)}</div>` : ''}${dbAssignmentAnswerReview(d, a, answersBySubmission[s.id] || [])}${s.storage_path ? `<div class="db-file"><span class="db-file-name">${ic('overview', 14)}<span class="db-file-title">${h(dbSubName(s))}</span></span><span class="row db-file-actions">${dbBtn('Xem trước', 'previewSubmission', { path: s.storage_path, name: dbSubName(s) }, 'light mini')}${dbBtn('Tải tệp bài nộp', 'downloadSubmission', { path: s.storage_path, name: dbSubName(s) }, 'light mini')}</span></div>` : ''}${!s.text_content && !s.storage_path && !d.assignmentQuestions.some((x) => x.assignment_id === a.id) ? '<div class="muted">(không có nội dung văn bản)</div>' : ''}</div></td>
+      <td><span class="db-submission-collapsed muted">Bấm tên để chấm</span><div class="db-submission-expanded">${dbGradeCell(d, a, p, s)}</div></td>
     </tr>`;
   });
   const n = Object.keys(subs).length, graded = Object.values(subs).filter((s) => s.score != null).length;
