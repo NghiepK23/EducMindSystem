@@ -7,6 +7,7 @@
 
 const DB_AI_MAX_Q = 20;
 const DB_AI_SOURCE_MAX = 10000;
+const DB_AI_ALL_LESSONS = 'ALL';
 const DB_AIRS = { PENDING_REVIEW: 'Chờ duyệt', APPROVED: 'Đã duyệt', REJECTED: 'Đã từ chối', EDITED_AND_APPROVED: 'Đã sửa và duyệt' };
 const DB_AIST = { PROCESSING: ['Đang xử lý', 'prog'], COMPLETED: ['Hoàn tất', 'good'], FAILED: ['Thất bại', 'need'] };
 let dbAiPollTimer = null, dbAiPollBusy = false, dbAiLastResume = 0;
@@ -35,7 +36,7 @@ DB_PAGES.ai = {
     return `${dbAiForm(d)}
     <section class="panel" aria-labelledby="db-h-aip">
       <div class="row between"><div><h2 id="db-h-aip">Bản nháp chờ duyệt</h2><p class="lead">${pending.length} bản nháp${pending.length ? ' · duyệt để đưa vào ngân hàng câu hỏi' : ''}</p></div>${pending.length ? dbBtn('Duyệt tất cả', 'aiApproveAll', {}, 'light') : ''}</div>
-      ${pending.length ? pending.map((o, i) => dbAiRow(o, byObj, i)).join('') : dbEmpty('Chưa có bản nháp nào. Gửi yêu cầu AI ở khung trên để bắt đầu.')}
+      ${pending.length ? pending.map((o, i) => dbAiRow(o, byObj, byLesson, i)).join('') : dbEmpty('Chưa có bản nháp nào. Gửi yêu cầu AI ở khung trên để bắt đầu.')}
     </section>
     ${dbAiHistory(d, byLesson)}`;
   },
@@ -46,15 +47,17 @@ function dbAiForm(d) {
   const objBy = dbGroup(d.objectives, 'lesson_id');
   const assignment = (d.assignments || []).find((a) => a.id === DB.arg.assignment_id);
   const selectedLesson = assignment?.lesson_id || DB.arg.lesson_id || '';
+  const showAllObjectives = selectedLesson === DB_AI_ALL_LESSONS;
+  const lessonSelected = lessons.some((l) => l.id === selectedLesson);
   return `<section class="panel" aria-labelledby="db-h-aif">
     <h2 id="db-h-aif">Tạo câu hỏi bằng AI</h2>
     <p class="lead">Tải giáo án hoặc dán nội dung để Gemini tham khảo cùng mục tiêu bài học. Câu hỏi được lưu ở dạng bản nháp chờ giáo viên duyệt.</p>
-    <p class="muted">Trước khi tạo, hãy lưu API key cá nhân tại Tài khoản → Quản lý API key Gemini.</p>
+    <p class="muted">Hãy lưu API key cá nhân tại Tài khoản → Quản lý API key Gemini. Ứng dụng không giới hạn số yêu cầu; hạn mức sử dụng do Gemini quyết định.</p>
     ${assignment ? `<div class="notice">${ic('info', 16)}<div>Các câu được duyệt từ yêu cầu này sẽ tự thêm vào bài tập nháp <b>${h(assignment.title)}</b>. Hãy duyệt câu hỏi trước khi xuất bản bài tập.</div></div>` : ''}
     <form data-act="aiGenerate" class="db-ai-form" novalidate data-assignment-id="${h(assignment ? assignment.id : '')}">
-      ${dbField('Bài học', 'db-ai-lesson', `<select id="db-ai-lesson" name="lesson" data-change="aiLessonPick" required><option value="">Chọn bài học</option>${lessons.map((l) => `<option value="${h(l.id)}" ${l.id === selectedLesson ? 'selected' : ''}>${h(l.title)}</option>`).join('')}</select>`)}
-      <div class="field"><span class="db-label">Mục tiêu cần sinh câu hỏi (bỏ trống = mọi mục tiêu của bài)</span>
-        ${lessons.map((l) => `<div class="db-ai-objs" data-lesson="${h(l.id)}" ${l.id === selectedLesson ? '' : 'hidden'}>${(objBy[l.id] || []).map((o) => `<label class="db-check"><input type="checkbox" name="obj" value="${h(o.id)}"> <span class="db-obj-code">${h(o.code)}</span> ${h(o.description)}</label>`).join('') || '<span class="muted">Bài học chưa có mục tiêu.</span>'}</div>`).join('')}
+      ${dbField('Bài học', 'db-ai-lesson', `<select id="db-ai-lesson" name="lesson" data-change="aiLessonPick" required><option value="">Chọn bài học</option>${assignment ? '' : `<option value="${DB_AI_ALL_LESSONS}" ${showAllObjectives ? 'selected' : ''}>Tất cả</option>`}${lessons.map((l) => `<option value="${h(l.id)}" ${l.id === selectedLesson ? 'selected' : ''}>${h(l.title)}</option>`).join('')}</select>`)}
+      <div class="field"><span id="db-ai-objective-label" class="db-label">${showAllObjectives ? 'Chọn mục tiêu cần sinh câu hỏi (có thể chọn từ nhiều bài)' : 'Mục tiêu cần sinh câu hỏi (bỏ trống = mọi mục tiêu của bài)'}</span>
+        ${lessons.map((l) => `<div class="db-ai-objs" data-lesson="${h(l.id)}" ${showAllObjectives || (lessonSelected && l.id === selectedLesson) ? '' : 'hidden'}><b class="db-ai-obj-lesson">${h(l.title)}</b>${(objBy[l.id] || []).map((o) => `<label class="db-check"><input type="checkbox" name="obj" value="${h(o.id)}"> <span class="db-obj-code">${h(o.code)}</span> ${h(o.description)}</label>`).join('') || '<span class="muted">Bài học chưa có mục tiêu.</span>'}</div>`).join('')}
       </div>
       <details class="db-ai-plan" ${DB.arg.source === 'plan' ? 'open' : ''}>
         <summary>Thêm giáo án làm nguồn câu hỏi (không bắt buộc)</summary>
@@ -142,11 +145,18 @@ DB_ACT.aiPlanFilePicked = async (el) => {
 };
 /* Hiện danh sách mục tiêu của bài học đang chọn (không vẽ lại trang). */
 DB_ACT.aiLessonPick = (el) => {
-  document.querySelectorAll('.db-ai-objs').forEach((x) => { x.hidden = x.dataset.lesson !== el.value; });
+  const label = document.getElementById('db-ai-objective-label');
+  if (label) label.textContent = el.value === DB_AI_ALL_LESSONS
+    ? 'Chọn mục tiêu cần sinh câu hỏi (có thể chọn từ nhiều bài)'
+    : 'Mục tiêu cần sinh câu hỏi (bỏ trống = mọi mục tiêu của bài)';
+  document.querySelectorAll('.db-ai-objs').forEach((x) => {
+    x.hidden = el.value !== DB_AI_ALL_LESSONS && (!el.value || x.dataset.lesson !== el.value);
+  });
 };
 
-function dbAiRow(o, byObj, index) {
+function dbAiRow(o, byObj, byLesson, index) {
   const obj = byObj[o.objective_id] || {};
+  const lesson = byLesson[obj.lesson_id] || {};
   const options = Array.isArray(o.options) ? o.options : [];
   return `<article class="db-ai-row" data-id="${h(o.id)}">
     <div class="db-ai-row-body">
@@ -157,7 +167,7 @@ function dbAiRow(o, byObj, index) {
           <span class="db-ai-tag">${h(DB_QKIND[o.kind] || o.kind)}</span>
           <span class="db-ai-tag">${h(DB_QDIFF[o.difficulty] || o.difficulty)}</span>
           ${o.bloom_level ? `<span class="db-ai-tag">${h(DB_QBLOOM[o.bloom_level] || o.bloom_level)}</span>` : ''}
-          <span class="db-ai-tag db-ai-objective">Mục tiêu <b>${h(obj.code || '—')}</b></span>
+          <span class="db-ai-tag db-ai-objective">Mục tiêu <b>${h(obj.code || '—')}</b>${lesson.title ? ` · ${h(lesson.title)}` : ''}</span>
         </div>
         ${options.length ? `<ul class="db-ai-options" aria-label="Các lựa chọn">${options.map((x, i) => `<li><span class="db-ai-option-letter">${dbLetter(i)}</span><span>${h(x)}</span></li>`).join('')}</ul>` : ''}
       </div>
@@ -170,19 +180,26 @@ function dbAiRow(o, byObj, index) {
   </article>`;
 }
 function dbAiHistory(d, byLesson) {
+  const byObjective = dbById(d.objectives);
   const rows = d.requests.map((r) => {
     const outputs = d.outputs.filter((o) => o.request_id === r.id);
     const jobs = d.jobs.filter((j) => j.request_id === r.id);
     const n = outputs.length;
     const st = DB_AIST[r.status] || [r.status, 'plain'];
     const progress = r.status === 'PROCESSING' || r.status === 'FAILED' ? ` · ${n}/${r.quantity} câu đã tạo` : '';
-    return `<tr><th scope="row">${h((byLesson[r.lesson_id] || {}).title || '')}</th>
+    const selectedObjectiveIds = Array.isArray(r.parameters?.objectives) ? r.parameters.objectives : [];
+    const objectiveLessonIds = [...new Set(selectedObjectiveIds.map((id) => byObjective[id]?.lesson_id).filter(Boolean))];
+    const lessonNames = objectiveLessonIds.map((id) => byLesson[id]?.title).filter(Boolean);
+    const lessonLabel = lessonNames.length ? lessonNames.join(', ') : (byLesson[r.lesson_id] || {}).title || '';
+    return `<tr><th scope="row">${h(lessonLabel)}</th>
       <td>${h(r.quantity)}</td><td>${n} bản nháp</td>
       <td>${dbPill(st[0] + progress, st[1])}${r.error_message ? `<div class="muted">${h(r.error_message)}</div>` : ''}${r.status === 'FAILED' && jobs.some((j) => j.status === 'FAILED') ? dbBtn('Thử lại phần lỗi', 'aiRetry', { id: r.id }, 'light mini') : ''}</td>
-      <td>${dbDateTime(r.created_at)}</td></tr>`;
+      <td>${dbDateTime(r.created_at)}</td>
+      <td>${r.status === 'PROCESSING' ? '<span class="muted">Đang xử lý</span>' : dbBtn('Xóa', 'aiDeleteRequest', { id: r.id }, 'light mini danger-soft')}</td></tr>`;
   });
-  return `<section class="panel" aria-labelledby="db-h-aih"><h2 id="db-h-aih">Lịch sử yêu cầu</h2>
-    ${rows.length ? dbTable(['Bài học', 'Số lượng', 'Kết quả', 'Trạng thái', 'Gửi lúc'], rows, 'Lịch sử yêu cầu AI') : dbEmpty('Chưa có yêu cầu nào.')}</section>`;
+  return `<details class="panel db-ai-history" aria-labelledby="db-h-aih" open>
+    <summary class="db-ai-history-summary"><span id="db-h-aih">Lịch sử yêu cầu</span><span class="muted">${rows.length} yêu cầu</span></summary>
+    ${rows.length ? dbTable(['Bài học', 'Số lượng', 'Kết quả', 'Trạng thái', 'Gửi lúc', '<span class="sr">Thao tác</span>'], rows, 'Lịch sử yêu cầu AI') : dbEmpty('Chưa có yêu cầu nào.')}</details>`;
 }
 
 /* ===== Thao tác ===== */
@@ -191,6 +208,16 @@ DB_ACT.aiGenerate = (form) => dbRun(form, async (v) => {
   const qty = Number(v.qty);
   if (!v.lesson) throw new Error('Hãy chọn bài học cần sinh câu hỏi.');
   if (!Number.isInteger(qty) || qty < 1 || qty > DB_AI_MAX_Q) throw new Error('Số lượng phải từ 1 đến ' + DB_AI_MAX_Q + '.');
+  const objectiveIds = [...form.querySelectorAll('.db-ai-objs:not([hidden]) input[name="obj"]:checked')].map((x) => x.value);
+  let lessonId = v.lesson;
+  if (v.lesson === DB_AI_ALL_LESSONS) {
+    const selectedObjectives = (DB.data.objectives || []).filter((o) => objectiveIds.includes(o.id));
+    const selectedLessonIds = [...new Set(selectedObjectives.map((o) => o.lesson_id))];
+    if (!objectiveIds.length) throw new Error('Khi chọn Tất cả, hãy chọn ít nhất một mục tiêu để tạo câu hỏi.');
+    if (selectedObjectives.length !== objectiveIds.length) throw new Error('Danh sách mục tiêu đã thay đổi. Hãy tải lại trang rồi thử lại.');
+    if (!selectedLessonIds.length) throw new Error('Không xác định được bài học của mục tiêu đã chọn. Hãy tải lại trang rồi thử lại.');
+    lessonId = selectedLessonIds[0];
+  }
   let sourceText = String(v.source_document_text || '').trim();
   const sourceFile = form.querySelector('#db-ai-plan-file')?.files?.[0];
   if (sourceFile && !sourceText) {
@@ -203,17 +230,17 @@ DB_ACT.aiGenerate = (form) => dbRun(form, async (v) => {
   const assignmentId = form.dataset.assignmentId || '';
   if (assignmentId) {
     const assignment = (DB.data.assignments || []).find((a) => a.id === assignmentId);
-    if (!assignment || assignment.lesson_id !== v.lesson) throw new Error('Bài tập nháp không còn khớp với bài học đã chọn. Hãy mở lại bài tập rồi thử lại.');
+    if (!assignment || assignment.lesson_id !== lessonId) throw new Error('Bài tập nháp không còn khớp với bài học đã chọn. Hãy mở lại bài tập rồi thử lại.');
     if (assignment.status !== 'DRAFT') throw new Error('Chỉ có thể thêm câu AI vào bài tập đang ở trạng thái nháp.');
   }
   const params = {
-    objectives: [...form.querySelectorAll('.db-ai-objs:not([hidden]) input[name="obj"]:checked')].map((x) => x.value),
+    objectives: objectiveIds,
     kind: v.kind || 'AUTO', difficulty: v.difficulty || 'AUTO', bloom: v.bloom || 'AUTO',
   };
   if (sourceText) params.source_document_text = sourceText;
   if (assignmentId) params.assignment_id = assignmentId;
   if (form.dataset.aiRequestId) await dbInvokeAiRequest(form.dataset.aiRequestId);
-  else await dbEnqueueAiRequest(v.lesson, qty, params, (id) => { form.dataset.aiRequestId = id; });
+  else await dbEnqueueAiRequest(lessonId, qty, params, (id) => { form.dataset.aiRequestId = id; });
   toast('Đã đưa yêu cầu vào xử lý nền. Bạn có thể tiếp tục làm việc; kết quả sẽ cập nhật trong lịch sử.');
 });
 
@@ -226,6 +253,19 @@ DB_ACT.aiRetry = (el) => dbRun(el, async () => {
   if (!data || data.accepted !== true) throw new Error('Máy chủ chưa xác nhận yêu cầu thử lại.');
   toast('Đã đưa các lô bị lỗi vào xử lý lại.');
 });
+
+DB_ACT.aiDeleteRequest = (el) => {
+  const request = DB.data.requests.find((r) => r.id === el.dataset.id);
+  if (!request) return;
+  if (request.status === 'PROCESSING') {
+    toast('Không thể xóa yêu cầu đang xử lý.');
+    return;
+  }
+  dbConfirm('Xóa yêu cầu AI?', 'Yêu cầu và các bản nháp trong lịch sử của yêu cầu này sẽ bị xóa. Câu hỏi đã duyệt trong ngân hàng vẫn được giữ.', 'Xóa yêu cầu', async () => {
+    await dbCall(EducMindDB.deleteAiRequest(request.id));
+    toast('Đã xóa yêu cầu AI khỏi lịch sử.');
+  }, true);
+};
 
 function dbAiStartPoll() {
   if (dbAiPollTimer && DB.timers.includes(dbAiPollTimer)) return;

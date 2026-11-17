@@ -3,11 +3,10 @@
 /* ===== Đợt 6: AI hỗ trợ giáo viên (US-T09, T10) và thông báo AI (US-G03 một phần) ===== */
 P.ai=P.recommend;
 TITLES.ai='AI tạo câu hỏi nháp';
-const AIQ=5,AIMAXQ=20,AIREQ=[],NOTIFS=[],aiSel=new Set();
+const AIMAXQ=20,AIREQ=[],NOTIFS=[],aiSel=new Set();
 let AIRID=0,AIOID=0,aiOpen=null;
 const RS={PENDING_REVIEW:'Chờ duyệt',APPROVED:'Đã duyệt',REJECTED:'Đã từ chối',EDITED_AND_APPROVED:'Đã sửa và duyệt'};
 const AIS={PROCESSING:['Đang xử lý','prog'],COMPLETED:['Hoàn tất','good'],FAILED:['Thất bại','need']};
-const aiUsed=()=>AIREQ.filter(r=>r.dayKey===fdate(simNow())&&r.teacher===(sess&&sess.email)).length;
 const findOut=id=>AIREQ.flatMap(r=>r.outs).find(o=>o.id===id);
 const unread=()=>NOTIFS.filter(n=>!n.read).length;
 /* --- Bộ sinh câu hỏi mô phỏng và kiểm tra đầu ra --- */
@@ -60,7 +59,7 @@ function newAIReq(){
   const c=selected();
   if(!c.lessonsData.length){toast('Lớp chưa có bài học để tạo câu hỏi.');return}
   const firstL=c.lessonsData[0];
-  openDlg({title:'Tạo câu hỏi bằng AI',okLabel:'Gửi yêu cầu',text:'AI chỉ nhận: tên lớp, tiêu đề chủ đề, tiêu đề, mô tả và mục tiêu của bài học được chọn. Bản nháp chưa vào ngân hàng câu hỏi và không ảnh hưởng điểm hay mức nắm vững. Còn '+Math.max(0,AIQ-aiUsed())+'/'+AIQ+' lượt hôm nay.',fields:[
+  openDlg({title:'Tạo câu hỏi bằng AI',okLabel:'Gửi yêu cầu',text:'AI chỉ nhận: tên lớp, tiêu đề chủ đề, tiêu đề, mô tả và mục tiêu của bài học được chọn. Bản nháp chưa vào ngân hàng câu hỏi và không ảnh hưởng điểm hay mức nắm vững.',fields:[
     {k:'l',label:'Bài học',val:firstL.name,sel:c.lessonsData.map(l=>l.name),onchange:'updateAIObjSel(this.value)'},
     {k:'g',label:'Mục tiêu cần tạo câu hỏi',chk:firstL.objs.map(o=>o.code),val:firstL.objs.map(o=>o.code)},
     {k:'n',label:'Số lượng (tối đa '+AIMAXQ+')',val:'5'},
@@ -71,13 +70,12 @@ function newAIReq(){
     const L=c.lessonsData.find(l=>l.name===v.l),qty=parseInt(v.n,10);
     if(!L)return 'Hãy chọn một bài học.';
     if(!(qty>=1&&qty<=AIMAXQ))return 'Số lượng phải từ 1 đến '+AIMAXQ+'.';
-    if(aiUsed()>=AIQ)return 'Đã hết lượt yêu cầu AI trong ngày (tối đa '+AIQ+' lượt, tính theo giờ Việt Nam). Thử lại vào ngày hôm sau.';
     const cm={};L.objs.forEach(o=>{cm[o.code.toUpperCase()]=o.idx});
     let objs=[];const codes=(v.g||[]).map(x=>String(x).trim().toUpperCase()).filter(Boolean);
     if(!codes.length)objs=L.objs.map(o=>o.idx);
     else for(const t of codes){if(!(t in cm))return 'Mục tiêu '+esc(t)+' không thuộc bài học đã chọn. Mã hợp lệ: '+L.objs.map(o=>o.code).join(', ')+'.';if(!objs.includes(cm[t]))objs.push(cm[t])}
     if(!objs.length)return 'Bài học chưa có mục tiêu học tập.';
-    const r={id:++AIRID,c,lesson:L,qty,objs,type:v.t==='Tự động'?'AUTO':QTK[QTV.indexOf(v.t)],diff:v.d==='Tự động'?'AUTO':DFK[DFV.indexOf(v.d)],bloom:v.b==='Tự động'?'AUTO':v.b,mode:'OK',status:'PROCESSING',outs:[],dayKey:fdate(simNow()),at:stamp(),teacher:sess.email};
+    const r={id:++AIRID,c,lesson:L,qty,objs,type:v.t==='Tự động'?'AUTO':QTK[QTV.indexOf(v.t)],diff:v.d==='Tự động'?'AUTO':DFK[DFV.indexOf(v.d)],bloom:v.b==='Tự động'?'AUTO':v.b,mode:'OK',status:'PROCESSING',outs:[],at:stamp(),teacher:sess.email};
     if(aiForAsg){r.forAsg=aiForAsg;aiForAsg=null}AIREQ.push(r);aiOpen=r.id;setTimeout(()=>finishAI(r),2200);
     toast('Đã ghi nhận yêu cầu, AI đang xử lý. Bạn có thể làm việc khác.');return null}});
 }
@@ -136,6 +134,6 @@ function aiInline(c,ctx){
   const proc=R.filter(r=>r.status==='PROCESSING').length;
   const pend=R.reduce((n,r)=>n+r.outs.filter(o=>o.rs==='PENDING_REVIEW').length,0);
   if(ctx==='asg'&&!R.length)return '';
-  return `<section class='aicard' aria-labelledby='h-aip'><div class='row between' style='flex-wrap:wrap;gap:8px'><span class='row' style='gap:8px'><span style='color:var(--brand)'>${ic('recommend',17)}</span><b id='h-aip'>AI soạn câu hỏi nháp</b><span class='muted' style='font-size:.8125rem'>· hôm nay ${aiUsed()}/${AIQ} lượt${pend?' · '+pend+' bản nháp chờ duyệt':''}</span></span><span class='row'>${proc?`<span class='pill prog'><span class='spin'></span>Đang tạo</span>`:''}<button class='btn light mini' onclick='${ctx==='asg'?'asgAI()':'bankAI()'}'>${ic('plus',14)}Tạo bằng AI</button></span></div>
+  return `<section class='aicard' aria-labelledby='h-aip'><div class='row between' style='flex-wrap:wrap;gap:8px'><span class='row' style='gap:8px'><span style='color:var(--brand)'>${ic('recommend',17)}</span><b id='h-aip'>AI soạn câu hỏi nháp</b>${pend?' · '+pend+' bản nháp chờ duyệt':''}</span><span class='row'>${proc?`<span class='pill prog'><span class='spin'></span>Đang tạo</span>`:''}<button class='btn light mini' onclick='${ctx==='asg'?'asgAI()':'bankAI()'}'>${ic('plus',14)}Tạo bằng AI</button></span></div>
 ${R.length?R.map(r=>aiReqCard(c,r,ctx)).join(''):`<div class='muted' style='font-size:.8125rem;margin-top:8px'>Chưa có yêu cầu AI nào cho ngân hàng của khối này. Bấm “Tạo bằng AI” để soạn nháp câu hỏi theo bài học và mục tiêu.</div>`}</section>`;
 }

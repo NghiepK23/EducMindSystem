@@ -288,6 +288,12 @@
 
 /* ===== AI tạo câu hỏi nháp (14-ai) ===== */
 .db-ai-form .db-ai-objs{display:grid;gap:4px;margin:6px 0 10px;padding:10px;border:1px solid var(--line,#d8dde5);border-radius:10px}
+.db-ai-form .db-ai-objs[hidden]{display:none}
+.db-ai-obj-lesson{display:block;margin-bottom:3px}
+.db-ai-history-summary{display:flex;align-items:center;gap:8px;list-style:none;cursor:pointer}
+.db-ai-history-summary::-webkit-details-marker{display:none}
+.db-ai-history-summary>span:first-child{font-size:1.125rem;font-weight:700}
+.db-ai-history[open]>.db-ai-history-summary{margin-bottom:12px}
 .db-ai-row{display:grid;gap:14px;padding:16px;border:1px solid var(--line,#d8dde5);border-radius:14px;margin:10px 0;background:var(--surface,transparent)}
 .db-ai-row-body{display:grid;grid-template-columns:34px minmax(0,1fr);align-items:start;gap:12px}
 .db-ai-number{display:grid;place-items:center;width:34px;height:34px;border-radius:10px;background:var(--brand-soft);color:var(--brand-ink,var(--brand));font-size:.75rem;font-weight:700;font-variant-numeric:tabular-nums}
