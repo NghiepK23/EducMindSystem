@@ -12,6 +12,8 @@ const DIFFICULTIES = ["EASY", "MEDIUM", "HARD"] as const;
 const BLOOM_LEVELS = ["REMEMBER", "UNDERSTAND", "APPLY", "ANALYZE", "EVALUATE", "CREATE"] as const;
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const GENERATION_TIMEOUT_MS = 120_000;
+const GEMINI_MAX_ATTEMPTS = 3;
+const GEMINI_RETRYABLE_STATUSES = new Set([429, 500, 502, 503, 504]);
 
 type QuestionKind = (typeof QUESTION_KINDS)[number];
 type Difficulty = (typeof DIFFICULTIES)[number];
@@ -105,12 +107,8 @@ function parseGeneratedQuestions(
     if (!isOneOf(kind, QUESTION_KINDS) || (requestedKind !== "AUTO" && kind !== requestedKind)) {
       throw new Error(`Dạng câu hỏi ${index + 1} không khớp yêu cầu.`);
     }
-    if (!isOneOf(difficulty, DIFFICULTIES) || (requestedDifficulty !== "AUTO" && difficulty !== requestedDifficulty)) {
-      throw new Error(`Độ khó câu hỏi ${index + 1} không khớp yêu cầu.`);
-    }
-    if (!isOneOf(bloomLevel, BLOOM_LEVELS) || (requestedBloom !== "AUTO" && bloomLevel !== requestedBloom)) {
-      throw new Error(`Cấp độ Bloom câu hỏi ${index + 1} không khớp yêu cầu.`);
-    }
+    if (!isOneOf(difficulty, DIFFICULTIES)) throw new Error(`Độ khó câu hỏi ${index + 1} không hợp lệ.`);
+    if (!isOneOf(bloomLevel, BLOOM_LEVELS)) throw new Error(`Cấp độ Bloom câu hỏi ${index + 1} không hợp lệ.`);
     if (typeof content !== "string" || !content.trim() || content.length > 5000) {
       throw new Error(`Nội dung câu hỏi ${index + 1} không hợp lệ.`);
     }
@@ -155,8 +153,8 @@ function parseGeneratedQuestions(
       options: normalizedOptions,
       correct_indices: correctIndices,
       model_answer: modelAnswer.trim(),
-      difficulty,
-      bloom_level: bloomLevel,
+      difficulty: requestedDifficulty === "AUTO" ? difficulty : requestedDifficulty,
+      bloom_level: requestedBloom === "AUTO" ? bloomLevel : requestedBloom,
     };
   });
 }
@@ -165,6 +163,18 @@ function failureMessage(error: unknown, apiKey?: string): string {
   let message = error instanceof Error ? error.message : "Không thể tạo câu hỏi AI.";
   if (apiKey) message = message.split(apiKey).join("[đã ẩn API key]");
   return message.slice(0, 1000);
+}
+
+async function fetchGeminiWithRetry(url: string, init: RequestInit): Promise<Response> {
+  for (let attempt = 0; attempt < GEMINI_MAX_ATTEMPTS; attempt += 1) {
+    const response = await fetch(url, init);
+    if (!GEMINI_RETRYABLE_STATUSES.has(response.status) || attempt + 1 === GEMINI_MAX_ATTEMPTS) {
+      return response;
+    }
+    const delayMs = 1_000 * (2 ** attempt) + Math.floor(Math.random() * 250);
+    await new Promise((resolve) => setTimeout(resolve, delayMs));
+  }
+  throw new Error("Không thể hoàn tất yêu cầu Gemini.");
 }
 
 async function dispatchJob(
@@ -203,7 +213,11 @@ async function dispatchNextJob(
     console.error("Could not claim next AI generation job:", error.message);
     return;
   }
-  if (!nextJob) return;
+  if (!nextJob?.id) return;
+  if (typeof nextJob.id !== "string" || !UUID_PATTERN.test(nextJob.id)) {
+    console.error("Could not dispatch next AI generation job: claim returned an invalid job ID.");
+    return;
+  }
   try {
     await dispatchJob(supabaseUrl, publicKey, authorization, workerToken, nextJob.id);
   } catch (error) {
@@ -324,7 +338,7 @@ async function loadAndGenerate(
   const model = Deno.env.get("GEMINI_MODEL")?.trim() || "gemini-3.8-flash";
   if (!/^[a-zA-Z0-9._-]+$/.test(model)) throw new Error("Cấu hình GEMINI_MODEL không hợp lệ.");
 
-  const response = await fetch(
+  const response = await fetchGeminiWithRetry(
     `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`,
     {
       method: "POST",
@@ -349,6 +363,9 @@ async function loadAndGenerate(
   }
   if (!response.ok) {
     const message = isRecord(payload) && isRecord(payload.error) ? payload.error.message : null;
+    if (response.status === 429 || response.status === 503) {
+      throw new Error("Gemini đang quá tải hoặc tạm thời hết hạn mức. Đã tự thử lại 3 lần nhưng chưa thành công; hãy đợi vài phút rồi chọn “Thử lại phần lỗi”.");
+    }
     throw new Error(typeof message === "string" ? `Gemini: ${message}` : `Gemini gặp lỗi (HTTP ${response.status}).`);
   }
 

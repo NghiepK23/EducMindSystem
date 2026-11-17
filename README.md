@@ -142,7 +142,8 @@ Nếu lộ App Password, hãy thu hồi ngay trong Google Account rồi tạo m�
 Gemini được gọi từ Supabase Edge Function. Mỗi giáo viên nhập API key của riêng mình trong
 **Tài khoản → Quản lý API key Gemini**; key được mã hóa ở máy chủ và không được trả lại trình duyệt.
 Ứng dụng không lưu một API key Gemini dùng chung. Các yêu cầu chạy nền theo từng lô tối đa 5 câu,
-tiến độ được ghi vào Supabase và phần bị lỗi có thể thử lại. Ứng dụng không đặt hạn mức lượt/ngày;
+tiến độ được ghi vào Supabase; các lỗi tạm thời từ Gemini được tự thử lại tối đa 3 lần và phần vẫn
+bị lỗi có thể thử lại thủ công. Ứng dụng không đặt hạn mức lượt/ngày;
 Google vẫn áp dụng hạn mức theo dự án gắn với API key (nhiều key cùng một dự án vẫn dùng chung quota).
 
 Để triển khai backend lần đầu:
