@@ -27,9 +27,24 @@ Mở `http://localhost:5500/` trong trình duyệt.
 > Muốn thay cổng hoặc đưa website lên Internet (GitHub Pages, Vercel, Netlify…),
 > cần cập nhật cấu hình Auth của Supabase theo URL mới trước.
 
+## Chạy unit test
+
+Unit test dùng JavaScript có sẵn trong trình duyệt, không cần cài thư viện hay kết nối Supabase.
+Test script kiểm tra các hàm trong `js/00-grade-config.js` (dải khối lớp, tùy chọn khối được chọn
+và kiểm tra giá trị hợp lệ).
+
+1. Tại thư mục gốc của repository, khởi động máy chủ tệp:
+
+   ```bash
+   python3 -m http.server 5500
+   ```
+
+2. Mở `http://localhost:5500/tests/grade-config.test.html` trong trình duyệt.
+3. Xem số kiểm thử đạt/lỗi và kết quả chi tiết trên trang. Không cần đăng nhập hoặc thiết lập backend.
+
 ## Tài khoản và phân quyền
 
-Hệ thống chỉ dùng **tài khoản thật** đăng ký bằng email (chế độ demo đã được gỡ bỏ):
+Hệ thống chỉ dùng **tài khoản thật** đăng ký bằng email:
 
 1. Bấm **Tạo tài khoản**, chọn vai trò **Giáo viên (TEACHER)** hoặc **Học sinh (STUDENT)**
    (vai trò không đổi được sau khi tạo).
@@ -52,8 +67,7 @@ js/
   00-grade-config.js      Dải khối lớp dùng chung cho các biểu mẫu và kiểm tra dữ liệu
   01-sample-data.js … 77-liquid-glass.js
                            Mã giao diện dùng chung (đăng nhập, chủ đề, biểu tượng,
-                           nhập/xuất Excel–Word, hộp thoại…); phần giao diện demo cũ
-                           không còn được sử dụng (chế độ demo đã gỡ bỏ)
+                           nhập/xuất Excel–Word, hộp thoại…); 
   db/                      Màn hình dữ liệu thật (đăng nhập Supabase), nạp SAU js/75 và TRƯỚC js/76-main.js
     01-core.js             Vào app, đăng xuất, phiên, đồng bộ chuông báo
     02-shell.js            Vỏ ứng dụng: điều hướng theo vai trò, chuông thông báo
