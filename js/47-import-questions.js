@@ -4,7 +4,7 @@ function parseQuestions(c,rows,reuse){
   const hi=rows.findIndex(r=>r.some(x=>nz(x)==='cau hoi'));
   if(hi<0)throw new Error('Không thấy dòng tiêu đề có cột “Câu hỏi”. Hãy dùng đúng tệp mẫu.');
   const H=rows[hi].map(nz),col=k=>H.findIndex(h=>h===k||h.startsWith(k));
-  const ci=col('cau hoi'),oi=['a','b','c','d'].map(l=>col('dap an '+l)),ai=col('dap an dung'),gi=col('muc tieu'),di=col('do kho'),bi=H.findIndex(h=>h.includes('bloom'));
+  const ci=col('cau hoi'),li=col('bai hoc'),oi=['a','b','c','d'].map(l=>col('dap an '+l)),ai=col('dap an dung'),gi=col('muc tieu'),di=col('do kho'),bi=H.findIndex(h=>h.includes('bloom'));
   if(ci<0||oi.some(i=>i<0)||ai<0)throw new Error('Thiếu cột bắt buộc: Câu hỏi, Đáp án A–D hoặc Đáp án đúng.');
   const cmAll={};c.lessonsData.forEach(l=>(l.objs||[]).forEach(o=>{const k=String(o.code||'').toUpperCase();(cmAll[k]=cmAll[k]||[]).push(o.idx)}));
   const cm=codeMap(c),DK={'de':'EASY','trung binh':'MEDIUM','kho':'HARD'},seen=new Set(c.bank.filter(q=>!q.del).map(q=>nz(q.content))),items=[],err=[],warn=[],bm=new Map(c.bank.filter(q=>!q.del).map(q=>[nz(q.content),q])),ff=new Set(),wi=H.findIndex(h=>h==='diem'||h.indexOf('diem ')===0);
@@ -26,8 +26,25 @@ function parseQuestions(c,rows,reuse){
       if(ix.some(i=>i>=given.length)){err.push(L+'đáp án đúng nằm ngoài các phương án đã nhập.');return}
       type=ix.length>1?'MULTIPLE_CHOICE':'SINGLE_CHOICE';ans=ix.length>1?ix:ix[0];op=opts.slice(0,given.length);
     }
-    const objs=[],qw=[];
-    cell(gi).split(/[,;]+/).map(x=>x.trim().toUpperCase()).filter(Boolean).forEach(t=>{const hits=cmAll[t]||[];if(!hits.length)qw.push('mục tiêu '+t+' không có trong lớp này nên được bỏ qua');else if(hits.length>1)qw.push('mã '+t+' có ở nhiều bài học nên không gắn được mục tiêu; hãy đổi mã cho duy nhất trong bài');else if(objs.includes(hits[0]))qw.push('mục tiêu '+t+' bị lặp, chỉ gắn một lần');else objs.push(hits[0])});
+    const objs=[],qw=[],lessonNames=cell(li).split(/[;|]/).map(x=>x.trim()).filter(Boolean);
+    let lessonObjectives=null;
+    if(lessonNames.length){
+      const selected=[];
+      let invalid=false;
+      lessonNames.forEach(name=>{
+        const matches=c.lessonsData.filter(l=>nz(l.name)===nz(name));
+        if(matches.length!==1){qw.push(matches.length?'tên bài học '+name+' bị trùng nên không thể phân giải mục tiêu':'không tìm thấy bài học '+name+' trong lớp này');invalid=true}
+        else selected.push(...matches[0].objs);
+      });
+      lessonObjectives=invalid?[]:selected;
+    }
+    cell(gi).split(/[,;]+/).map(x=>x.trim().toUpperCase()).filter(Boolean).forEach(t=>{
+      const hits=lessonObjectives===null?(cmAll[t]||[]):[...new Set(lessonObjectives.filter(o=>String(o.code||'').toUpperCase()===t).map(o=>o.idx))];
+      if(!hits.length)qw.push('mục tiêu '+t+(lessonObjectives===null?' không có trong lớp này':' không thuộc bài học đã nhập')+' nên được bỏ qua');
+      else if(hits.length>1)qw.push('mã '+t+' có ở nhiều bài học nên không gắn được mục tiêu; hãy nhập đúng tên bài học');
+      else if(objs.includes(hits[0]))qw.push('mục tiêu '+t+' bị lặp, chỉ gắn một lần');
+      else objs.push(hits[0]);
+    });
     if(qw.length)warn.push(L+qw.join('; ')+'.');
     const dk=cell(di)?DK[nz(cell(di))]:'MEDIUM';if(!dk){err.push(L+'độ khó phải là Dễ, Trung bình hoặc Khó.');return}
     const bl=cell(bi)?BL.find(b=>nz(b)===nz(cell(bi))):'Vận dụng';if(!bl){err.push(L+'mức Bloom phải là '+BL.join(', ')+'.');return}

@@ -320,6 +320,9 @@ DB_ACT.importAssessmentQuestions = (form) => dbRun(form, async (v) => {
       ${result.parsed.length > 8 ? `<p class="muted">Còn ${result.parsed.length - 8} câu khác trong tệp.</p>` : ''}
       ${result.skipped.length ? `<p class="muted db-hint">${result.skipped.slice(0, 5).map(h).join('<br>')}${result.skipped.length > 5 ? '<br>…' : ''}</p>` : ''}
       ${result.unknownCodes.length ? `<p class="muted db-hint">Không tìm thấy mã mục tiêu: ${result.unknownCodes.map(h).join(', ')}.</p>` : ''}
+      ${result.ambiguousCodes.length ? `<p class="muted db-hint">Mã mục tiêu trùng giữa nhiều bài học; hãy nhập đúng tên bài học ở cột Bài học: ${result.ambiguousCodes.map(h).join(', ')}.</p>` : ''}
+      ${result.unknownLessons.length ? `<p class="muted db-hint">Không tìm thấy bài học trong lớp hiện tại: ${result.unknownLessons.map(h).join(', ')}.</p>` : ''}
+      ${result.ambiguousLessons.length ? `<p class="muted db-hint">Tên bài học trùng nên chưa thể phân giải: ${result.ambiguousLessons.map(h).join(', ')}.</p>` : ''}
       <p class="muted">Câu mới sẽ vào ngân hàng và được thêm vào đề với trọng số ${dbNum(weight)} điểm mỗi câu. Bạn có thể đổi điểm từng câu sau khi nhập.</p>`,
     okLabel: `Nhập và thêm ${result.parsed.length} câu`,
     onOk: async () => {

@@ -367,7 +367,9 @@ DB_ACT.assignmentImportPreview = async (el) => {
   const sample = result.parsed.slice(0, 3).map((x, i) => `${i + 1}. ${x.row.content}`).join(' · ');
   const objectiveWarnings = [
     result.unknownCodes.length ? `Không nhận diện mã mục tiêu: ${result.unknownCodes.join(', ')}.` : '',
-    result.ambiguousCodes.length ? `Mã mục tiêu trùng giữa nhiều bài học, hãy chọn đúng bài học để phân giải: ${result.ambiguousCodes.join(', ')}.` : '',
+    result.ambiguousCodes.length ? `Mã mục tiêu trùng giữa nhiều bài học, hãy điền đúng tên bài học trong tệp để phân giải: ${result.ambiguousCodes.join(', ')}.` : '',
+    result.unknownLessons.length ? `Không nhận diện bài học: ${result.unknownLessons.join(', ')}.` : '',
+    result.ambiguousLessons.length ? `Tên bài học trùng, không thể phân giải: ${result.ambiguousLessons.join(', ')}.` : '',
   ].filter(Boolean).join(' ');
   preview.textContent = `Đọc được ${result.parsed.length} câu${result.skipped.length ? `; bỏ qua ${result.skipped.length} dòng lỗi` : ''}.${sample ? ` Ví dụ: ${sample}` : ''}${objectiveWarnings ? ' ' + objectiveWarnings : ''}`;
   form.dataset.importFileName = file.name;
