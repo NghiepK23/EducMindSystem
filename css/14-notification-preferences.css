@@ -1,0 +1,13 @@
+/* EducMind · US-57 */
+.db-pref-page { display:grid;gap:14px;max-width:960px; }
+.db-pref-explain { line-height:1.6; margin:0 0 2px; }
+.db-pref-group { padding:18px 22px; }
+.db-pref-group h2 { font-size:1.12rem; margin:0 0 12px; }
+.db-pref-item { display:flex;align-items:center;justify-content:space-between;gap:20px;
+  padding:12px 0;cursor:pointer;border-top:1px solid var(--line); }
+.db-pref-info { display:flex;flex-direction:column;gap:4px;min-width:0; }
+.db-pref-info strong { font-size:.96rem; }
+.db-pref-info small { font-size:.85rem;color:var(--muted);line-height:1.45; }
+.db-pref-item input[type="checkbox"] { width:20px;height:20px;flex-shrink:0;accent-color:var(--brand, #2563eb);cursor:pointer; }
+.db-pref-item input[type="checkbox"]:focus-visible { outline:2px solid currentColor;outline-offset:3px; }
+@media (max-width:600px) { .db-pref-group{padding:14px;} .db-pref-item{gap:12px;} }
