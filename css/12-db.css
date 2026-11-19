@@ -150,6 +150,29 @@
 .db-objgrp-body{display:grid;gap:6px;padding:2px 10px 10px}
 
 /* ----- Bài tập, bài kiểm tra ----- */
+.work-card .work-detail{display:block;flex:1}
+.db-task>.row.between>div:first-child{flex:1;min-width:0}
+.db-work-meta{display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:8px;margin-top:12px}
+.db-work-meta>span{display:grid;align-content:start;gap:4px;min-width:0;padding:9px 11px;border:1px solid var(--line);border-radius:11px;background:var(--fill)}
+.db-work-meta small{color:var(--muted);font-size:.68rem;font-weight:700;letter-spacing:.045em;text-transform:uppercase}
+.db-work-meta b{color:var(--ink);font-size:.8rem;line-height:1.4;overflow-wrap:anywhere}
+.db-work-publish{min-height:42px;padding:10px 18px;border:1px solid color-mix(in srgb,var(--brand) 68%,var(--line));border-radius:12px;background:var(--brand);color:#fff;font-weight:750;box-shadow:0 5px 14px color-mix(in srgb,var(--brand) 24%,transparent)}
+.db-work-publish:hover{background:color-mix(in srgb,var(--brand) 86%,#000);box-shadow:0 7px 18px color-mix(in srgb,var(--brand) 32%,transparent);transform:translateY(-1px)}
+.db-work-publish:focus-visible{outline:3px solid color-mix(in srgb,var(--brand) 42%,transparent);outline-offset:3px}
+.db-key-facts{grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:10px;margin:12px 0 4px}
+.db-key-facts>div{display:flex;flex-direction:column;justify-content:center;min-height:82px;padding:13px 15px;border:1px solid var(--line);border-radius:14px;background:var(--fill);box-shadow:inset 3px 0 0 color-mix(in srgb,var(--brand) 35%,transparent)}
+.db-key-facts>div>span{color:var(--muted);font-size:.7rem;letter-spacing:.045em}
+.db-key-facts>div>b{margin-top:5px;font-size:.95rem;line-height:1.4}
+.db-key-facts>.db-fact-score{border-color:color-mix(in srgb,var(--brand) 34%,var(--line));background:var(--brand-soft);box-shadow:inset 3px 0 0 var(--brand)}
+.db-key-facts>.db-fact-score>b{color:var(--brand-ink,var(--brand));font-size:1.1rem}
+.db-key-facts>.db-fact-time{box-shadow:inset 3px 0 0 var(--need-bar)}
+.db-key-facts>.db-fact-lesson{box-shadow:inset 3px 0 0 var(--good-bar)}
+.db-assessment-detail .db-key-facts,.db-student-assessment-facts{grid-template-columns:repeat(3,minmax(0,1fr))}
+.db-assessment-pending-note{margin:8px 0 0;padding:8px 10px;border-radius:10px;background:var(--need-soft);color:var(--need);font-size:.8rem;font-weight:650}
+.db-assignment-detail>.row,.db-assessment-detail>.row{align-items:center}
+.db-assignment-detail>.row .row,.db-assessment-detail>.row .row{flex-wrap:wrap}
+.db-assignment-detail>.row .row .btn,.db-assessment-detail>.row .row .btn{min-height:40px}
+.db-assessment-detail>.row .row .db-work-publish{min-height:44px}
 .db-task{padding:14px 0;box-shadow:0 -.5px 0 var(--line)}
 .db-task:first-of-type{box-shadow:none}
 .db-task-title{font-size:1rem}
@@ -391,6 +414,19 @@
 .db-bankfold>.ab-tools{grid-template-columns:repeat(3,minmax(0,1fr))}
 @media(max-width:1000px){.db-bankfold>.ab-tools{grid-template-columns:repeat(2,minmax(0,1fr))}.db-bankfold>.ab-tools .selectbox:last-child{grid-column:span 2}}
 @media(max-width:620px){.db-bankfold>.ab-tools{grid-template-columns:minmax(0,1fr)}.db-bankfold>.ab-tools .selectbox:last-child{grid-column:span 1}}
+@media(max-width:620px){
+  .db-work-meta{grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}
+  .db-work-meta>span{padding:8px}
+  .db-key-facts{grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}
+  .db-key-facts>div{min-height:74px;padding:10px}
+  .db-key-facts>div>b{font-size:.85rem}
+  .db-assignment-detail>.row,.db-assessment-detail>.row{align-items:stretch}
+  .db-assignment-detail>.row .row,.db-assessment-detail>.row .row{width:100%}
+  .db-assignment-detail>.row .row .btn,.db-assessment-detail>.row .row .btn{flex:1}
+}
+@media(min-width:621px) and (max-width:900px){
+  .db-assessment-detail .db-key-facts,.db-student-assessment-facts{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
 
 /* Rõ ràng hóa các nguồn tạo câu hỏi trong chế độ dữ liệu thật */
 .db-create-source{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:14px 0 18px}
@@ -419,6 +455,75 @@
 .db-import-source .db-form-error{margin-top:8px}
 @media(max-width:900px){.db-create-source{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:620px){.db-create-source{grid-template-columns:minmax(0,1fr)}.db-create-source-card p{min-height:0}}
+
+/* Quy trình tạo bài kiểm tra */
+.db-assessment-settings-grid{grid-template-columns:repeat(3,minmax(0,1fr));align-items:start;gap:0 16px}
+.db-assessment-settings-grid.db-assessment-time-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+.db-assessment-settings-form .field{min-width:0}
+.db-assessment-settings-form .field input,.db-assessment-settings-form .field select{box-sizing:border-box;width:100%;height:48px}
+.db-assessment-steps{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:0 0 20px;padding:0;list-style:none}
+.db-assessment-steps li{display:flex;align-items:center;min-width:0;min-height:56px;padding:0;overflow:hidden;border:1px solid var(--line);border-radius:12px;background:var(--fill);color:var(--muted);font-size:.8125rem;font-weight:600}
+.db-assessment-steps li>span,.db-assessment-steps li>.btn{display:flex;align-items:center;box-sizing:border-box;width:100%;min-height:56px;padding:9px 14px}
+.db-assessment-steps li>span{gap:8px}
+.db-assessment-steps li b{display:grid;place-items:center;flex:none;width:24px;height:24px;border-radius:50%;background:var(--surface);color:var(--muted);font-size:.75rem}
+.db-assessment-steps li.is-current{border-color:var(--brand);background:var(--brand-soft);color:var(--ink)}
+.db-assessment-steps li.is-current b,.db-assessment-steps li.is-complete b{background:var(--brand);color:#fff}
+.db-assessment-steps li.is-complete{border-color:color-mix(in srgb,var(--brand) 35%,var(--line));color:var(--ink)}
+.db-assessment-steps li>.btn{justify-content:flex-start;min-width:0;height:100%;margin:0;border:0;border-radius:inherit;background:transparent;color:inherit;box-shadow:none;font:inherit;letter-spacing:inherit;text-align:left;text-decoration:none;white-space:normal}
+.db-assessment-steps li>.btn>span{display:flex;align-items:center;gap:8px}
+.db-assessment-steps li>.btn:hover{background:var(--fill-2);color:var(--ink);box-shadow:none}
+.db-assessment-steps li.is-complete>.btn:hover{background:var(--brand-soft)}
+.db-assessment-steps li>.btn:active{transform:none}
+.db-assessment-steps li>.btn:focus-visible{outline:3px solid var(--brand);outline-offset:-3px}
+.db-assessment-source-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin:16px 0}
+.db-assessment-source{display:grid;align-content:start;gap:6px;min-width:0;min-height:106px;padding:13px;border:1px solid var(--line);border-radius:15px;background:var(--surface);color:var(--ink);text-align:left;cursor:pointer;transition:border-color .18s ease,background .18s ease,transform .18s ease}
+.db-assessment-source:hover{border-color:var(--brand);transform:translateY(-1px)}
+.db-assessment-source.is-active{border-color:var(--brand);background:var(--brand-soft);box-shadow:0 0 0 1px var(--brand)}
+.db-assessment-source b{font-size:.875rem}
+.db-assessment-source span{color:var(--muted);font-size:.75rem;line-height:1.45}
+.db-assessment-source-panel{margin:12px 0;padding:14px;border:1px solid var(--line);border-radius:14px;background:var(--fill)}
+.db-assessment-source-panel[hidden],[data-assessment-source-panel][hidden]{display:none!important}
+.db-assessment-source-panel h3,.db-assessment-question-list h3{margin:0 0 6px;font-size:.95rem}
+.db-assessment-source-panel .db-source-actions{flex-wrap:wrap;gap:8px;margin:10px 0}
+.db-assessment-bank-tools{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));align-items:start;gap:8px 12px;margin:12px 0}
+.db-assessment-bank-tools .field{min-width:0;margin:0}
+.db-assessment-bank-tools .field input,.db-assessment-bank-tools .field select{box-sizing:border-box;width:100%;height:44px}
+.db-assessment-bank-tools label{font-size:.75rem;color:var(--muted);font-weight:600}
+.db-assessment-bank [data-assessment-bank-item][hidden]{display:none!important}
+.db-assessment-question-list{margin-top:22px;padding-top:16px;border-top:1px solid var(--line)}
+.db-assessment-question-list .tablewrap{margin-top:10px}
+.db-assessment-preview-question{margin-top:12px;padding:16px;border:1px solid var(--line);border-radius:15px;background:var(--surface)}
+.db-assessment-preview-question h3{margin:0;font-size:.9rem}
+.db-assessment-preview-question details{margin-top:10px;padding-top:8px;border-top:1px solid var(--line)}
+.db-assessment-preview-question details summary{cursor:pointer;font-size:.8rem;font-weight:650}
+.db-assessment-issues{margin:12px 0;background:var(--err-bg);color:var(--err-ink)}
+.db-assessment-issues ul{margin:6px 0 0;padding-left:20px}
+.db-assessment-ready{display:flex;align-items:center;gap:7px;color:var(--brand-ink,var(--brand));font-weight:650}
+.db-import-question-preview{max-height:300px;overflow:auto;padding-left:24px}
+.db-import-question-preview li{margin:8px 0}
+.db-import-question-preview li span{display:block;color:var(--muted);font-size:.75rem}
+.db-ai-return{display:flex;align-items:center;justify-content:space-between;gap:16px;border-color:color-mix(in srgb,var(--brand) 35%,var(--line));background:var(--brand-soft)}
+.db-ai-return p{margin:4px 0 0}
+@media(max-width:900px){
+  .db-assessment-source-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .db-assessment-bank-tools{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .db-assessment-bank-tools .field:first-child{grid-column:1/-1}
+  .db-assessment-settings-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media(max-width:620px){
+  .db-assessment-steps{gap:5px}
+  .db-assessment-steps li{justify-content:center;font-size:.7rem}
+  .db-assessment-steps li>span,.db-assessment-steps li>.btn{padding:8px 4px}
+  .db-assessment-steps li>span{gap:4px}
+  .db-assessment-steps li b{width:20px;height:20px}
+  .db-assessment-steps li>.btn>span{gap:4px}
+  .db-assessment-source-grid{grid-template-columns:1fr 1fr}
+  .db-assessment-source{min-height:96px;padding:10px}
+  .db-assessment-bank-tools{grid-template-columns:minmax(0,1fr)}
+  .db-assessment-bank-tools .field:first-child{grid-column:auto}
+  .db-assessment-settings-grid,.db-assessment-settings-grid.db-assessment-time-grid{grid-template-columns:minmax(0,1fr)}
+  .db-ai-return{align-items:flex-start;flex-direction:column}
+}
 
 /* Bài tập theo nhịp trò chơi */
 .db-assignment-game-picker{display:block;margin:18px 0}

@@ -22,7 +22,7 @@ const NAV=[
  ['Quản lý',[['classes','Lớp học phụ trách'],['students','Học sinh'],['questions','Ngân hàng câu hỏi'],['history','Lịch sử chỉnh sửa'],['data','Nhập / xuất dữ liệu']]]
 ];
 /* Các trang độc lập (không nằm trong thư mục Chủ đề > Bài học) */
-const navIcon={assignments:'navAsg',grading:'navGrade',history:'calendar',report:'trend',data:'overview'};
+const navIcon={assignments:'navAsg',grading:'navGrade',history:'history',report:'trend',data:'overview',questions:'questionBank',assessments:'exam'};
 const STANDALONE_PAGES=['dashboard','calendar','history','report','data','classes','students','questions','assignments','grading','mastery','gaps','recommend'];
 const TITLES={dashboard:'Tổng quan',calendar:'Lịch & việc cần làm',history:'Lịch sử chỉnh sửa',report:'Báo cáo tiến bộ',data:'Nhập / xuất dữ liệu',overview:'Thư mục học tập',classes:'Lớp học phụ trách',students:'Học sinh',questions:'Ngân hàng câu hỏi',lessons:'Bài học và mục tiêu',assignments:'Bài tập & kiểm tra',grading:'Chấm điểm & Kết quả',assessments:'Bài tập',mastery:'Mức độ nắm vững',gaps:'Lỗ hổng kiến thức',report:'Báo cáo tiến bộ',recommend:'Gợi ý học tập'};
 const title=()=>{if(role==='S'&&page==='lessons'&&typeof stuLessonView!=='undefined'&&stuLessonView){const c=classes.find(x=>x.id===stuLessonView.cid),l=c&&c.lessonsData[stuLessonView.li];if(l)return l.name}return role==='T'&&!STANDALONE_PAGES.includes(page)?folderTitle():((role==='S'&&STT[page])||TITLES[page])};

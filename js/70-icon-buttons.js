@@ -2,10 +2,10 @@
    Tự gắn biểu tượng cho các nút theo nhãn (iconifyButtons). */
 /* Chuyển nút hành động sang icon-only, giữ tên đầy đủ bằng aria-label và tooltip. */
 function iconKeyForButton(b,label){
-  if(b.classList.contains('nav')){const k=(b.id||'').replace('nav-','');return ({dashboard:'overview',overview:'lessons',classes:'classes',students:'students'})[k]||k}
+  if(b.classList.contains('nav')){const k=(b.id||'').replace('nav-','');return ({dashboard:'overview',overview:'lessons',classes:'classes',students:'students',questions:'questionBank',assessments:'exam'})[k]||k}
   if(b.classList.contains('folder-tabs'))return 'more';
-  if(b.closest('.folder-tabs'))return ({'Mục tiêu':'target','Bài tập & kiểm tra':'assignments','Chấm điểm & Kết quả':'grade','Ngân hàng câu hỏi':'questions','Mức độ nắm vững':'mastery','Lỗ hổng kiến thức':'gaps','Gợi ý học tập':'recommend'})[label]||'more';
-  if(b.closest('.seg'))return ({'Danh sách chấm':'list','Chấm điểm':'grade','Kết quả':'assessments','Bài tập':'assignments','Bài tập':'assessments','Yêu cầu luyện tập':'target','Phân tích':'mastery','Lượt làm':'clock'})[label]||'more';
+  if(b.closest('.folder-tabs'))return ({'Mục tiêu':'target','Bài tập & kiểm tra':'assignments','Chấm điểm & Kết quả':'grade','Ngân hàng câu hỏi':'questionBank','Mức độ nắm vững':'mastery','Lỗ hổng kiến thức':'gaps','Gợi ý học tập':'recommend'})[label]||'more';
+  if(b.closest('.seg'))return ({'Danh sách chấm':'list','Chấm điểm':'grade','Kết quả':'assessments','Bài tập':'assignments','Bài kiểm tra':'exam','Yêu cầu luyện tập':'target','Phân tích':'mastery','Lượt làm':'clock'})[label]||'more';
   if(b.classList.contains('topic-icon-btn'))return /sửa|chỉnh/i.test(label)?'edit':'plus';
   const t=String(label||'').toLocaleLowerCase('vi');
   if(/đăng xuất|log out/.test(t))return 'logout';

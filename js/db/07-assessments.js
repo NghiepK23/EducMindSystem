@@ -4,6 +4,7 @@
    Lưu ý: Máy chủ đếm lượt, tính giờ và chấm phần trắc nghiệm. Giao diện chỉ gọi RPC và hiển thị kết quả. */
 
 const DB_ATTEMPT = { IN_PROGRESS: ['Đang làm', 'prog'], SUBMITTED: ['Chờ chấm', 'prog'], GRADED: ['Đã chấm', 'good'] };
+const DB_ASSESSMENT_IMPORTS = new Map();
 const dbAttemptPill = (t) => dbPill(DB_ATTEMPT[t.status][0], DB_ATTEMPT[t.status][1]);
 /* Bài kiểm tra theo thời điểm hiện tại: SOON (chưa mở), OPEN, CLOSED. */
 function dbAssessmentWindow(e) {
@@ -54,9 +55,15 @@ function dbAssessmentTeacherList(d) {
     const total = qs.reduce((s, x) => s + Number(x.weight), 0);
     return `<details class="work-card">
       <summary><span class="work-detail"><b>${h(e.title)}</b> ${dbStatusPill(e.status)} <span class="pill prog">${qs.length} câu · ${dbNum(total)} điểm</span>
-        <div class="muted">${dbLessonTitle(d, e.lesson_id) || 'Chưa gắn bài học'} · ${dbWindowText(e)} · ${e.duration_minutes} phút · ${att.length} lượt làm${waiting ? ' · ' + waiting + ' chờ chấm' : ''}</div>
+        <div class="db-work-meta">
+          <span><small>Bài học</small><b>${h(dbLessonTitle(d, e.lesson_id) || 'Chưa gắn bài học')}</b></span>
+          <span><small>Mở bài</small><b>${dbDateTime(e.open_at)}</b></span>
+          <span><small>Đóng bài</small><b>${dbDateTime(e.close_at)}</b></span>
+          <span><small>Thời lượng · Số lượt</small><b>${h(e.duration_minutes)} phút · ${h(e.max_attempts)} lượt</b></span>
+          <span><small>Lượt làm</small><b>${att.length}${waiting ? ` · ${waiting} chờ chấm` : ''}</b></span>
+        </div>
       </span><span class="pill plain">Mở thao tác</span></summary>
-      <div class="work-actions">${dbBtn('Mở bài kiểm tra', 'go', { page: 'assessments', id: e.id }, 'light mini')}${dbBtn(pub ? 'Gỡ xuất bản' : 'Xuất bản', 'toggleAssessment', { id: e.id }, pub ? 'light mini' : 'mini')}${dbBtn('Sửa thông tin', 'go', { page: 'assessments', edit: e.id }, 'light mini')}${dbBtn('Xóa', 'deleteAssessment', { id: e.id }, 'light mini danger-soft')}</div>
+      <div class="work-actions">${dbBtn('Mở bài kiểm tra', 'go', { page: 'assessments', id: e.id }, 'light mini')}${dbBtn(pub ? 'Gỡ xuất bản' : 'Xuất bản', 'toggleAssessment', { id: e.id }, pub ? 'light mini' : 'mini db-work-publish')}${dbBtn('Sửa thông tin', 'go', { page: 'assessments', edit: e.id }, 'light mini')}${dbBtn('Xóa', 'deleteAssessment', { id: e.id }, 'light mini danger-soft')}</div>
     </details>`;
   });
   return `<section class="panel" aria-labelledby="db-h-ex">
@@ -64,49 +71,75 @@ function dbAssessmentTeacherList(d) {
     ${cards.length ? cards.join('') : dbEmpty('Chưa có bài kiểm tra nào.')}
   </section>`;
 }
+function dbAssessmentSteps(e, active) {
+  const steps = [
+    { n: 1, title: 'Thiết lập', arg: { page: 'assessments', edit: e.id } },
+    { n: 2, title: 'Câu hỏi', arg: { page: 'assessments', id: e.id } },
+    { n: 3, title: 'Xem trước', arg: { page: 'assessments', id: e.id, tab: 'preview' } },
+  ];
+  return `<ol class="db-assessment-steps" aria-label="Các bước tạo bài kiểm tra">${steps.map((s) => `<li class="${s.n === active ? 'is-current' : s.n < active ? 'is-complete' : ''}" ${s.n === active ? 'aria-current="step"' : ''}>
+    ${s.n === active || !e ? `<span><b>${s.n}</b> ${s.title}</span>` : dbBtn(`<span><b>${s.n}</b> ${s.title}</span>`, 'go', s.arg, 'light mini')}
+  </li>`).join('')}</ol>`;
+}
 function dbAssessmentForm(d, e) {
   if (DB.arg.edit !== 'new' && !e) return `<section class="panel">${dbEmpty('Không tìm thấy bài kiểm tra cần sửa.')}</section>`;
+  const locked = !!e && d.attempts.some((t) => t.assessment_id === e.id);
+  const lockAttr = locked ? 'disabled' : '';
   const open = e ? e.open_at : new Date(dbNow()).toISOString(), close = e ? e.close_at : new Date(dbNow() + 7 * 86400000).toISOString();
   return `<section class="panel" aria-labelledby="db-h-ef">
+    ${e ? dbAssessmentSteps(e, 1) : `<ol class="db-assessment-steps" aria-label="Các bước tạo bài kiểm tra"><li class="is-current" aria-current="step"><span><b>1</b> Thiết lập</span></li><li><span><b>2</b> Câu hỏi</span></li><li><span><b>3</b> Xem trước</span></li></ol>`}
     <h2 id="db-h-ef">${e ? 'Sửa bài kiểm tra' : 'Tạo bài kiểm tra'}</h2>
-    <p class="lead">${e ? 'Thông tin chung của bài kiểm tra. Câu hỏi được chọn ở trang chi tiết của bài.' : 'Sau khi tạo, chọn câu hỏi từ ngân hàng rồi xuất bản.'}</p>
-    <form data-act="saveAssessment" data-id="${h(e ? e.id : '')}" novalidate>
+    <p class="lead">${e ? locked ? 'Thông tin bài kiểm tra. Các thiết lập ảnh hưởng đến lượt làm đã được khóa.' : 'Cập nhật thông tin chung. Thay đổi thời lượng hoặc thời gian đóng có thể ảnh hưởng lượt làm mới.' : 'Thiết lập thời gian và số lượt trước; bước kế tiếp cho phép kết hợp câu hỏi từ nhiều nguồn.'}</p>
+    ${locked ? `<div class="notice">${ic('lock', 16)}<div>Bài đã có học sinh làm. Bài học, thời lượng, số lượt tối đa và cửa sổ mở/đóng được khóa để không làm thay đổi điều kiện của các lượt đã bắt đầu. Có thể cấp lượt làm bù riêng ở phần Lượt làm.</div></div>` : ''}
+    <form class="db-assessment-settings-form" data-act="saveAssessment" data-id="${h(e ? e.id : '')}" novalidate>
       ${dbField('Tên bài kiểm tra', 'db-ef-title', `<input id="db-ef-title" name="title" maxlength="200" value="${h(e ? e.title : '')}" required>`)}
-      <div class="db-form-grid">
-        ${dbField('Bài học', 'db-ef-lesson', `<select id="db-ef-lesson" name="lesson_id"><option value="">Không gắn bài học</option>${d.lessons.map((l) => `<option value="${h(l.id)}" ${e && e.lesson_id === l.id ? 'selected' : ''}>${h(l.title)}</option>`).join('')}</select>`)}
-        ${dbField('Thời lượng (phút)', 'db-ef-dur', `<input id="db-ef-dur" name="duration" type="number" min="1" max="600" step="1" value="${h(e ? e.duration_minutes : 15)}" required>`)}
-        ${dbField('Số lượt làm tối đa', 'db-ef-att', `<input id="db-ef-att" name="attempts" type="number" min="1" max="20" step="1" value="${h(e ? e.max_attempts : 1)}" required>`)}
+      <div class="db-form-grid db-assessment-settings-grid">
+        ${dbField('Bài học', 'db-ef-lesson', `<select id="db-ef-lesson" name="lesson_id" ${lockAttr}><option value="">Không gắn bài học</option>${d.lessons.map((l) => `<option value="${h(l.id)}" ${e && e.lesson_id === l.id ? 'selected' : ''}>${h(l.title)}</option>`).join('')}</select>`)}
+        ${dbField('Thời lượng mỗi lượt (phút)', 'db-ef-dur', `<input id="db-ef-dur" name="duration" type="number" min="1" max="600" step="1" value="${h(e ? e.duration_minutes : 15)}" ${lockAttr} required>`, 'Đồng hồ bắt đầu khi học sinh bắt đầu lượt làm.')}
+        ${dbField('Số lượt làm tối đa', 'db-ef-att', `<input id="db-ef-att" name="attempts" type="number" min="1" max="20" step="1" value="${h(e ? e.max_attempts : 1)}" ${lockAttr} required>`, 'Có thể cấp lượt làm bù riêng cho từng học sinh sau này.')}
       </div>
-      <div class="db-form-grid">
-        ${dbField('Mở lúc', 'db-ef-open', `<input id="db-ef-open" name="open" type="datetime-local" value="${dbToLocalInput(open)}" required>`)}
-        ${dbField('Đóng lúc', 'db-ef-close', `<input id="db-ef-close" name="close" type="datetime-local" value="${dbToLocalInput(close)}" required>`)}
+      <div class="db-form-grid db-assessment-settings-grid db-assessment-time-grid">
+        ${dbField('Mở lúc', 'db-ef-open', `<input id="db-ef-open" name="open" type="datetime-local" value="${dbToLocalInput(open)}" ${lockAttr} required>`)}
+        ${dbField('Đóng lúc', 'db-ef-close', `<input id="db-ef-close" name="close" type="datetime-local" value="${dbToLocalInput(close)}" ${lockAttr} required>`, 'Lượt làm kết thúc theo mốc đến trước: hết thời lượng hoặc đến giờ đóng bài.')}
       </div>
       ${dbFormError()}
-      <div class="row db-form-actions">${dbBtn('Hủy', 'go', e ? { page: 'assessments', id: e.id } : { page: 'assessments' }, 'light')}<button type="submit" class="btn">${e ? 'Lưu thay đổi' : 'Tạo bài kiểm tra'}</button></div>
+      <div class="row db-form-actions">${dbBtn('Hủy', 'go', e ? { page: 'assessments', id: e.id } : { page: 'assessments' }, 'light')}<button type="submit" class="btn">${e ? 'Lưu thiết lập' : 'Tạo bản nháp và tiếp tục'}</button></div>
     </form>
   </section>`;
 }
 DB_ACT.saveAssessment = (form) => dbRun(form, async (v) => {
   const id = form.dataset.id;
-  if (!v.title) throw new Error('Nhập tên bài kiểm tra.');
-  const duration = Number(v.duration), attempts = Number(v.attempts);
-  if (!Number.isInteger(duration) || duration < 1) throw new Error('Thời lượng là số phút nguyên, tối thiểu 1.');
-  if (!Number.isInteger(attempts) || attempts < 1) throw new Error('Số lượt làm là số nguyên, tối thiểu 1.');
-  const open = dbFromLocalInput(v.open), close = dbFromLocalInput(v.close);
+  if (!String(v.title || '').trim()) throw new Error('Nhập tên bài kiểm tra.');
+  const current = id ? DB.data.assessments.find((x) => x.id === id) : null;
+  const settingsLocked = !!current && DB.data.attempts.some((t) => t.assessment_id === id);
+  const duration = Number(settingsLocked ? current.duration_minutes : v.duration), attempts = Number(settingsLocked ? current.max_attempts : v.attempts);
+  if (!Number.isInteger(duration) || duration < 1 || duration > 600) throw new Error('Thời lượng phải là số phút nguyên từ 1 đến 600.');
+  if (!Number.isInteger(attempts) || attempts < 1 || attempts > 20) throw new Error('Số lượt làm phải là số nguyên từ 1 đến 20.');
+  const open = settingsLocked ? current.open_at : dbFromLocalInput(v.open), close = settingsLocked ? current.close_at : dbFromLocalInput(v.close);
   if (!open || !close) throw new Error('Chọn thời điểm mở và đóng bài kiểm tra.');
   if (new Date(close) <= new Date(open)) throw new Error('Thời điểm đóng phải sau thời điểm mở.');
   const course = await dbEnsureCourse();
-  const row = { title: v.title, lesson_id: v.lesson_id || null, duration_minutes: duration, max_attempts: attempts, open_at: open, close_at: close };
+  const row = { title: String(v.title).trim(), lesson_id: settingsLocked ? current.lesson_id : (v.lesson_id || null), duration_minutes: duration, max_attempts: attempts, open_at: open, close_at: close };
   const e = id ? await dbCall(EducMindDB.updateAssessment(id, { ...row, topic_id: null })) : await dbCall(EducMindDB.createAssessment({ ...row, course_id: course.id }));
-  toast(id ? 'Đã lưu bài kiểm tra.' : 'Đã tạo bài kiểm tra (bản nháp). Hãy chọn câu hỏi.');
-  await dbGo('assessments', { id: e.id });
+  toast(id ? 'Đã lưu thiết lập bài kiểm tra.' : 'Đã tạo bản nháp. Tiếp tục thêm câu hỏi từ các nguồn bạn muốn.');
+  await dbGo('assessments', { id: e.id, tab: 'questions' });
   return false;
 });
 DB_ACT.toggleAssessment = (el) => dbRun(el, async () => {
   const e = DB.data.assessments.find((x) => x.id === el.dataset.id), pub = e.status === 'PUBLISHED';
-  if (!pub && !DB.data.aq.some((x) => x.assessment_id === e.id)) throw new Error('Bài kiểm tra chưa có câu hỏi nên chưa xuất bản được.');
-  await dbCall(EducMindDB.updateAssessment(e.id, { status: pub ? 'DRAFT' : 'PUBLISHED' }));
-  toast(pub ? 'Đã gỡ xuất bản bài kiểm tra.' : 'Đã xuất bản bài kiểm tra. Học sinh trong lớp nhận được thông báo.');
+  if (pub) {
+    await dbCall(EducMindDB.updateAssessment(e.id, { status: 'DRAFT' }));
+    toast('Đã gỡ xuất bản bài kiểm tra.');
+    return;
+  }
+  const assessmentQuestions = DB.data.aq.filter((x) => x.assessment_id === e.id);
+  const issues = dbAssessmentChecks(DB.data, e, assessmentQuestions);
+  if (issues.length) throw new Error('Chưa thể xuất bản: ' + issues.join(' '));
+  dbConfirm('Xuất bản bài kiểm tra?', `Học sinh trong lớp sẽ thấy bài “${h(e.title)}”. Có ${assessmentQuestions.length} câu, thời lượng ${h(e.duration_minutes)} phút mỗi lượt, tối đa ${h(e.max_attempts)} lượt. Đồng hồ mỗi lượt dừng khi hết thời lượng hoặc đến giờ đóng bài, tùy mốc nào đến trước.`, 'Xuất bản', async () => {
+    await dbCall(EducMindDB.updateAssessment(e.id, { status: 'PUBLISHED' }));
+    toast('Đã xuất bản bài kiểm tra. Học sinh trong lớp nhận được thông báo.');
+  });
+  return false;
 });
 DB_ACT.deleteAssessment = (el) => {
   const e = DB.data.assessments.find((x) => x.id === el.dataset.id);
@@ -119,22 +152,68 @@ DB_ACT.deleteAssessment = (el) => {
 
 /* ===== Giáo viên: chi tiết (soạn đề, lượt làm) ===== */
 function dbAssessmentTeacherDetail(d, e) {
-  const tab = DB.arg.tab === 'attempts' ? 'attempts' : 'questions';
+  const tab = ['attempts', 'preview'].includes(DB.arg.tab) ? DB.arg.tab : 'questions';
   const aq = d.aq.filter((x) => x.assessment_id === e.id), att = d.attempts.filter((t) => t.assessment_id === e.id), pub = e.status === 'PUBLISHED';
   const total = aq.reduce((s, x) => s + Number(x.weight), 0);
-  return `<section class="panel" aria-labelledby="db-h-ed">
-    <div class="row between"><div><h2 id="db-h-ed">${h(e.title)}</h2><p class="lead">${dbStatusPill(e.status)} · ${dbWindowText(e)}</p></div>
-      <div class="row">${dbBtn('Về danh sách', 'go', { page: 'assessments' }, 'light')}${dbBtn('Sửa thông tin', 'go', { page: 'assessments', edit: e.id }, 'light')}${dbBtn(pub ? 'Gỡ xuất bản' : 'Xuất bản', 'toggleAssessment', { id: e.id }, pub ? 'light' : '')}</div></div>
-    <div class="facts">
-      <div><span>Thời lượng</span><b>${h(e.duration_minutes)} phút</b></div><div><span>Số lượt tối đa</span><b>${h(e.max_attempts)}</b></div>
-      <div><span>Đề</span><b>${aq.length} câu · ${dbNum(total)} điểm</b></div><div><span>Bài học</span><b>${dbLessonTitle(d, e.lesson_id) || '—'}</b></div>
+  return `<section class="panel db-assessment-detail" aria-labelledby="db-h-ed">
+    ${dbAssessmentSteps(e, tab === 'preview' ? 3 : 2)}
+    <div class="row between"><div><h2 id="db-h-ed">${h(e.title)}</h2><p class="lead">${dbStatusPill(e.status)}</p></div>
+      <div class="row">${dbBtn('Về danh sách', 'go', { page: 'assessments' }, 'light')}${dbBtn('Sửa thông tin', 'go', { page: 'assessments', edit: e.id }, 'light')}${dbBtn(pub ? 'Gỡ xuất bản' : 'Xuất bản', 'toggleAssessment', { id: e.id }, pub ? 'light' : 'db-work-publish')}</div></div>
+    <div class="facts db-key-facts">
+      <div class="db-fact-time"><span>Mở bài</span><b>${dbDateTime(e.open_at)}</b></div><div class="db-fact-time"><span>Đóng bài</span><b>${dbDateTime(e.close_at)}</b></div>
+      <div><span>Thời lượng mỗi lượt</span><b>${h(e.duration_minutes)} phút</b></div><div><span>Số lượt tối đa</span><b>${h(e.max_attempts)}</b></div>
+      <div class="db-fact-score"><span>Điểm tối đa</span><b>${dbNum(total)} điểm · ${aq.length} câu</b></div><div class="db-fact-lesson"><span>Bài học</span><b>${dbLessonTitle(d, e.lesson_id) || 'Chưa gắn bài học'}</b></div>
     </div>
   </section>
   <div class="seg" role="tablist" aria-label="Phần của bài kiểm tra">
     <button type="button" role="tab" aria-selected="${tab === 'questions'}" data-act="go" data-page="assessments" data-id="${h(e.id)}">Câu hỏi (${aq.length})</button>
+    <button type="button" role="tab" aria-selected="${tab === 'preview'}" data-act="go" data-page="assessments" data-id="${h(e.id)}" data-tab="preview">Xem trước</button>
     <button type="button" role="tab" aria-selected="${tab === 'attempts'}" data-act="go" data-page="assessments" data-id="${h(e.id)}" data-tab="attempts">Lượt làm (${att.length})</button>
   </div>
-  ${tab === 'questions' ? dbAssessmentQuestionsTab(d, e, aq, att.length > 0) : dbAssessmentAttemptsTab(d, e, att, total)}`;
+  ${tab === 'questions' ? dbAssessmentQuestionsTab(d, e, aq, att.length > 0) : tab === 'preview' ? dbAssessmentTeacherPreview(d, e, aq) : dbAssessmentAttemptsTab(d, e, att, total)}`;
+}
+function dbAssessmentChecks(d, e, aq) {
+  const issues = [], byId = dbById(d.questions || []);
+  if (!aq.length) issues.push('Thêm ít nhất một câu hỏi.');
+  let total = 0;
+  aq.forEach((item, i) => {
+    const q = byId[item.question_id];
+    if (!q) { issues.push(`Câu ${i + 1} không còn trong ngân hàng.`); return; }
+    const weight = Number(item.weight);
+    if (!dbAssessmentWeightValid(weight)) issues.push(`Câu ${i + 1} cần có điểm từ 0,25 theo bước 0,25.`);
+    else total += weight;
+    if (DB_QAUTO.includes(q.kind) && q.correct_answer == null) issues.push(`Câu ${i + 1} (${DB_QKIND[q.kind]}) chưa có đáp án đúng.`);
+  });
+  if (aq.length && !(total > 0)) issues.push('Tổng điểm của đề phải lớn hơn 0.');
+  return issues;
+}
+function dbAssessmentWeightValid(weight) {
+  return Number.isFinite(weight) && weight >= 0.25 && Math.abs(weight * 4 - Math.round(weight * 4)) < 1e-8;
+}
+function dbReadAssessmentWeight(value) {
+  const weight = Number(String(value).replace(',', '.'));
+  if (!dbAssessmentWeightValid(weight)) throw new Error('Điểm mỗi câu phải từ 0,25 và tăng theo bước 0,25.');
+  return weight;
+}
+function dbAssessmentTeacherPreview(d, e, aq) {
+  const byId = dbById(d.questions || []), issues = dbAssessmentChecks(d, e, aq);
+  const questions = aq.map((item, i) => {
+    const q = byId[item.question_id];
+    if (!q) return `<article class="db-assessment-preview-question"><h3>Câu ${i + 1}</h3><p class="muted">Câu hỏi không còn trong ngân hàng.</p></article>`;
+    const opts = Array.isArray(q.options) ? q.options : [];
+    return `<article class="db-assessment-preview-question">
+      <div class="row between"><h3>Câu ${i + 1}</h3><span class="pill plain">${dbNum(item.weight)} điểm · ${h(DB_QKIND[q.kind] || q.kind)}</span></div>
+      <div class="db-prose">${h(q.content)}</div>
+      ${opts.length ? `<ol class="db-options" type="A">${opts.map((option) => `<li>${h(option)}</li>`).join('')}</ol>` : ''}
+      <details><summary>Đáp án / cách chấm cho giáo viên</summary><p class="muted">${h(dbAnswerKeyText(q))}</p></details>
+    </article>`;
+  });
+  return `<section class="panel db-assessment-preview" aria-labelledby="db-h-ep">
+    <div class="row between"><div><h2 id="db-h-ep">Xem trước bài kiểm tra</h2><p class="lead">Kiểm tra nội dung đề trước khi học sinh nhìn thấy.</p></div>${dbBtn('Quay lại câu hỏi', 'go', { page: 'assessments', id: e.id }, 'light')}</div>
+    <div class="notice">${ic('info', 16)}<div><b>${h(e.title)}</b> · ${aq.length} câu · ${dbNum(aq.reduce((s, x) => s + Number(x.weight || 0), 0))} điểm · ${h(e.duration_minutes)} phút mỗi lượt · tối đa ${h(e.max_attempts)} lượt.<br>${dbWindowText(e)}.<br>Học sinh có thể bắt đầu trước giờ đóng; lượt làm kết thúc khi hết thời lượng hoặc đến giờ đóng bài, tùy mốc nào đến trước.</div></div>
+    ${issues.length ? `<div class="notice db-assessment-issues">${ic('alert', 16)}<div><b>Cần xử lý trước khi xuất bản</b><ul>${issues.map((x) => `<li>${h(x)}</li>`).join('')}</ul></div></div>` : `<p class="db-assessment-ready">${ic('check', 16)} Đề đã qua kiểm tra cơ bản và sẵn sàng xuất bản.</p>`}
+    ${questions.length ? questions.join('') : dbEmpty('Chưa có câu hỏi để xem trước. Hãy quay lại bước Câu hỏi để thêm nội dung.')}
+  </section>`;
 }
 function dbAssessmentQuestionsTab(d, e, aq, locked) {
   const qById = dbById(d.questions), used = new Set(aq.map((x) => x.question_id));
@@ -144,33 +223,134 @@ function dbAssessmentQuestionsTab(d, e, aq, locked) {
       <td>${i + 1}</td>
       <th scope="row"><div class="db-qtext">${q ? h(q.content) : '<span class="muted">(Câu hỏi đã bị xóa khỏi ngân hàng)</span>'}</div>${q ? `<div class="muted">${h(DB_QKIND[q.kind])} · Đáp án: ${h(dbAnswerKeyText(q))}</div>` : ''}</th>
       <td><label class="sr" for="db-w-${h(x.question_id)}">Điểm của câu ${i + 1}</label><input id="db-w-${h(x.question_id)}" class="db-input-score" type="number" min="0.25" step="0.25" value="${h(x.weight)}" data-change="setQuestionWeight" data-q="${h(x.question_id)}" ${locked ? 'disabled' : ''}></td>
-      <td class="db-cell-actions">${dbBtn('Lên', 'moveQuestion', { q: x.question_id, dir: -1 }, 'light mini' + (i === 0 ? ' db-off' : ''))}${dbBtn('Xuống', 'moveQuestion', { q: x.question_id, dir: 1 }, 'light mini' + (i === aq.length - 1 ? ' db-off' : ''))}${locked ? '' : dbBtn('Gỡ', 'removeQuestion', { q: x.question_id }, 'light mini danger-soft')}</td>
+      <td class="db-cell-actions">${locked ? '' : `${dbBtn('Lên', 'moveQuestion', { q: x.question_id, dir: -1 }, 'light mini' + (i === 0 ? ' db-off' : ''))}${dbBtn('Xuống', 'moveQuestion', { q: x.question_id, dir: 1 }, 'light mini' + (i === aq.length - 1 ? ' db-off' : ''))}${dbBtn('Gỡ', 'removeQuestion', { q: x.question_id }, 'light mini danger-soft')}`}</td>
     </tr>`;
   });
-  const bank = d.questions.filter((q) => !used.has(q.id));
+  const bank = d.questions.filter((q) => !q.deleted_at && !used.has(q.id));
   const picker = locked
-    ? `<div class="notice">${ic('lock', 16)}<div>Đã có học sinh làm bài nên danh sách câu hỏi và điểm từng câu bị khóa để các lượt làm so sánh được với nhau. Vẫn đổi được thứ tự câu hỏi.</div></div>`
+    ? `<div class="notice">${ic('lock', 16)}<div>Đã có học sinh làm bài nên danh sách câu hỏi, điểm và thứ tự câu hỏi bị khóa để các lượt làm so sánh được với nhau.</div></div>`
     : bank.length
       ? `<form data-act="addQuestions" novalidate>
-          <div class="db-objpick">${bank.map((q) => `<label class="objrow"><input type="checkbox" name="pick" data-multi value="${h(q.id)}"><span><span class="db-qtext">${h(q.content)}</span><span class="muted"> · ${h(DB_QKIND[q.kind])} · ${h(DB_QDIFF[q.difficulty] || q.difficulty)}</span></span></label>`).join('')}</div>
-          <div class="db-form-row">${dbField('Điểm mỗi câu', 'db-add-weight', `<input id="db-add-weight" name="weight" type="number" min="0.25" step="0.25" value="1" class="db-input-score">`)}<button type="submit" class="btn">Thêm câu đã chọn vào đề</button></div>${dbFormError()}
+          <div class="db-assessment-bank-tools">
+            ${dbField('Tìm câu hỏi', 'db-assessment-search', '<input id="db-assessment-search" type="search" data-input="filterAssessmentBank" placeholder="Tìm theo nội dung">')}
+            ${dbField('Dạng câu', 'db-assessment-kind', `<select id="db-assessment-kind" data-change="filterAssessmentBank"><option value="">Mọi dạng</option>${Object.entries(DB_QKIND).map(([k, v]) => `<option value="${h(k)}">${h(v)}</option>`).join('')}</select>`)}
+            ${dbField('Độ khó', 'db-assessment-difficulty', `<select id="db-assessment-difficulty" data-change="filterAssessmentBank"><option value="">Mọi mức độ</option>${Object.entries(DB_QDIFF).map(([k, v]) => `<option value="${h(k)}">${h(v)}</option>`).join('')}</select>`)}
+          </div>
+          <p class="muted db-hint" id="db-assessment-bank-count" role="status">${bank.length} câu có thể chọn.</p>
+          <div class="db-objpick db-assessment-bank" id="db-assessment-question-bank">${bank.map((q) => `<label class="objrow" data-assessment-bank-item data-kind="${h(q.kind)}" data-difficulty="${h(q.difficulty || '')}" data-text="${h((q.content || '').toLocaleLowerCase())}"><input type="checkbox" name="pick" data-multi value="${h(q.id)}"><span><span class="db-qtext">${h(q.content)}</span><span class="muted"> · ${h(DB_QKIND[q.kind] || q.kind)} · ${h(DB_QDIFF[q.difficulty] || q.difficulty)}${q.grade ? ' · Khối ' + h(q.grade) : ''}</span></span></label>`).join('')}</div>
+          <div class="db-form-row">${dbField('Điểm mặc định cho câu mới', 'db-add-weight', `<input id="db-add-weight" name="weight" type="number" min="0.25" step="0.25" value="1" class="db-input-score">`)}<button type="submit" class="btn">Thêm câu đã chọn vào đề</button></div>${dbFormError()}
         </form>`
-      : dbEmpty(d.questions.length ? 'Mọi câu hỏi trong ngân hàng đã có trong đề.' : 'Ngân hàng câu hỏi còn trống.') + `<div class="row db-form-actions">${dbBtn('Mở ngân hàng câu hỏi', 'go', { page: 'questions' }, 'light')}</div>`;
-  return `<section class="panel" aria-labelledby="db-h-eq"><h2 id="db-h-eq">Câu hỏi trong đề</h2>
-    ${rows.length ? dbTable(['#', 'Câu hỏi', 'Điểm', '<span class="sr">Thao tác</span>'], rows, 'Câu hỏi trong đề') : dbEmpty('Đề chưa có câu hỏi.')}
-  </section>
-  <section class="panel" aria-labelledby="db-h-eb"><h2 id="db-h-eb">Thêm câu hỏi từ ngân hàng</h2>${picker}</section>`;
+      : dbEmpty(d.questions.length ? 'Mọi câu hỏi trong ngân hàng đã có trong đề.' : 'Ngân hàng câu hỏi còn trống.');
+  return `<section class="panel db-assessment-author" aria-labelledby="db-h-eq">
+    <div class="row between"><div><h2 id="db-h-eq">Soạn câu hỏi</h2><p class="lead">Có thể kết hợp nhiều nguồn. Các câu đã thêm sẽ nằm trong cùng một đề.</p></div><span class="pill prog">${aq.length} câu · ${dbNum(aq.reduce((s, x) => s + Number(x.weight), 0))} điểm</span></div>
+    <div class="db-assessment-source-grid" role="group" aria-label="Nguồn câu hỏi">
+      <button type="button" class="db-assessment-source is-active" data-act="assessmentSource" data-source="bank" aria-pressed="true"><b>Ngân hàng câu hỏi</b><span>Chọn câu có sẵn và lọc theo dạng, độ khó hoặc nội dung.</span></button>
+      ${locked ? '' : `<button type="button" class="db-assessment-source" data-act="go" data-page="questions" data-edit="new" data-return_to="assessment" data-assessment_id="${h(e.id)}" data-lesson_id="${h(e.lesson_id || '')}" data-source="manual"><b>Soạn câu hỏi mới</b><span>Tạo câu hỏi thủ công; câu mới sẽ được thêm vào đề sau khi lưu.</span></button>
+      <button type="button" class="db-assessment-source" data-act="assessmentSource" data-source="file" aria-pressed="false"><b>Nhập Excel / Word</b><span>Xem trước dữ liệu, rồi nhập và thêm câu hợp lệ vào đề.</span></button>
+      <button type="button" class="db-assessment-source" data-act="go" data-page="ai" data-lesson_id="${h(e.lesson_id || '')}" data-return_assessment_id="${h(e.id)}" data-source="ai"><b>Tạo bằng AI</b><span>Duyệt câu AI vào ngân hàng, quay lại đây để chọn vào đề.</span></button>`}
+    </div>
+    <div data-assessment-source-panel="bank">
+      ${locked ? `<div class="notice">${ic('lock', 16)}<div>Đã có học sinh làm bài nên không thể thêm, gỡ hoặc đổi điểm câu hỏi. Thứ tự câu vẫn có thể điều chỉnh.</div></div>` : picker}
+    </div>
+    ${!locked ? `<section class="db-assessment-source-panel" data-assessment-source-panel="file" hidden>
+      <h3>Nhập câu hỏi từ tệp</h3><p class="muted">Câu hỏi hợp lệ sẽ được lưu vào ngân hàng và thêm vào bài kiểm tra nháp. Câu trắc nghiệm cần đáp án đúng để chấm tự động.</p>
+      <form data-act="importAssessmentQuestions" data-id="${h(e.id)}" novalidate>
+        <div class="db-form-grid">${dbField('Chọn tệp (.xlsx, .xls, .csv, .docx)', 'db-assessment-import-file', `<input id="db-assessment-import-file" name="file" type="file" accept=".xlsx,.xls,.csv,.docx" required>`)}${dbField('Điểm mặc định mỗi câu', 'db-assessment-import-weight', `<input id="db-assessment-import-weight" name="weight" type="number" min="0.25" step="0.25" value="1" required>`)}</div>
+        <div class="row db-source-actions"><button type="button" class="btn light" onclick="impTemplate('questions')">Tải mẫu Excel</button><button type="button" class="btn light" onclick="impTemplateWord('questions')">Tải mẫu Word</button><button type="submit" class="btn">Xem trước và nhập</button></div>
+        ${dbFormError()}
+      </form>
+    </section>` : ''}
+    <section class="db-assessment-question-list" aria-labelledby="db-h-eq-selected">
+      <h3 id="db-h-eq-selected">Câu hỏi trong đề</h3>
+      ${rows.length ? dbTable(['#', 'Câu hỏi', 'Điểm', '<span class="sr">Thao tác</span>'], rows, 'Câu hỏi trong đề') : dbEmpty('Chưa có câu hỏi nào. Chọn một hoặc nhiều nguồn ở trên để bắt đầu.')}
+    </section>
+    <div class="row db-form-actions">${dbBtn('Xem trước đề', 'go', { page: 'assessments', id: e.id, tab: 'preview' }, 'light')}</div>
+  </section>`;
 }
+DB_ACT.assessmentSource = (el) => {
+  const root = el.closest('.db-assessment-author');
+  if (!root) return;
+  root.querySelectorAll('[data-assessment-source-panel]').forEach((panel) => { panel.hidden = panel.dataset.assessmentSourcePanel !== el.dataset.source; });
+  root.querySelectorAll('.db-assessment-source[data-source]').forEach((button) => {
+    const active = button.dataset.source === el.dataset.source;
+    button.classList.toggle('is-active', active);
+    button.setAttribute('aria-pressed', String(active));
+  });
+};
+DB_ACT.filterAssessmentBank = () => {
+  const text = (document.getElementById('db-assessment-search')?.value || '').trim().toLocaleLowerCase();
+  const kind = document.getElementById('db-assessment-kind')?.value || '';
+  const difficulty = document.getElementById('db-assessment-difficulty')?.value || '';
+  const rows = [...document.querySelectorAll('#db-assessment-question-bank [data-assessment-bank-item]')];
+  let shown = 0;
+  rows.forEach((row) => {
+    const visible = (!kind || row.dataset.kind === kind) && (!difficulty || row.dataset.difficulty === difficulty) && (!text || row.dataset.text.includes(text));
+    row.hidden = !visible;
+    if (visible) shown++;
+  });
+  const count = document.getElementById('db-assessment-bank-count');
+  if (count) count.textContent = `Đang hiển thị ${shown}/${rows.length} câu.`;
+};
 DB_ACT.addQuestions = (form) => dbRun(form, async (v) => {
-  const picks = v.pick || [], weight = Number(v.weight);
+  const picks = [...new Set([].concat(v.pick || []).filter(Boolean))], weight = dbReadAssessmentWeight(v.weight);
   if (!picks.length) throw new Error('Chọn ít nhất một câu hỏi.');
-  if (!(weight > 0)) throw new Error('Điểm mỗi câu phải lớn hơn 0.');
+  const selected = new Set(DB.data.questions.filter((q) => !q.deleted_at).map((q) => q.id));
+  if (picks.some((id) => !selected.has(id))) throw new Error('Có câu hỏi không còn trong ngân hàng. Hãy tải lại trang rồi thử lại.');
   const start = dbNextOrder(DB.data.aq.filter((x) => x.assessment_id === DB.arg.id));
   await dbCall(EducMindDB.addAssessmentQuestions(picks.map((q, i) => ({ assessment_id: DB.arg.id, question_id: q, weight, display_order: start + i }))));
 }, 'Đã thêm câu hỏi vào đề.');
+DB_ACT.importAssessmentQuestions = (form) => dbRun(form, async (v) => {
+  const assessmentId = form.dataset.id, assessment = DB.data.assessments.find((x) => x.id === assessmentId);
+  if (!assessment || assessment.status !== 'DRAFT') throw new Error('Chỉ có thể nhập câu hỏi vào bài kiểm tra đang ở trạng thái nháp.');
+  if (DB.data.attempts.some((t) => t.assessment_id === assessmentId)) throw new Error('Bài đã có lượt làm nên không thể thêm câu hỏi.');
+  const file = form.querySelector('input[type="file"]')?.files?.[0];
+  const weight = dbReadAssessmentWeight(v.weight);
+  const result = await dbReadQuestionImport(file, assessment.lesson_id || undefined);
+  dbOpenDialog({
+    title: 'Xem trước câu hỏi nhập vào',
+    wide: true,
+    body: `<p class="muted"><b>${result.parsed.length}</b> câu hợp lệ${result.skipped.length ? ` · ${result.skipped.length} dòng sẽ bị bỏ qua` : ''} trong tệp <b>${h(file.name)}</b>.</p>
+      <ol class="db-import-question-preview">${result.parsed.slice(0, 8).map((item) => `<li><b>${h(item.row.content)}</b><span>${h(DB_QKIND[item.row.kind] || item.row.kind)} · ${h(DB_QDIFF[item.row.difficulty] || item.row.difficulty)}</span></li>`).join('')}</ol>
+      ${result.parsed.length > 8 ? `<p class="muted">Còn ${result.parsed.length - 8} câu khác trong tệp.</p>` : ''}
+      ${result.skipped.length ? `<p class="muted db-hint">${result.skipped.slice(0, 5).map(h).join('<br>')}${result.skipped.length > 5 ? '<br>…' : ''}</p>` : ''}
+      ${result.unknownCodes.length ? `<p class="muted db-hint">Không tìm thấy mã mục tiêu: ${result.unknownCodes.map(h).join(', ')}.</p>` : ''}
+      <p class="muted">Câu mới sẽ vào ngân hàng và được thêm vào đề với trọng số ${dbNum(weight)} điểm mỗi câu. Bạn có thể đổi điểm từng câu sau khi nhập.</p>`,
+    okLabel: `Nhập và thêm ${result.parsed.length} câu`,
+    onOk: async () => {
+      const currentAssessment = DB.data.assessments.find((x) => x.id === assessmentId);
+      if (!currentAssessment || currentAssessment.status !== 'DRAFT' || DB.data.attempts.some((t) => t.assessment_id === assessmentId)) {
+        throw new Error('Bài kiểm tra đã thay đổi trạng thái. Hãy đóng hộp thoại và tải lại trang.');
+      }
+      const importKey = [assessmentId, file.name, file.size, file.lastModified].join('|');
+      const questionIds = DB_ASSESSMENT_IMPORTS.get(importKey) || [];
+      let created = questionIds.length === result.parsed.length ? questionIds.map((id) => ({ id })) : [];
+      if (!created.length) {
+        created = await dbCall(EducMindDB.createQuestions(result.parsed.map((x) => x.row)));
+        if (created.length !== result.parsed.length) throw new Error('Máy chủ không trả đủ mã câu hỏi. Hãy tải lại trang để kiểm tra trước khi nhập lại.');
+        DB_ASSESSMENT_IMPORTS.set(importKey, created.map((q) => q.id));
+      }
+      const existingObjectiveLinks = await dbCallIn(EducMindDB.listQuestionObjectives, created.map((q) => q.id));
+      const linkedObjectives = new Set(existingObjectiveLinks.map((x) => `${x.question_id}:${x.objective_id}`));
+      const objectiveLinks = result.parsed.flatMap((item, i) => item.objectiveIds.map((objective_id) => ({ question_id: created[i].id, objective_id })))
+        .filter((x) => !linkedObjectives.has(`${x.question_id}:${x.objective_id}`));
+      if (objectiveLinks.length) await dbCall(EducMindDB.addQuestionObjectives(objectiveLinks));
+      const current = await dbCallIn(EducMindDB.listAssessmentQuestions, [assessmentId]);
+      const linkedQuestionIds = new Set(current.map((x) => x.question_id));
+      const unlinked = created.filter((q) => !linkedQuestionIds.has(q.id));
+      let order = current.reduce((max, x) => Math.max(max, Number(x.display_order) || 0), 0);
+      if (unlinked.length) await dbCall(EducMindDB.addAssessmentQuestions(unlinked.map((q) => ({
+        assessment_id: assessmentId, question_id: q.id, weight, display_order: ++order,
+      }))));
+      DB_ASSESSMENT_IMPORTS.delete(importKey);
+      toast(`Đã nhập và thêm ${created.length} câu hỏi vào đề.`);
+      await dbGo('assessments', { id: assessmentId });
+      return false;
+    },
+  });
+  return false;
+});
 DB_ACT.setQuestionWeight = (el) => dbRun(el, async () => {
-  const w = Number(String(el.value).replace(',', '.'));
-  if (!(w > 0)) throw new Error('Điểm của câu phải lớn hơn 0.');
+  const w = dbReadAssessmentWeight(el.value);
   const r = await dbCall(EducMindDB.updateAssessmentQuestion(DB.arg.id, el.dataset.q, { weight: w }));
   if (!r.length) throw new Error('Không đổi được điểm của câu này.');
 }, 'Đã đổi điểm của câu.');
@@ -285,13 +465,19 @@ function dbAssessmentStudentList(d) {
   const cards = d.assessments.map((e) => {
     const att = attBy[e.id] || [], w = dbAssessmentWindow(e), live = att.find((t) => t.status === 'IN_PROGRESS');
     const graded = att.filter((t) => t.status === 'GRADED'), best = graded.length ? Math.max(...graded.map((t) => Number(t.total_score))) : null;
+    const questions = (d.aq || []).filter((x) => x.assessment_id === e.id), total = questions.reduce((s, x) => s + Number(x.weight || 0), 0);
     const extra = dbExtraOf(d, e.id), left = e.max_attempts + extra - att.length;
     const state = live ? dbPill('Đang làm dở', 'need') : w === 'SOON' ? dbPill('Chưa mở', 'plain') : w === 'CLOSED' ? dbPill('Đã đóng', 'plain') : left > 0 ? dbPill('Đang mở', 'good') : dbPill('Hết lượt', 'plain');
     const action = live ? dbBtn('Làm tiếp', 'startExam', { id: e.id, resume: 1 }) : w === 'OPEN' && left > 0 ? dbBtn(att.length ? 'Làm lại' : 'Bắt đầu làm bài', 'startExam', { id: e.id }) : '';
     return `<article class="db-task">
       <div class="row between"><div><button type="button" class="db-link db-task-title" data-act="go" data-page="assessments" data-id="${h(e.id)}">${h(e.title)}</button>
-        <div class="muted">${[dbLessonTitle(d, e.lesson_id), dbWindowText(e), e.duration_minutes + ' phút', 'Đã dùng ' + att.length + '/' + (e.max_attempts + extra) + ' lượt' + (extra ? ' (gồm ' + extra + ' bù)' : '')].filter(Boolean).join(' · ')}</div>
-        ${best != null ? `<div class="muted">Điểm cao nhất: <b>${dbNum(best)}</b></div>` : att.some((t) => t.status === 'SUBMITTED') ? `<div class="muted">Đã nộp, đang chờ giáo viên chấm.</div>` : ''}</div>
+        <div class="db-work-meta">
+          <span><small>Bài học</small><b>${h(dbLessonTitle(d, e.lesson_id) || 'Chưa gắn bài học')}</b></span>
+          <span><small>Thời gian</small><b>${dbWindowText(e)}</b></span>
+          <span><small>Thời lượng · Số lượt</small><b>${e.duration_minutes} phút · ${att.length}/${e.max_attempts + extra}${extra ? ' lượt (có lượt bù)' : ' lượt'}</b></span>
+          <span><small>${best != null ? 'Điểm cao nhất' : 'Điểm tối đa'}</small><b>${best != null ? dbNum(best) : dbNum(total)} / ${dbNum(total)} điểm</b></span>
+        </div>
+        ${att.some((t) => t.status === 'SUBMITTED') ? `<p class="db-assessment-pending-note">Đã nộp, đang chờ giáo viên chấm.</p>` : ''}</div>
       <div class="row">${state}${action}${att.length ? dbBtn('Xem kết quả', 'go', { page: 'assessments', id: e.id }, 'light') : ''}</div></div>
     </article>`;
   }).join('');
@@ -301,14 +487,18 @@ function dbAssessmentStudentList(d) {
 function dbAssessmentStudentDetail(d, e) {
   const att = d.attempts.filter((t) => t.assessment_id === e.id).sort((a, b) => a.attempt_number - b.attempt_number), w = dbAssessmentWindow(e);
   const extra = dbExtraOf(d, e.id), live = att.find((t) => t.status === 'IN_PROGRESS'), left = e.max_attempts + extra - att.length;
+  const aq = (d.aq || []).filter((x) => x.assessment_id === e.id), total = aq.reduce((s, x) => s + Number(x.weight || 0), 0);
   const rows = att.map((t) => `<tr><th scope="row">Lượt ${h(t.attempt_number)}</th><td>${dbDateTime(t.started_at)}</td><td>${t.submitted_at ? dbDateTime(t.submitted_at) : '—'}</td><td>${dbAttemptPill(t)}</td>
       <td>${t.total_score == null ? '<span class="muted">—</span>' : '<b>' + dbNum(t.total_score) + '</b>'}</td>
       <td class="db-cell-actions">${t.status === 'IN_PROGRESS' ? dbBtn('Làm tiếp', 'startExam', { id: e.id, resume: 1 }, 'mini') : dbBtn('Xem bài làm', 'go', { page: 'assessments', id: e.id, attempt: t.id }, 'light mini')}</td></tr>`);
-  return `<section class="panel" aria-labelledby="db-h-sx">
-    <div class="row between"><div><h2 id="db-h-sx">${h(e.title)}</h2><p class="lead">${dbWindowText(e)}</p></div>
+  return `<section class="panel db-student-assessment-detail" aria-labelledby="db-h-sx">
+    <div class="row between"><div><h2 id="db-h-sx">${h(e.title)}</h2><p class="lead">${dbWindowText(e)} · ${w === 'SOON' ? 'Chưa mở' : w === 'CLOSED' ? 'Đã đóng' : 'Đang mở'}</p></div>
       <div class="row">${dbBtn('Về danh sách', 'go', { page: 'assessments' }, 'light')}${!live && w === 'OPEN' && left > 0 ? dbBtn(att.length ? 'Làm lại' : 'Bắt đầu làm bài', 'startExam', { id: e.id }) : ''}</div></div>
-    <div class="facts"><div><span>Thời lượng</span><b>${h(e.duration_minutes)} phút</b></div><div><span>Lượt đã dùng</span><b>${att.length} / ${h(e.max_attempts + extra)}${extra ? ' (gồm ' + extra + ' bù)' : ''}</b></div>
-      <div><span>Trạng thái</span><b>${w === 'SOON' ? 'Chưa mở' : w === 'CLOSED' ? 'Đã đóng' : 'Đang mở'}</b></div></div>
+    <div class="facts db-key-facts db-student-assessment-facts">
+      <div class="db-fact-time"><span>Mở bài</span><b>${dbDateTime(e.open_at)}</b></div><div class="db-fact-time"><span>Đóng bài</span><b>${dbDateTime(e.close_at)}</b></div>
+      <div><span>Thời lượng mỗi lượt</span><b>${h(e.duration_minutes)} phút</b></div><div><span>Lượt đã dùng</span><b>${att.length} / ${h(e.max_attempts + extra)}${extra ? ' (gồm ' + extra + ' bù)' : ''}</b></div>
+      <div class="db-fact-score"><span>Điểm tối đa</span><b>${dbNum(total)} điểm · ${aq.length} câu</b></div><div class="db-fact-lesson"><span>Bài học</span><b>${dbLessonTitle(d, e.lesson_id) || 'Chưa gắn bài học'}</b></div>
+    </div>
   </section>
   <section class="panel" aria-labelledby="db-h-sr"><h2 id="db-h-sr">Các lượt làm của em</h2>
     <p class="lead">Điểm chính thức là lượt đã chấm có điểm cao nhất.</p>

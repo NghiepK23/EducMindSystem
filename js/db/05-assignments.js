@@ -117,9 +117,14 @@ function dbAssignmentTeacherList(d) {
     const questionCount = (questionsBy[a.id] || []).length;
     return `<details class="work-card">
       <summary><span class="work-detail"><b>${h(a.title)}</b> ${dbStatusPill(a.status)} <span class="pill prog">${questionCount ? questionCount + ' câu hỏi' : 'Chưa có câu hỏi'}</span>
-        <div class="muted">${dbLessonTitle(d, a.lesson_id) || 'Chưa gắn bài học'} · Hạn ${dbDateTime(a.due_at)} · ${subs.length}/${total} đã nộp${waiting ? ' · ' + waiting + ' chờ chấm' : ''} · tối đa ${dbNum(a.max_score)} điểm</div>
+        <div class="db-work-meta">
+          <span><small>Bài học</small><b>${h(dbLessonTitle(d, a.lesson_id) || 'Chưa gắn bài học')}</b></span>
+          <span><small>Hạn nộp</small><b>${dbDateTime(a.due_at)}</b></span>
+          <span><small>Điểm tối đa</small><b>${dbNum(a.max_score)} điểm</b></span>
+          <span><small>Bài nộp</small><b>${subs.length}/${total} đã nộp${waiting ? ` · ${waiting} chờ chấm` : ''}</b></span>
+        </div>
       </span><span class="pill plain">Mở thao tác</span></summary>
-      <div class="work-actions">${dbBtn('Mở bài tập', 'go', { page: 'assignments', id: a.id }, 'light mini')}${dbBtn(pub ? 'Gỡ xuất bản' : 'Xuất bản', 'toggleAssignment', { id: a.id }, pub ? 'light mini' : 'mini')}${dbBtn('Sửa thông tin', 'go', { page: 'assignments', edit: a.id }, 'light mini')}${dbBtn('Xóa', 'deleteAssignment', { id: a.id }, 'light mini danger-soft')}</div>
+      <div class="work-actions">${dbBtn('Mở bài tập', 'go', { page: 'assignments', id: a.id }, 'light mini')}${dbBtn(pub ? 'Gỡ xuất bản' : 'Xuất bản', 'toggleAssignment', { id: a.id }, pub ? 'light mini' : 'mini db-work-publish')}${dbBtn('Sửa thông tin', 'go', { page: 'assignments', edit: a.id }, 'light mini')}${dbBtn('Xóa', 'deleteAssignment', { id: a.id }, 'light mini danger-soft')}</div>
       ${a.description ? `<p class="muted">${h(a.description)}</p>` : ''}
     </details>`;
   });
@@ -441,11 +446,11 @@ DB_ACT.deleteAssignment = (el) => {
 
 function dbAssignmentFacts(d, a) {
   const objs = dbAssignmentObjectives(d, a);
-  return `<div class="facts">
-      <div><span>Hạn nộp</span><b>${dbDateTime(a.due_at)}</b></div>
+  return `<div class="facts db-key-facts">
+      <div class="db-fact-time"><span>Hạn nộp</span><b>${dbDateTime(a.due_at)}</b></div>
       <div><span>Nộp muộn</span><b>${a.allow_late ? 'Đến ' + dbDateTime(a.late_close_at) : 'Không nhận'}</b></div>
-      <div><span>Điểm tối đa</span><b>${dbNum(a.max_score)}</b></div>
-      <div><span>Bài học</span><b>${dbLessonTitle(d, a.lesson_id) || '—'}</b></div>
+      <div class="db-fact-score"><span>Điểm tối đa</span><b>${dbNum(a.max_score)}</b></div>
+      <div class="db-fact-lesson"><span>Bài học</span><b>${dbLessonTitle(d, a.lesson_id) || 'Chưa gắn bài học'}</b></div>
     </div>
     ${a.description ? `<div class="db-prose">${h(a.description)}</div>` : ''}
     ${objs.length ? `<div class="db-objlist"><span class="db-label">Mục tiêu được đánh giá</span><ul>${objs.map((o) => `<li>${dbObjLabel(o)}</li>`).join('')}</ul></div>` : (dbIsTeacher() ? `<p class="muted">Bài tập chưa gắn mục tiêu nên điểm sẽ không được tính vào mức nắm vững.</p>` : '')}`;
@@ -538,7 +543,7 @@ function dbAssignmentTeacherDetail(d, a) {
     </tr>`;
   });
   const n = Object.keys(subs).length, graded = Object.values(subs).filter((s) => s.score != null).length;
-  return `<section class="panel" aria-labelledby="db-h-ad">
+  return `<section class="panel db-assignment-detail" aria-labelledby="db-h-ad">
     <div class="row between"><div><h2 id="db-h-ad">${h(a.title)}</h2><p class="lead">${dbStatusPill(a.status)} · ${n}/${d.members.length} đã nộp · ${graded} đã chấm</p></div>
       <div class="row">${dbBtn('Về danh sách', 'go', { page: 'assignments' }, 'light')}${dbBtn('Sửa bài tập', 'go', { page: 'assignments', edit: a.id }, 'light')}</div></div>
     ${dbAssignmentFacts(d, a)}
@@ -662,7 +667,12 @@ function dbAssignmentStudentList(d) {
   const mine = Object.fromEntries(d.submissions.map((s) => [s.assignment_id, s]));
   const todo = d.assignments.filter((a) => !mine[a.id] && dbAssignmentWindow(a) !== 'CLOSED');
   const card = (a) => `<article class="db-task">
-      <div class="row between"><div><button type="button" class="db-link db-task-title" data-act="go" data-page="assignments" data-id="${h(a.id)}">${h(a.title)}</button><div class="muted">${[dbLessonTitle(d, a.lesson_id), dbDueText(a), 'Tối đa ' + dbNum(a.max_score) + ' điểm'].filter(Boolean).join(' · ')}</div></div>
+      <div class="row between"><div><button type="button" class="db-link db-task-title" data-act="go" data-page="assignments" data-id="${h(a.id)}">${h(a.title)}</button>
+        <div class="db-work-meta">
+          <span><small>Bài học</small><b>${h(dbLessonTitle(d, a.lesson_id) || 'Chưa gắn bài học')}</b></span>
+          <span><small>Thời hạn</small><b>${dbDueText(a)}</b></span>
+          <span><small>Điểm tối đa</small><b>${dbNum(a.max_score)} điểm</b></span>
+        </div></div>
       <div class="row">${dbSubmissionPill(a, mine[a.id])}${dbBtn(mine[a.id] ? 'Xem bài' : 'Làm bài', 'go', { page: 'assignments', id: a.id }, mine[a.id] ? 'light' : '')}</div></div>
     </article>`;
   return `<section class="panel" aria-labelledby="db-h-sa">
@@ -946,7 +956,7 @@ function dbAssignmentStudentDetail(d, a) {
   const submittedNotice = justSubmitted ? `<section class="db-assignment-submit-success" role="status"><span aria-hidden="true">✓</span><div><b>Nộp bài thành công!</b><p>Bài làm của em đã được gửi. Điểm sẽ hiển thị sau khi giáo viên chấm bài.</p></div><button type="button" class="btn light" data-act="assignmentEditSubmitted" data-id="${h(a.id)}">Chỉnh sửa / nộp lại</button></section>` : '';
   return `${detailHeader}
   ${graded ? `<section class="panel" aria-labelledby="db-h-res"><h2 id="db-h-res">Kết quả</h2>
-      <div class="facts"><div><span>Điểm</span><b>${dbNum(s.score)} / ${dbNum(a.max_score)}</b></div><div><span>Chấm lúc</span><b>${dbDateTime(s.graded_at)}</b></div>${dbRubricResult(d, s)}</div>
+      <div class="facts db-key-facts"><div class="db-fact-score"><span>Điểm</span><b>${dbNum(s.score)} / ${dbNum(a.max_score)}</b></div><div class="db-fact-time"><span>Chấm lúc</span><b>${dbDateTime(s.graded_at)}</b></div>${dbRubricResult(d, s)}</div>
       ${s.feedback ? `<div class="db-prose"><b>Nhận xét của giáo viên:</b> ${h(s.feedback)}</div>` : ''}</section>` : ''}
   ${submittedNotice}
   ${flow && flow.started ? form : `<section class="panel" aria-labelledby="db-h-sw"><h2 id="db-h-sw">Bài làm</h2>

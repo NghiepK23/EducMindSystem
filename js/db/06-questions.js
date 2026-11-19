@@ -105,12 +105,18 @@ DB_ACT.filterQuestions = () => {
 function dbQuestionForm(d, q) {
   if (DB.arg.edit !== 'new' && !q) return `<section class="panel">${dbEmpty('Không tìm thấy câu hỏi cần sửa.')}</section>`;
   const returnToAssignment = DB.arg.return_to === 'assignment' && DB.arg.assignment_id;
-  const cancelTarget = returnToAssignment ? { page: 'assignments', id: DB.arg.assignment_id } : { page: 'questions' };
+  const returnToAssessment = DB.arg.return_to === 'assessment' && DB.arg.assessment_id;
+  const cancelTarget = returnToAssignment ? { page: 'assignments', id: DB.arg.assignment_id }
+    : returnToAssessment ? { page: 'assessments', id: DB.arg.assessment_id }
+      : { page: 'questions' };
   const kind = q ? q.kind : 'SINGLE_CHOICE', opts = q && Array.isArray(q.options) ? q.options : [];
   const correct = new Set(q && (kind === 'SINGLE_CHOICE' || kind === 'MULTIPLE_CHOICE') && q.correct_answer != null ? [].concat(q.correct_answer).map(Number) : []);
   const tf = q && kind === 'TRUE_FALSE' ? (q.correct_answer === true || String(q.correct_answer).toLowerCase() === 'true' ? 'true' : q.correct_answer == null ? '' : 'false') : '';
   const ref = q && (kind === 'SHORT_ANSWER' || kind === 'ESSAY') && q.correct_answer != null ? String(q.correct_answer) : '';
   const picked = new Set(q ? d.qlinks.filter((x) => x.question_id === q.id).map((x) => x.objective_id) : []);
+  const objectivePicker = returnToAssessment && DB.arg.lesson_id
+    ? dbObjectivePicker(d, 'objectives', picked, null, { fold: true, open: DB.arg.lesson_id })
+    : dbObjectivePicker(d, 'objectives', picked);
   const optionRows = Array.from({ length: DB_QOPTIONS }, (_, i) => `<div class="db-option">
       <span class="db-option-letter" aria-hidden="true">${dbLetter(i)}</span>
       <label class="sr" for="db-qo-${i}">Lựa chọn ${dbLetter(i)}</label><input id="db-qo-${i}" name="opt${i}" maxlength="500" value="${h(opts[i] == null ? '' : opts[i])}" placeholder="Nội dung lựa chọn ${dbLetter(i)}">
@@ -118,6 +124,7 @@ function dbQuestionForm(d, q) {
     </div>`).join('');
   return `<section class="panel" aria-labelledby="db-h-qf">
     <h2 id="db-h-qf">${q ? 'Sửa câu hỏi' : 'Thêm câu hỏi'}</h2>
+    ${returnToAssessment ? `<p class="lead">Câu hỏi mới sẽ được thêm vào bài kiểm tra nháp sau khi lưu.</p>` : ''}
     <form data-act="saveQuestion" data-id="${h(q ? q.id : '')}" data-kind="${h(kind)}" class="db-qform" novalidate>
       ${dbField('Nội dung câu hỏi', 'db-qf-content', `<textarea id="db-qf-content" name="content" rows="3" maxlength="4000" required>${h(q ? q.content : '')}</textarea>`)}
       <div class="db-form-grid">
@@ -135,9 +142,9 @@ function dbQuestionForm(d, q) {
       </div>
       <div class="db-only" data-for="TRUE_FALSE">${dbField('Đáp án đúng', 'db-qf-tf', `<select id="db-qf-tf" name="tf"><option value="">Chọn đáp án</option><option value="true" ${tf === 'true' ? 'selected' : ''}>Đúng</option><option value="false" ${tf === 'false' ? 'selected' : ''}>Sai</option></select>`)}</div>
       <div class="db-only" data-for="SHORT_ANSWER ESSAY">${dbField('Đáp án tham khảo (không bắt buộc)', 'db-qf-ref', `<textarea id="db-qf-ref" name="ref" rows="2" maxlength="2000">${h(ref)}</textarea>`, 'Câu trả lời ngắn và tự luận do giáo viên chấm tay. Học sinh không nhìn thấy đáp án tham khảo.')}</div>
-      <div class="field"><span class="db-label">Mục tiêu mà câu hỏi đánh giá</span>${dbObjectivePicker(d, 'objectives', picked)}</div>
+      <div class="field"><span class="db-label">Mục tiêu mà câu hỏi đánh giá</span>${objectivePicker}</div>
       ${dbFormError()}
-      <div class="row db-form-actions">${dbBtn('Hủy', 'go', cancelTarget, 'light')}<button type="submit" class="btn">${q ? 'Lưu thay đổi' : 'Thêm câu hỏi'}</button></div>
+      <div class="row db-form-actions">${dbBtn('Hủy', 'go', cancelTarget, 'light')}<button type="submit" class="btn">${q ? 'Lưu thay đổi' : returnToAssessment ? 'Lưu và thêm vào bài kiểm tra' : 'Thêm câu hỏi'}</button></div>
     </form>
   </section>`;
 }
@@ -286,8 +293,19 @@ async function dbReadQuestionImport(file, lessonId) {
 DB_ACT.saveQuestion = (form) => dbRun(form, async (v) => {
   const id = form.dataset.id, row = dbReadQuestion(v);
   const course = await dbEnsureCourse();
+  const returnToAssessment = DB.arg.return_to === 'assessment' && DB.arg.assessment_id;
+  let assessment = null;
+  if (returnToAssessment) {
+    assessment = (await dbCall(EducMindDB.listAssessments(course.id))).find((x) => x.id === DB.arg.assessment_id);
+    if (!assessment || assessment.status !== 'DRAFT') throw new Error('Chỉ có thể thêm câu hỏi vào bài kiểm tra đang ở trạng thái nháp.');
+    const attempts = await dbCallIn(EducMindDB.listAttempts, [assessment.id]);
+    if (attempts.length) throw new Error('Bài kiểm tra đã có lượt làm nên không thể thêm câu hỏi.');
+  }
   const q = id ? await dbCall(EducMindDB.updateQuestion(id, row)) : await dbCall(EducMindDB.createQuestion({ ...row, course_id: course.id }));
-  const current = id ? DB.data.qlinks.filter((x) => x.question_id === id).map((x) => x.objective_id) : [];
+  if (!id) form.dataset.id = q.id;
+  const current = id
+    ? (await dbCallIn(EducMindDB.listQuestionObjectives, [id])).map((x) => x.objective_id)
+    : [];
   await dbSyncLinks(current, v.objectives || [],
     (add) => dbCall(EducMindDB.addQuestionObjectives(add.map((o) => ({ question_id: q.id, objective_id: o })))),
     (rem) => dbCall(EducMindDB.removeQuestionObjectives(q.id, rem)));
@@ -298,8 +316,16 @@ DB_ACT.saveQuestion = (form) => dbRun(form, async (v) => {
     const display_order = links.reduce((max, link) => Math.max(max, Number(link.display_order) || 0), 0) + 1;
     await dbCall(EducMindDB.addAssignmentQuestions([{ assignment_id: assignmentId, question_id: q.id, display_order }]));
   }
-  toast(returnToAssignment ? 'Đã tạo và thêm câu hỏi vào bài tập.' : id ? 'Đã lưu câu hỏi.' : 'Đã thêm câu hỏi vào ngân hàng.');
-  await dbGo(returnToAssignment ? 'assignments' : 'questions', returnToAssignment ? { id: DB.arg.assignment_id } : {});
+  if (returnToAssessment) {
+    const links = await dbCallIn(EducMindDB.listAssessmentQuestions, [assessment.id]);
+    if (!links.some((link) => link.question_id === q.id)) {
+      const display_order = links.reduce((max, link) => Math.max(max, Number(link.display_order) || 0), 0) + 1;
+      await dbCall(EducMindDB.addAssessmentQuestions([{ assessment_id: assessment.id, question_id: q.id, weight: 1, display_order }]));
+    }
+  }
+  toast(returnToAssessment ? 'Đã lưu câu hỏi và thêm vào bài kiểm tra.' : returnToAssignment ? 'Đã tạo và thêm câu hỏi vào bài tập.' : id ? 'Đã lưu câu hỏi.' : 'Đã thêm câu hỏi vào ngân hàng.');
+  await dbGo(returnToAssessment ? 'assessments' : returnToAssignment ? 'assignments' : 'questions',
+    returnToAssessment ? { id: assessment.id } : returnToAssignment ? { id: DB.arg.assignment_id } : {});
   return false;
 });
 DB_ACT.deleteQuestion = (el) => {
