@@ -192,7 +192,7 @@ function dbAssignmentForm(d, a) {
   const linkedQuestions = new Set(a ? d.assignmentQuestions.filter((x) => x.assignment_id === a.id).map((x) => x.question_id) : []);
   const questionBank = d.questions.filter((q) => !linkedQuestions.has(q.id));
   const locked = a && d.submissions.some((s) => s.assignment_id === a.id);
-  const minimum = !locked ? new Date(dbNow()).toISOString() : null;
+  const minimum = new Date(dbNow()).toISOString();
   /* Bài học của từng câu hỏi = bài học chứa các mục tiêu mà câu đó gắn. Câu chưa gắn mục tiêu thì không rõ thuộc bài nào. */
   const objById = dbById(d.objectives), qlinksBy = dbGroup(d.qlinks || [], 'question_id');
   const lessonsOfQ = (qid) => [...new Set((qlinksBy[qid] || []).map((x) => objById[x.objective_id]).filter(Boolean).map((o) => o.lesson_id))];

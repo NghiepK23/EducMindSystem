@@ -55,7 +55,7 @@ function dbDateTime(iso) {
 function dbToLocalInput(iso) {
   if (!iso) return '';
   const d = new Date(iso);
-  return isNaN(d) ? '' : `${d.getFullYear()}-${dbPad(d.getMonth() + 1)}-${dbPad(d.getDate())}T${dbPad(d.getHours())}:${dbPad(d.getMinutes())}`;
+  return isNaN(d) ? '' : `${d.getFullYear()}-${dbPad(d.getMonth() + 1)}-${dbPad(d.getDate())}T${dbPad(d.getHours())}:${dbPad(d.getMinutes())}:${dbPad(d.getSeconds())}`;
 }
 function dbFromLocalInput(v) {
   if (!v) return null;
@@ -69,11 +69,11 @@ function dbDatetimeField(id, name, iso, attr = '', minIso = null) {
   const [date = '', time = ''] = local.split('T');
   const d = date ? date.split('-') : ['', '', ''];
   const dateText = d[0] && d[1] && d[2] ? `${dbPad(d[2])}/${dbPad(d[1])}/${d[0]}` : 'Chọn ngày';
-  const timeText = time || '--:--';
+  const timeText = time || '--:--:--';
   const disabled = /disabled/.test(attr) ? ' disabled' : '';
   return `<span class="db-datetime" data-datetime="${h(id)}">
     <input id="${h(id)}" name="${h(name)}" type="hidden" value="${h(local)}">
-    <input type="hidden" data-datetime-min value="${h(minIso ? dbToLocalInput(minIso) : '')}">
+    <input type="hidden" data-datetime-min data-datetime-min-now="${minIso ? 'true' : 'false'}" value="${h(minIso ? dbToLocalInput(minIso) : '')}">
     <button type="button" class="db-datetime-trigger" data-db-datetime-open="${h(id)}"${disabled} aria-label="Chọn ngày và giờ">
       <span class="db-datetime-icon">${ic('calendar', 22)}</span>
       <span class="db-datetime-value"><b>${h(dateText)}</b><small>${h(timeText)}</small></span>
@@ -124,10 +124,15 @@ function dbDatetimeOpen(trigger) {
   let [date = '', time = ''] = (hidden.value || '').split('T');
   let d = date ? new Date(`${date}T00:00:00`) : new Date();
   if (isNaN(d)) d = new Date();
-  if (!time) time = '09:00';
   const minInput = box.querySelector('[data-datetime-min]');
-  const minLocal = minInput?.value || '';
-  dbDateTimePop = { trigger, box, hidden, y: d.getFullYear(), m: d.getMonth(), date, time, minLocal, el: null };
+  const minNow = minInput?.dataset.datetimeMinNow === 'true';
+  if (!time) time = '09:00:00';
+  else {
+    const parts = time.split(':');
+    time = `${dbPad(Number(parts[0] || 0))}:${dbPad(Number(parts[1] || 0))}:${dbPad(Number(parts[2] || 0))}`;
+  }
+  const minLocal = minNow ? dbToLocalInput(new Date(dbNow()).toISOString()) : minInput?.value || '';
+  dbDateTimePop = { trigger, box, hidden, y: d.getFullYear(), m: d.getMonth(), date, time, minLocal, minNow, el: null };
   const el = document.createElement('div');
   el.className = 'db-datetime-pop';
   el.setAttribute('role', 'dialog');
@@ -154,8 +159,17 @@ function dbDatetimePlace() {
 function dbDatetimePaintPop() {
   if (!dbDateTimePop) return;
   const p = dbDateTimePop;
+  const min = dbDatetimeMinimum(p);
+  const minIso = min && !isNaN(min)
+    ? `${min.getFullYear()}-${dbPad(min.getMonth() + 1)}-${dbPad(min.getDate())}`
+    : '';
+  if (minIso && p.date && p.date < minIso) {
+    p.date = minIso;
+    p.time = `${dbPad(min.getHours())}:${dbPad(min.getMinutes())}:${dbPad(min.getSeconds())}`;
+    p.y = min.getFullYear();
+    p.m = min.getMonth();
+  }
   const y = p.y, m = p.m;
-  const min = p.minLocal ? new Date(p.minLocal) : null;
   const minDay = min && !isNaN(min)
     ? new Date(min.getFullYear(), min.getMonth(), min.getDate()).getTime()
     : -Infinity;
@@ -164,16 +178,13 @@ function dbDatetimePaintPop() {
   const total = Math.ceil((lead + new Date(y, m + 1, 0).getDate()) / 7) * 7;
   const dow = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'];
   let cells = '';
-  const minIso = min && !isNaN(min)
-    ? `${min.getFullYear()}-${dbPad(min.getMonth() + 1)}-${dbPad(min.getDate())}`
-    : '';
   if (p.date === minIso) {
     const parts = p.time.split(':');
-    let h = Number(parts[0] || 0), minute = Number(parts[1] || 0);
-    const minH = min.getHours(), minM = min.getMinutes();
-    if (h < minH || (h === minH && minute < minM)) {
-      h = minH; minute = minM;
-      p.time = `${dbPad(h)}:${dbPad(minute)}`;
+    let h = Number(parts[0] || 0), minute = Number(parts[1] || 0), second = Number(parts[2] || 0);
+    const minH = min.getHours(), minM = min.getMinutes(), minS = min.getSeconds();
+    if (h * 3600 + minute * 60 + second < minH * 3600 + minM * 60 + minS) {
+      h = minH; minute = minM; second = minS;
+      p.time = `${dbPad(h)}:${dbPad(minute)}:${dbPad(second)}`;
     }
   }
   for (let i = 0; i < total; i++) {
@@ -184,7 +195,7 @@ function dbDatetimePaintPop() {
     const disabled = d.getTime() < minDay;
     cells += `<button type="button" class="db-dp-day${out ? ' is-out' : ''}${iso === p.date ? ' is-selected' : ''}${disabled ? ' is-disabled' : ''}" data-db-date="${iso}" aria-label="${dbPad(d.getDate())}/${dbPad(d.getMonth() + 1)}/${d.getFullYear()}${disabled ? ' — không thể chọn' : ''}"${disabled ? ' disabled' : ''}>${d.getDate()}</button>`;
   }
-  const [hour = '09', minute = '00'] = p.time.split(':');
+  const [hour = '09', minute = '00', second = '00'] = p.time.split(':');
   const timeMinimum = p.minLocal ? new Date(p.minLocal) : null;
   const timeMinIso = timeMinimum && !isNaN(timeMinimum)
     ? `${timeMinimum.getFullYear()}-${dbPad(timeMinimum.getMonth() + 1)}-${dbPad(timeMinimum.getDate())}`
@@ -192,6 +203,7 @@ function dbDatetimePaintPop() {
   const isMinDate = !!timeMinIso && p.date === timeMinIso;
   const hourMin = isMinDate && timeMinimum ? timeMinimum.getHours() : 0;
   const minuteMin = isMinDate && timeMinimum && Number(hour) === timeMinimum.getHours() ? timeMinimum.getMinutes() : 0;
+  const secondMin = isMinDate && timeMinimum && Number(hour) === timeMinimum.getHours() && Number(minute) === timeMinimum.getMinutes() ? timeMinimum.getSeconds() : 0;
   let canPrev = true;
   if (timeMinimum) {
     canPrev = y > timeMinimum.getFullYear() || (y === timeMinimum.getFullYear() && m > timeMinimum.getMonth());
@@ -209,6 +221,7 @@ function dbDatetimePaintPop() {
     <div class="db-dp-time">
       <label><span>Giờ</span><input type="number" min="${hourMin}" max="23" value="${h(hour)}" data-db-hour inputmode="numeric"></label>
       <label><span>Phút</span><input type="number" min="${minuteMin}" max="59" value="${h(minute)}" data-db-minute inputmode="numeric"></label>
+      <label><span>Giây</span><input type="number" min="${secondMin}" max="59" value="${h(second)}" data-db-second inputmode="numeric"></label>
     </div>
     <div class="db-dp-actions">
       <button type="button" class="btn light" data-db-clear>Đặt lại</button>
@@ -218,6 +231,14 @@ function dbDatetimePaintPop() {
 }
 /* Giờ máy chủ: đồng hồ của máy người dùng có thể sai, nên mọi so sánh hạn nộp / giờ làm bài dùng dbNow() (đã bù độ lệch đo lúc đăng nhập). */
 const dbNow = () => Date.now() + (DB.clockSkew || 0);
+function dbDatetimeMinimum(p) {
+  if (p.minNow) {
+    const min = new Date(Math.ceil(dbNow() / 1000) * 1000);
+    p.minLocal = dbToLocalInput(min.toISOString());
+    return min;
+  }
+  return p.minLocal ? new Date(p.minLocal) : null;
+}
 async function dbSyncClock() {
   try {
     const t0 = Date.now();
@@ -535,7 +556,9 @@ document.addEventListener('click', (ev) => {
   if (dbDateTimePop.el && dbDateTimePop.el.contains(target)) ev.preventDefault();
 
   if (target.closest('[data-db-date]')) {
-    dbDateTimePop.date = target.closest('[data-db-date]').dataset.dbDate;
+    const day = target.closest('[data-db-date]');
+    if (day.disabled) return;
+    dbDateTimePop.date = day.dataset.dbDate;
     dbDatetimePaintPop();
     return;
   }
@@ -555,11 +578,13 @@ document.addEventListener('click', (ev) => {
   if (target.closest('[data-db-apply]')) {
     const hour = dbDateTimePop.el.querySelector('[data-db-hour]');
     const minute = dbDateTimePop.el.querySelector('[data-db-minute]');
+    const second = dbDateTimePop.el.querySelector('[data-db-second]');
     const h = Math.max(0, Math.min(23, Number(hour?.value ?? 0)));
     const m = Math.max(0, Math.min(59, Number(minute?.value ?? 0)));
-    dbDateTimePop.time = `${dbPad(h)}:${dbPad(m)}`;
+    const s = Math.max(0, Math.min(59, Number(second?.value ?? 0)));
+    dbDateTimePop.time = `${dbPad(h)}:${dbPad(m)}:${dbPad(s)}`;
     if (!dbDateTimePop.date) {
-      const now = new Date();
+      const now = new Date(dbNow());
       const maxDay = new Date(dbDateTimePop.y, dbDateTimePop.m + 1, 0).getDate();
       const day = dbDateTimePop.y === now.getFullYear() && dbDateTimePop.m === now.getMonth()
         ? Math.min(now.getDate(), maxDay)
@@ -567,8 +592,8 @@ document.addEventListener('click', (ev) => {
       dbDateTimePop.date = `${dbDateTimePop.y}-${dbPad(dbDateTimePop.m + 1)}-${dbPad(day)}`;
     }
     if (dbDateTimePop.minLocal) {
-      const selected = new Date(`${dbDateTimePop.date}T${dbDateTimePop.time}:00`);
-      const minimum = new Date(dbDateTimePop.minLocal);
+      const selected = new Date(`${dbDateTimePop.date}T${dbDateTimePop.time}`);
+      const minimum = dbDatetimeMinimum(dbDateTimePop);
       if (!isNaN(selected) && !isNaN(minimum) && selected < minimum) {
         toast('Thời gian phải từ ' + dbDateTime(minimum.toISOString()) + ' trở đi.');
         return;
@@ -581,26 +606,38 @@ document.addEventListener('click', (ev) => {
 document.addEventListener('input', (ev) => {
   if (!dbDateTimePop) return;
   const target = ev.target;
-  if (!target.matches('[data-db-hour],[data-db-minute]')) return;
+  if (!target.matches('[data-db-hour],[data-db-minute],[data-db-second]')) return;
   const hourInput = dbDateTimePop.el.querySelector('[data-db-hour]');
   const minuteInput = dbDateTimePop.el.querySelector('[data-db-minute]');
+  const secondInput = dbDateTimePop.el.querySelector('[data-db-second]');
   let h = Math.max(0, Math.min(23, Number(hourInput?.value || 0)));
   let m = Math.max(0, Math.min(59, Number(minuteInput?.value || 0)));
-  const minimum = dbDateTimePop.minLocal ? new Date(dbDateTimePop.minLocal) : null;
+  let s = Math.max(0, Math.min(59, Number(secondInput?.value || 0)));
+  const minimum = dbDatetimeMinimum(dbDateTimePop);
   const minIso = minimum && !isNaN(minimum)
     ? `${minimum.getFullYear()}-${dbPad(minimum.getMonth() + 1)}-${dbPad(minimum.getDate())}`
     : '';
   if (minimum && dbDateTimePop.date === minIso) {
-    if (h < minimum.getHours()) h = minimum.getHours();
-    if (h === minimum.getHours() && m < minimum.getMinutes()) m = minimum.getMinutes();
+    const selectedSeconds = h * 3600 + m * 60 + s;
+    const minSeconds = minimum.getHours() * 3600 + minimum.getMinutes() * 60 + minimum.getSeconds();
+    if (selectedSeconds < minSeconds) {
+      h = minimum.getHours();
+      m = minimum.getMinutes();
+      s = minimum.getSeconds();
+    }
   }
   hourInput.value = dbPad(h);
   minuteInput.value = dbPad(m);
-  dbDateTimePop.time = `${dbPad(h)}:${dbPad(m)}`;
+  secondInput.value = dbPad(s);
+  dbDateTimePop.time = `${dbPad(h)}:${dbPad(m)}:${dbPad(s)}`;
   const minuteMin = h === (minimum?.getHours() ?? -1) && dbDateTimePop.date === minIso
     ? minimum.getMinutes()
     : 0;
+  const secondMin = h === (minimum?.getHours() ?? -1) && m === (minimum?.getMinutes() ?? -1) && dbDateTimePop.date === minIso
+    ? minimum.getSeconds()
+    : 0;
   minuteInput.min = String(minuteMin);
+  secondInput.min = String(secondMin);
 });
 app.addEventListener('change', (ev) => {
   if (!dbActive()) return;

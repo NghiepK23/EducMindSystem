@@ -55,7 +55,7 @@ tr.obj-editing td{padding:6px 8px}
 .dlg .field input.date-native.show-native,.datebox input.date-native.show-native{width:38px;height:34px;right:4px;top:50%;transform:translateY(-50%);pointer-events:auto;cursor:pointer;z-index:3}
 
 /* Lịch chọn ngày của ứng dụng: hộp nổi, tự canh trong khung nhìn */
-.datepop{position:fixed;z-index:80;width:272px;padding:10px;border-radius:16px;background:var(--surface);box-shadow:0 18px 48px rgba(0,0,0,.28),0 0 0 .5px var(--line);color:var(--ink)}
+.datepop{box-sizing:border-box;position:fixed;z-index:2147483647;width:272px;max-height:calc(100vh - 16px);max-height:calc(100dvh - 16px);overflow-y:auto;overscroll-behavior:contain;padding:10px;border-radius:16px;background:var(--surface);box-shadow:0 18px 48px rgba(0,0,0,.28),0 0 0 .5px var(--line);color:var(--ink)}
 .datepop .dp-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:2px 2px 8px}
 .datepop .dp-title{font-size:14px}
 .datepop .dp-nav{display:flex;gap:2px}
