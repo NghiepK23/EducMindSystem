@@ -318,6 +318,8 @@
 
 /* ===== Bảng rộng (13-report) ===== */
 .db-scroll{overflow-x:auto}
+.db-report-header{align-items:flex-start;margin-bottom:16px}
+.db-report-header .lead{margin:0}
 
 /* ===== AI tạo câu hỏi nháp (14-ai) ===== */
 .db-ai-form .db-ai-objs{display:grid;gap:4px;margin:6px 0 10px;padding:10px;border:1px solid var(--line,#d8dde5);border-radius:10px}

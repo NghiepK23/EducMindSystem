@@ -93,9 +93,8 @@ DB_PAGES.report = {
     const stuId = dbIsTeacher() ? DB_REPORT_STU : me;
     const rep = dbReportData(d, stuId || null);
     return `<section class="panel" aria-labelledby="db-h-rep">
-      <div class="row between"><div><h2 id="db-h-rep">Báo cáo tiến bộ</h2><p class="lead">${h((dbClass() || {}).name || '')} · Môn học: ${h(DB.course && DB.course.title || 'Chưa thiết lập')} · ${stuId ? h((students.find((s) => s.id === stuId) || {}).name || '') : 'Tổng hợp cả lớp'} · ${dbIsTeacher() ? students.length + ' học sinh' : ''}</p></div>
-        <div class="row">${dbBtn('Xuất Excel', 'reportExcel', {}, 'light')}${dbBtn('Xuất Word', 'reportWord', {}, 'light')}${dbBtn('In báo cáo', 'reportPrint', {}, 'light')}</div></div>
-      <p class="muted db-hint">Bản Word trình bày theo mẫu báo cáo hành chính (đầu trang đơn vị, tóm tắt, nhận xét, khu vực ký) để nộp cho Tổ trưởng / Ban Giám hiệu; bản Excel gồm các trang tổng quan, bảng điểm, mục tiêu để tiếp tục xử lý.</p>
+      <div class="row between db-report-header"><div><p class="lead">Môn học: ${h(DB.course && DB.course.title || 'Chưa thiết lập')} · ${stuId ? h((students.find((s) => s.id === stuId) || {}).name || '') : 'Tổng hợp cả lớp'} ${dbIsTeacher() ? students.length + ' học sinh' : ''}</p></div>
+        <div class="row">${dbBtn('Xuất Excel', 'reportExcel', {}, 'light')}${dbBtn('Xuất Word', 'reportWord', {}, 'light')}</div></div>
       ${dbRepOrgForm()}
       ${dbIsTeacher() && students.length ? `<div class="row db-filter"><label for="db-rep-stu">Xem theo</label><select id="db-rep-stu" data-change="reportStu"><option value="">Tổng hợp cả lớp</option>${students.map((s) => `<option value="${h(s.id)}" ${s.id === stuId ? 'selected' : ''}>${h(s.name)}</option>`).join('')}</select></div>` : ''}
       ${stuId ? dbReportDetail(rep) : dbReportSummary(d, students)}
@@ -533,6 +532,3 @@ DB_ACT.reportWord = () => {
   });
   toast('Đã xuất tệp Word.');
 };
-/* In báo cáo (bản in ảo): mở hộp thoại in của trình duyệt — @media print trong CSS
-   tự ẩn nút, bộ lọc và thanh điều hướng để bản in chỉ còn nội dung báo cáo. */
-DB_ACT.reportPrint = () => { window.print(); };
