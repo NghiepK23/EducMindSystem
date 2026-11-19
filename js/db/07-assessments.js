@@ -77,7 +77,7 @@ function dbAssessmentSteps(e, active) {
     { n: 2, title: 'Câu hỏi', arg: { page: 'assessments', id: e.id } },
     { n: 3, title: 'Xem trước', arg: { page: 'assessments', id: e.id, tab: 'preview' } },
   ];
-  return `<ol class="db-assessment-steps" aria-label="Các bước tạo bài kiểm tra">${steps.map((s) => `<li class="${s.n === active ? 'is-current' : s.n < active ? 'is-complete' : ''}" ${s.n === active ? 'aria-current="step"' : ''}>
+  return `<ol class="db-workflow-steps" aria-label="Các bước tạo bài kiểm tra">${steps.map((s) => `<li class="${s.n === active ? 'is-current' : s.n < active ? 'is-complete' : ''}" ${s.n === active ? 'aria-current="step"' : ''}>
     ${s.n === active || !e ? `<span><b>${s.n}</b> ${s.title}</span>` : dbBtn(`<span><b>${s.n}</b> ${s.title}</span>`, 'go', s.arg, 'light mini')}
   </li>`).join('')}</ol>`;
 }
@@ -87,7 +87,7 @@ function dbAssessmentForm(d, e) {
   const lockAttr = locked ? 'disabled' : '';
   const open = e ? e.open_at : new Date(dbNow()).toISOString(), close = e ? e.close_at : new Date(dbNow() + 7 * 86400000).toISOString();
   return `<section class="panel" aria-labelledby="db-h-ef">
-    ${e ? dbAssessmentSteps(e, 1) : `<ol class="db-assessment-steps" aria-label="Các bước tạo bài kiểm tra"><li class="is-current" aria-current="step"><span><b>1</b> Thiết lập</span></li><li><span><b>2</b> Câu hỏi</span></li><li><span><b>3</b> Xem trước</span></li></ol>`}
+    ${e ? dbAssessmentSteps(e, 1) : `<ol class="db-workflow-steps" aria-label="Các bước tạo bài kiểm tra"><li class="is-current" aria-current="step"><span><b>1</b> Thiết lập</span></li><li><span><b>2</b> Câu hỏi</span></li><li><span><b>3</b> Xem trước</span></li></ol>`}
     <h2 id="db-h-ef">${e ? 'Sửa bài kiểm tra' : 'Tạo bài kiểm tra'}</h2>
     <p class="lead">${e ? locked ? 'Thông tin bài kiểm tra. Các thiết lập ảnh hưởng đến lượt làm đã được khóa.' : 'Cập nhật thông tin chung. Thay đổi thời lượng hoặc thời gian đóng có thể ảnh hưởng lượt làm mới.' : 'Thiết lập thời gian và số lượt trước; bước kế tiếp cho phép kết hợp câu hỏi từ nhiều nguồn.'}</p>
     ${locked ? `<div class="notice">${ic('lock', 16)}<div>Bài đã có học sinh làm. Bài học, thời lượng, số lượt tối đa và cửa sổ mở/đóng được khóa để không làm thay đổi điều kiện của các lượt đã bắt đầu. Có thể cấp lượt làm bù riêng ở phần Lượt làm.</div></div>` : ''}

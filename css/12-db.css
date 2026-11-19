@@ -461,20 +461,25 @@
 .db-assessment-settings-grid.db-assessment-time-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
 .db-assessment-settings-form .field{min-width:0}
 .db-assessment-settings-form .field input,.db-assessment-settings-form .field select{box-sizing:border-box;width:100%;height:48px}
-.db-assessment-steps{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:0 0 20px;padding:0;list-style:none}
-.db-assessment-steps li{display:flex;align-items:center;min-width:0;min-height:56px;padding:0;overflow:hidden;border:1px solid var(--line);border-radius:12px;background:var(--fill);color:var(--muted);font-size:.8125rem;font-weight:600}
-.db-assessment-steps li>span,.db-assessment-steps li>.btn{display:flex;align-items:center;box-sizing:border-box;width:100%;min-height:56px;padding:9px 14px}
-.db-assessment-steps li>span{gap:8px}
-.db-assessment-steps li b{display:grid;place-items:center;flex:none;width:24px;height:24px;border-radius:50%;background:var(--surface);color:var(--muted);font-size:.75rem}
-.db-assessment-steps li.is-current{border-color:var(--brand);background:var(--brand-soft);color:var(--ink)}
-.db-assessment-steps li.is-current b,.db-assessment-steps li.is-complete b{background:var(--brand);color:#fff}
-.db-assessment-steps li.is-complete{border-color:color-mix(in srgb,var(--brand) 35%,var(--line));color:var(--ink)}
-.db-assessment-steps li>.btn{justify-content:flex-start;min-width:0;height:100%;margin:0;border:0;border-radius:inherit;background:transparent;color:inherit;box-shadow:none;font:inherit;letter-spacing:inherit;text-align:left;text-decoration:none;white-space:normal}
-.db-assessment-steps li>.btn>span{display:flex;align-items:center;gap:8px}
-.db-assessment-steps li>.btn:hover{background:var(--fill-2);color:var(--ink);box-shadow:none}
-.db-assessment-steps li.is-complete>.btn:hover{background:var(--brand-soft)}
-.db-assessment-steps li>.btn:active{transform:none}
-.db-assessment-steps li>.btn:focus-visible{outline:3px solid var(--brand);outline-offset:-3px}
+.db-workflow-steps{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:0 0 20px;padding:0;list-style:none}
+.db-workflow-steps li{display:flex;align-items:center;min-width:0;min-height:56px;padding:0;overflow:hidden;border:1px solid var(--line);border-radius:12px;background:var(--fill);color:var(--muted);font-size:.8125rem;font-weight:600}
+.db-workflow-steps li>span,.db-workflow-steps li>.btn{display:flex;align-items:center;box-sizing:border-box;width:100%;min-height:56px;padding:9px 14px}
+.db-workflow-steps li>span{gap:8px}
+.db-workflow-steps li b{display:grid;place-items:center;flex:none;width:24px;height:24px;border-radius:50%;background:var(--surface);color:var(--muted);font-size:.75rem}
+.db-workflow-steps li.is-current{border-color:var(--brand);background:var(--brand-soft);color:var(--ink)}
+.db-workflow-steps li.is-current b,.db-workflow-steps li.is-complete b{background:var(--brand);color:#fff}
+.db-workflow-steps li.is-complete{border-color:color-mix(in srgb,var(--brand) 35%,var(--line));color:var(--ink)}
+.db-workflow-steps li>.btn{justify-content:flex-start;min-width:0;height:100%;margin:0;border:0;border-radius:inherit;background:transparent;color:inherit;box-shadow:none;font:inherit;letter-spacing:inherit;text-align:left;text-decoration:none;white-space:normal}
+.db-workflow-steps li>.btn>span{display:flex;align-items:center;gap:8px}
+.db-workflow-steps li>.btn:hover{background:var(--fill-2);color:var(--ink);box-shadow:none}
+.db-workflow-steps li.is-complete>.btn:hover{background:var(--brand-soft)}
+.db-workflow-steps li>.btn:active{transform:none}
+.db-workflow-steps li>.btn:focus-visible{outline:3px solid var(--brand);outline-offset:-3px}
+.db-assignment-step-panel[hidden]{display:none!important}
+.db-assignment-preview-question{margin-top:12px;padding:16px;border:1px solid var(--line);border-radius:15px;background:var(--surface)}
+.db-assignment-preview-question h3{margin:0;font-size:.9rem}
+.db-assignment-preview-question ol{margin:10px 0 0;padding-left:24px}
+.db-assignment-preview-question li{margin:5px 0}
 .db-assessment-source-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin:16px 0}
 .db-assessment-source{display:grid;align-content:start;gap:6px;min-width:0;min-height:106px;padding:13px;border:1px solid var(--line);border-radius:15px;background:var(--surface);color:var(--ink);text-align:left;cursor:pointer;transition:border-color .18s ease,background .18s ease,transform .18s ease}
 .db-assessment-source:hover{border-color:var(--brand);transform:translateY(-1px)}
@@ -511,12 +516,12 @@
   .db-assessment-settings-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
 }
 @media(max-width:620px){
-  .db-assessment-steps{gap:5px}
-  .db-assessment-steps li{justify-content:center;font-size:.7rem}
-  .db-assessment-steps li>span,.db-assessment-steps li>.btn{padding:8px 4px}
-  .db-assessment-steps li>span{gap:4px}
-  .db-assessment-steps li b{width:20px;height:20px}
-  .db-assessment-steps li>.btn>span{gap:4px}
+  .db-workflow-steps{gap:5px}
+  .db-workflow-steps li{justify-content:center;font-size:.7rem}
+  .db-workflow-steps li>span,.db-workflow-steps li>.btn{padding:8px 4px}
+  .db-workflow-steps li>span{gap:4px}
+  .db-workflow-steps li b{width:20px;height:20px}
+  .db-workflow-steps li>.btn>span{gap:4px}
   .db-assessment-source-grid{grid-template-columns:1fr 1fr}
   .db-assessment-source{min-height:96px;padding:10px}
   .db-assessment-bank-tools{grid-template-columns:minmax(0,1fr)}
