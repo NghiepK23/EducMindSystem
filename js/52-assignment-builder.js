@@ -116,8 +116,10 @@ function asgSaveNew(pub){
   const err=!d.name.trim()?'Hãy nhập tiêu đề bài tập.':
     (!isQ&&!d.desc.trim())?'Loại Nộp tệp cần có đề bài để học sinh biết phải làm gì.':
     !okD(d.due)?'Hạn nộp cần đúng dạng dd/mm/yyyy.':
+    dmy(d.due,23,59)<simNow()?'Hạn nộp không được ở quá khứ.':
     (!isQ&&!(m>0))?'Điểm tối đa phải lớn hơn 0.':
     (d.late&&(!okD(d.lc)||dmy(d.lc,23,59)<=dmy(d.due,23,59)))?'Cho phép nộp trễ thì phải đặt thời điểm đóng nộp trễ sau hạn nộp.':
+    (d.late&&dmy(d.lc,23,59)<simNow())?'Thời điểm ngừng nộp trễ không được ở quá khứ.':
     (!/^\d+$/.test(String(d.tries).trim())||+d.tries<1)?'Số lần làm tối đa phải là số nguyên từ 1 trở lên.':
     (isQ&&pub&&!d.qs.length)?'Chưa có câu hỏi nào: hãy chọn câu từ ngân hàng hoặc nhập từ tệp.':null;
   if(err){toast(err);return}

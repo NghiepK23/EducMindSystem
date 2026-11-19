@@ -192,6 +192,7 @@ function dbAssignmentForm(d, a) {
   const linkedQuestions = new Set(a ? d.assignmentQuestions.filter((x) => x.assignment_id === a.id).map((x) => x.question_id) : []);
   const questionBank = d.questions.filter((q) => !linkedQuestions.has(q.id));
   const locked = a && d.submissions.some((s) => s.assignment_id === a.id);
+  const minimum = !locked ? new Date(dbNow()).toISOString() : null;
   /* Bài học của từng câu hỏi = bài học chứa các mục tiêu mà câu đó gắn. Câu chưa gắn mục tiêu thì không rõ thuộc bài nào. */
   const objById = dbById(d.objectives), qlinksBy = dbGroup(d.qlinks || [], 'question_id');
   const lessonsOfQ = (qid) => [...new Set((qlinksBy[qid] || []).map((x) => objById[x.objective_id]).filter(Boolean).map((o) => o.lesson_id))];
@@ -243,12 +244,12 @@ function dbAssignmentForm(d, a) {
       ${dbField('Yêu cầu / hướng dẫn (không phải câu hỏi)', 'db-af-desc', `<textarea id="db-af-desc" name="description" rows="5" maxlength="5000">${h(a ? a.description : '')}</textarea>`)}
       <div class="db-form-grid">
         ${dbField('Bài học', 'db-af-lesson', `<select id="db-af-lesson" name="lesson_id" data-change="assignmentLessonPick" data-apply><option value="">Không gắn bài học</option>${d.lessons.map((l) => `<option value="${h(l.id)}" ${a && a.lesson_id === l.id ? 'selected' : ''}>${h(l.title)}</option>`).join('')}</select>`)}
-        ${dbField('Hạn nộp', 'db-af-due', `<input id="db-af-due" name="due" type="datetime-local" value="${dbToLocalInput(a ? a.due_at : defDue.toISOString())}" required>`)}
+        ${dbField('Hạn nộp', 'db-af-due', dbDatetimeField('db-af-due', 'due', a ? a.due_at : defDue.toISOString(), '', minimum))}
         ${dbField('Điểm tối đa', 'db-af-max', `<input id="db-af-max" name="max_score" type="number" min="0.5" step="0.5" value="${h(a ? a.max_score : 10)}" required>`)}
       </div>
       <div class="db-form-grid db-late-grid">
         <div class="field"><label class="db-check"><input type="checkbox" id="db-af-late" name="allow_late" ${a && a.allow_late ? 'checked' : ''}> Cho phép nộp muộn</label></div>
-        ${dbField('Nhận bài muộn đến', 'db-af-lateclose', `<input id="db-af-lateclose" name="late_close" type="datetime-local" value="${dbToLocalInput(a ? a.late_close_at : '')}">`, 'Chỉ dùng khi cho phép nộp muộn; phải sau hạn nộp.')}
+        ${dbField('Nhận bài muộn đến', 'db-af-lateclose', dbDatetimeField('db-af-lateclose', 'late_close', a ? a.late_close_at : '', '', minimum), 'Chỉ dùng khi cho phép nộp muộn; phải sau hạn nộp.')}
       </div>
       ${!a ? '</section><section class="db-assignment-step-panel" data-assignment-step-panel="2" aria-label="Chọn câu hỏi" hidden>' : ''}
       ${sourceChoices}
@@ -324,9 +325,11 @@ DB_ACT.assignmentStep = (el) => {
     const max = Number(form.elements.namedItem('max_score')?.value);
     if (!title) { toast('Nhập tên bài tập trước khi tiếp tục.'); form.querySelector('#db-af-title')?.focus(); return; }
     if (!due) { toast('Chọn hạn nộp hợp lệ trước khi tiếp tục.'); form.querySelector('#db-af-due')?.focus(); return; }
+    if (new Date(due) < new Date(dbNow())) { toast('Hạn nộp không được ở quá khứ.'); form.querySelector('#db-af-due')?.focus(); return; }
     if (!(max > 0)) { toast('Điểm tối đa phải lớn hơn 0.'); form.querySelector('#db-af-max')?.focus(); return; }
     if (form.querySelector('[name="allow_late"]')?.checked) {
       const lateClose = dbFromLocalInput(form.elements.namedItem('late_close')?.value);
+      if (new Date(lateClose) < new Date(dbNow())) { toast('Thời điểm ngừng nhận bài muộn không được ở quá khứ.'); form.querySelector('#db-af-lateclose')?.focus(); return; }
       if (!lateClose || new Date(lateClose) <= new Date(due)) { toast('Thời điểm ngừng nhận bài muộn phải sau hạn nộp.'); form.querySelector('#db-af-lateclose')?.focus(); return; }
     }
   }
@@ -410,6 +413,7 @@ DB_ACT.saveAssignment = (form) => dbRun(form, async (v) => {
   if (!v.title) throw new Error('Nhập tên bài tập.');
   const due = dbFromLocalInput(v.due);
   if (!due) throw new Error('Chọn hạn nộp.');
+  if (new Date(due) < new Date(dbNow())) throw new Error('Hạn nộp không được ở quá khứ.');
   const max = Number(v.max_score);
   if (!(max > 0)) throw new Error('Điểm tối đa phải lớn hơn 0.');
   let importDraft = null, planText = '';
@@ -438,6 +442,7 @@ DB_ACT.saveAssignment = (form) => dbRun(form, async (v) => {
   if (v.allow_late) {
     lateClose = dbFromLocalInput(v.late_close);
     if (!lateClose) throw new Error('Chọn thời điểm ngừng nhận bài muộn.');
+    if (new Date(lateClose) < new Date(dbNow())) throw new Error('Thời điểm ngừng nhận bài muộn không được ở quá khứ.');
     if (new Date(lateClose) <= new Date(due)) throw new Error('Thời điểm ngừng nhận bài muộn phải sau hạn nộp.');
   }
   const course = await dbEnsureCourse();

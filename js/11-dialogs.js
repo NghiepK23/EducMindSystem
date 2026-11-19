@@ -34,7 +34,13 @@ function dateOpen(txtId){
   const el=document.createElement('div');
   el.className='datepop';el.setAttribute('role','dialog');el.setAttribute('aria-label','Chọn ngày');
   document.body.appendChild(el);
-  datePop={inputId:txtId,el,y:d.getFullYear(),m:d.getMonth()};
+  const now=new Date();
+  const fieldLabel=txt.closest('.field')?.querySelector('label')?.textContent||'';
+  const isTimeField=/hạn nộp|mở|đóng|ngày/i.test(fieldLabel)||/^ab-(due|lc)$/.test(txtId);
+  const minIso=isTimeField
+    ?now.getFullYear()+'-'+datePopPad(now.getMonth()+1)+'-'+datePopPad(now.getDate())
+    : '';
+  datePop={inputId:txtId,el,y:d.getFullYear(),m:d.getMonth(),minIso};
   datePopPaint();datePopPlace();
   setTimeout(()=>{
     document.addEventListener('mousedown',datePopOutside,true);
@@ -42,7 +48,7 @@ function dateOpen(txtId){
     window.addEventListener('scroll',datePopPlace,true);
     window.addEventListener('resize',datePopPlace);
   },0);
-  const f=el.querySelector('.dp-day[aria-selected="true"]')||el.querySelector('.dp-day:not(.dp-out)');
+  const f=el.querySelector('.dp-day[aria-selected="true"]:not(:disabled)')||el.querySelector('.dp-day:not(.dp-out):not(:disabled)');
   if(f)try{f.focus({preventScroll:true})}catch(e){f.focus()}
 }
 function datePopClose(){
@@ -65,7 +71,7 @@ function datePopKey(e){
   if(e.key==='Escape'){e.preventDefault();e.stopPropagation();datePopClose();return}
   const step=e.key==='ArrowLeft'?-1:e.key==='ArrowRight'?1:e.key==='ArrowUp'?-7:e.key==='ArrowDown'?7:0;
   if(!step)return;
-  const days=[...datePop.el.querySelectorAll('.dp-day')];
+  const days=[...datePop.el.querySelectorAll('.dp-day:not(:disabled)')];
   const i=days.indexOf(document.activeElement);
   if(i<0)return;
   e.preventDefault();
@@ -87,10 +93,11 @@ function datePopPaint(){
     const cur=new Date(y,m,dayNo);
     const iso=cur.getFullYear()+'-'+datePopPad(cur.getMonth()+1)+'-'+datePopPad(cur.getDate());
     const out=cur.getMonth()!==m;
-    cells+=`<button type='button' class='dp-day${out?' dp-out':''}${iso===sel?'':' '}${iso===tIso?' dp-today':''}' data-iso='${iso}' aria-selected='${iso===sel?'true':'false'}' onclick="datePick('${iso}')">${cur.getDate()}</button>`;
+    const disabled=!!datePop.minIso&&iso<datePop.minIso;
+    cells+=`<button type='button' class='dp-day${out?' dp-out':''}${iso===sel?'':' '}${iso===tIso?' dp-today':''}${disabled?' dp-disabled':''}' data-iso='${iso}' aria-selected='${iso===sel?'true':'false'}'${disabled?' disabled':''} onclick="datePick('${iso}')">${cur.getDate()}</button>`;
   }
   datePop.el.innerHTML=`<div class='dp-head'><b class='dp-title'>Tháng ${m+1} năm ${y}</b><span class='dp-nav'>`+
-    `<button type='button' aria-label='Tháng trước' title='Tháng trước' onclick='dateNav(-1)'><span aria-hidden='true' style='font-size:18px;line-height:1'>‹</span></button>`+
+    (()=>{let canPrev=true;if(datePop.minIso){const min=new Date(datePop.minIso+'T00:00:00');canPrev=y>min.getFullYear()||(y===min.getFullYear()&&m>min.getMonth())}return `<button type='button' aria-label='Tháng trước' title='Tháng trước' ${canPrev?'':'disabled'} onclick='dateNav(-1)'><span aria-hidden='true' style='font-size:18px;line-height:1'>‹</span></button>`})()+
     `<button type='button' aria-label='Tháng sau' title='Tháng sau' onclick='dateNav(1)'><span aria-hidden='true' style='font-size:18px;line-height:1'>›</span></button></span></div>`+
     `<div class='dp-grid'>${dow.map(d=>`<span class='dp-dow'>${d}</span>`).join('')}${cells}</div>`+
     `<div class='dp-foot'><button type='button' class='btn light' onclick="datePick('${tIso}')">Hôm nay</button>`+
@@ -100,10 +107,15 @@ function datePopPaint(){
 function dateNav(d){
   if(!datePop)return;
   const m=datePop.m+d,y=datePop.y+(m<0?-1:m>11?1:0);
+  if(datePop.minIso){
+    const min=new Date(datePop.minIso+'T00:00:00');
+    if(y<min.getFullYear()||(y===min.getFullYear()&&m<min.getMonth()))return;
+  }
   datePop.m=(m+12)%12;datePop.y=y;datePopPaint();
 }
 function datePick(iso){
   if(!datePop)return;
+  if(datePop.minIso&&iso<datePop.minIso)return;
   const id=datePop.inputId;
   datePopClose();
   dateSet(id,iso);

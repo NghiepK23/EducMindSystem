@@ -87,6 +87,7 @@ function editAsg(i){
     if(!v.n.trim())return 'Bài tập phải có tiêu đề.';
     if(!asgIsQ(a)&&!v.d.trim())return 'Loại nộp tệp cần có đề bài để học sinh biết phải làm gì.';
     if(!/^\d{2}\/\d{2}\/\d{4}$/.test(v.due.trim()))return 'Hạn nộp cần đúng dạng dd/mm/yyyy.';
+    if(dueMs({due:v.due.trim()})<simNow())return 'Hạn nộp không được ở quá khứ.';
     if(!(m>0)&&!asgIsQ(a))return 'Điểm tối đa phải lớn hơn 0.';
     if(asgIsQ(a)&&m!==a.max)return 'Điểm tối đa của bộ câu hỏi tự cộng từ điểm từng câu; hãy chỉnh điểm ở mục Soạn câu hỏi.';
     {const tr=String(v.t).trim();if(!/^\d+$/.test(tr)||+tr<1)return 'Số lần làm tối đa phải là số nguyên từ 1 trở lên.';if(+tr<used)return 'Không đặt thấp hơn số lượt học sinh đã dùng ('+used+' lượt).'}

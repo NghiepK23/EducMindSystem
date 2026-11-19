@@ -86,6 +86,7 @@ function dbAssessmentForm(d, e) {
   const locked = !!e && d.attempts.some((t) => t.assessment_id === e.id);
   const lockAttr = locked ? 'disabled' : '';
   const open = e ? e.open_at : new Date(dbNow()).toISOString(), close = e ? e.close_at : new Date(dbNow() + 7 * 86400000).toISOString();
+  const minimum = !locked ? new Date(dbNow()).toISOString() : null;
   return `<section class="panel" aria-labelledby="db-h-ef">
     ${e ? dbAssessmentSteps(e, 1) : `<ol class="db-workflow-steps" aria-label="Các bước tạo bài kiểm tra"><li class="is-current" aria-current="step"><span><b>1</b> Thiết lập</span></li><li><span><b>2</b> Câu hỏi</span></li><li><span><b>3</b> Xem trước</span></li></ol>`}
     <h2 id="db-h-ef">${e ? 'Sửa bài kiểm tra' : 'Tạo bài kiểm tra'}</h2>
@@ -99,8 +100,8 @@ function dbAssessmentForm(d, e) {
         ${dbField('Số lượt làm tối đa', 'db-ef-att', `<input id="db-ef-att" name="attempts" type="number" min="1" max="20" step="1" value="${h(e ? e.max_attempts : 1)}" ${lockAttr} required>`, 'Có thể cấp lượt làm bù riêng cho từng học sinh sau này.')}
       </div>
       <div class="db-form-grid db-assessment-settings-grid db-assessment-time-grid">
-        ${dbField('Mở lúc', 'db-ef-open', `<input id="db-ef-open" name="open" type="datetime-local" value="${dbToLocalInput(open)}" ${lockAttr} required>`)}
-        ${dbField('Đóng lúc', 'db-ef-close', `<input id="db-ef-close" name="close" type="datetime-local" value="${dbToLocalInput(close)}" ${lockAttr} required>`, 'Lượt làm kết thúc theo mốc đến trước: hết thời lượng hoặc đến giờ đóng bài.')}
+        ${dbField('Mở lúc', 'db-ef-open', dbDatetimeField('db-ef-open', 'open', open, lockAttr, minimum))}
+        ${dbField('Đóng lúc', 'db-ef-close', dbDatetimeField('db-ef-close', 'close', close, lockAttr, minimum), 'Lượt làm kết thúc theo mốc đến trước: hết thời lượng hoặc đến giờ đóng bài.')}
       </div>
       ${dbFormError()}
       <div class="row db-form-actions">${dbBtn('Hủy', 'go', e ? { page: 'assessments', id: e.id } : { page: 'assessments' }, 'light')}<button type="submit" class="btn">${e ? 'Lưu thiết lập' : 'Tạo bản nháp và tiếp tục'}</button></div>
@@ -117,6 +118,11 @@ DB_ACT.saveAssessment = (form) => dbRun(form, async (v) => {
   if (!Number.isInteger(attempts) || attempts < 1 || attempts > 20) throw new Error('Số lượt làm phải là số nguyên từ 1 đến 20.');
   const open = settingsLocked ? current.open_at : dbFromLocalInput(v.open), close = settingsLocked ? current.close_at : dbFromLocalInput(v.close);
   if (!open || !close) throw new Error('Chọn thời điểm mở và đóng bài kiểm tra.');
+  if (!settingsLocked) {
+    const now = new Date(dbNow());
+    if (new Date(open) < now) throw new Error('Thời điểm mở bài kiểm tra không được ở quá khứ.');
+    if (new Date(close) < now) throw new Error('Thời điểm đóng bài kiểm tra không được ở quá khứ.');
+  }
   if (new Date(close) <= new Date(open)) throw new Error('Thời điểm đóng phải sau thời điểm mở.');
   const course = await dbEnsureCourse();
   const row = { title: String(v.title).trim(), lesson_id: settingsLocked ? current.lesson_id : (v.lesson_id || null), duration_minutes: duration, max_attempts: attempts, open_at: open, close_at: close };

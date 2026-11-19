@@ -61,6 +61,7 @@ tr.obj-editing td{padding:6px 8px}
 .datepop .dp-nav{display:flex;gap:2px}
 .datepop .dp-nav button{width:28px;height:28px;border:0;border-radius:8px;background:transparent;color:var(--muted);display:grid;place-items:center;cursor:pointer}
 .datepop .dp-nav button:hover{background:var(--fill);color:var(--ink)}
+.datepop .dp-nav button:disabled{opacity:.28;cursor:not-allowed}
 .datepop .dp-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:2px}
 .datepop .dp-dow{font-size:11px;font-weight:700;color:var(--muted);text-align:center;padding:2px 0 6px}
 .datepop .dp-day{height:32px;border:0;border-radius:9px;background:transparent;color:var(--ink);font:inherit;font-size:13px;cursor:pointer}
@@ -69,5 +70,6 @@ tr.obj-editing td{padding:6px 8px}
 .datepop .dp-day[aria-selected="true"]{background:#0a84ff;color:#fff;font-weight:700}
 .datepop .dp-day.dp-today{box-shadow:inset 0 0 0 1.5px #0a84ff}
 .datepop .dp-day.dp-out{color:var(--muted);opacity:.6}
+.datepop .dp-day.dp-disabled{opacity:.28;cursor:not-allowed;background:transparent!important}
 .datepop .dp-foot{display:flex;justify-content:space-between;gap:6px;margin-top:10px}
 
