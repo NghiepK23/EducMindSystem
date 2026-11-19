@@ -28,6 +28,11 @@ const DB_ACT = {};     // tên thao tác -> hàm (phần tử, sự kiện)
 const dbActive = () => !!(logged && sess && sess.backend && DB.me);
 const dbIsTeacher = () => !!DB.me && DB.me.role === 'TEACHER';
 const dbClass = () => DB.classes.find((c) => c.id === DB.classId) || null;
+const dbTeacherSetupRequired = () => {
+  if (!dbIsTeacher()) return false;
+  const c = dbClass(), course = DB.course;
+  return !c || !String(c.name || '').trim() || !course || course.class_id !== c.id || !String(course.title || '').trim();
+};
 function dbResolveClassGrade(className, grade) {
   if (grade != null && grade !== '') {
     const value = Number(grade);
@@ -434,6 +439,10 @@ function dbShowError(e, el) {
 /* Chạy một thao tác ghi: khóa nút trong lúc chờ, báo lỗi ngay tại chỗ (giữ nguyên nội dung đã nhập), thành công thì nạp lại trang.
    work trả về false để tự xử lý việc vẽ lại (không nạp lại trang). */
 async function dbRun(el, work, okMsg) {
+  if (dbTeacherSetupRequired() && !DB.dialog?.teacherSetup) {
+    dbShowError(new Error('Hãy bổ sung Lớp và Môn học trong Tài khoản trước khi sử dụng chức năng giáo viên.'), el);
+    return;
+  }
   const scope = (el && (el.tagName === 'FORM' ? el : el.closest('form'))) || el;
   if (scope) for (const part of scope.querySelectorAll('[data-datetime-part]')) dbSyncDatetime(part);
   const controls = scope ? [...(scope.matches('button, input, select, textarea') ? [scope] : scope.querySelectorAll('button, input, select, textarea'))].filter((x) => !x.disabled) : [];
@@ -528,6 +537,11 @@ function dbDispatch(name, el, ev) {
   if (!fn) { console.error('Chưa có thao tác:', name); return; }
   /* Hết hạn do không hoạt động: authGuard() trong render() sẽ đưa về màn hình đăng nhập, thao tác không được thực hiện. */
   if (Date.now() - sess.t > SESS_IDLE * 60000) { render(); return; }
+  const setupDialogSave = name === 'dialogOk' && DB.dialog?.teacherSetup;
+  if (dbTeacherSetupRequired() && !setupDialogSave && !['go', 'setClass', 'openAccount', 'dialogClose', 'reload'].includes(name)) {
+    dbShowError(new Error('Hãy bổ sung Lớp và Môn học trong Tài khoản trước khi sử dụng chức năng giáo viên.'), el);
+    return;
+  }
   sess.t = Date.now();
   try { const r = fn(el, ev); if (r && typeof r.catch === 'function') r.catch((e) => { dbLogError(e); dbShowError(e, el); }); }
   catch (e) { dbLogError(e); dbShowError(e, el); }
@@ -685,6 +699,9 @@ function dbRender() {
   document.title = (typeof P.title === 'function' ? P.title() : P.title) + ' | EducMind';
 }
 function dbNoClassHtml() {
+  if (dbTeacherSetupRequired()) {
+    return `<section class="panel"><h2>Cần bổ sung thông tin giáo viên</h2><p class="lead">Nhập Lớp và Môn học trong Tài khoản trước khi tạo nội dung hoặc sử dụng chức năng giáo viên.</p>${dbBtn('Mở Tài khoản', 'openAccount')}</section>`;
+  }
   return dbIsTeacher()
     ? `<section class="panel"><h2>Chưa có lớp nào</h2><p class="lead">Hãy tạo lớp đầu tiên, sau đó thêm bài học, bài tập và mời học sinh vào lớp bằng mã lớp.</p>${dbBtn('Tạo lớp', 'go', { page: 'classes' })}</section>`
     : `<section class="panel"><h2>Em chưa vào lớp nào</h2><p class="lead">Nhập mã lớp do giáo viên cung cấp để vào lớp và xem bài học, bài tập.</p>${dbBtn('Vào lớp bằng mã', 'go', { page: 'classes' })}</section>`;
@@ -704,6 +721,10 @@ async function dbStart(profile) {
   dbStartNotifications();
   if (!DB.loadError) await dbLoad();
   render();
+  if (!DB.loadError && dbTeacherSetupRequired()) {
+    try { await DB_ACT.openAccount(); }
+    catch (e) { dbLogError(e); dbShowError(e, app); }
+  }
 }
 /* Xóa mọi dữ liệu của phiên khỏi bộ nhớ (đăng xuất, hết phiên). */
 function dbReset() {

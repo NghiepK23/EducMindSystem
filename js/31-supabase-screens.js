@@ -1,7 +1,12 @@
 /* EducMind · js/31-supabase-screens.js
    Đăng nhập / đăng ký bằng Supabase và khôi phục phiên. Sau khi đăng nhập, các màn hình dữ liệu thật nằm trong js/db/. */
 /* Giữ lại họ tên và vai trò đã nhập ở biểu mẫu đăng ký khi biểu mẫu được vẽ lại (ví dụ sau một lỗi nhập liệu). */
-let authSignupName='',authSignupRole='STUDENT';
+let authSignupName='',authSignupRole='STUDENT',authSignupClassName='',authSignupSubject='';
+function signupRoleChanged(value){
+  authSignupRole=value==='TEACHER'?'TEACHER':'STUDENT';
+  const fields=document.getElementById('su-teacher-fields');
+  if(fields)fields.hidden=authSignupRole!=='TEACHER';
+}
 function backendErrorText(e){
   const m=String(e?.message||'');
   if(/Invalid login credentials/i.test(m))return 'Email hoặc mật khẩu không đúng.';
@@ -28,23 +33,32 @@ async function backendSignup(){
   if(!supabaseClient){authErr='Không tải được Supabase SDK. Hãy kết nối Internet rồi tải lại trang.';render();return}
   const name=(document.getElementById('su-name')?.value||'').trim(),email=(document.getElementById('em')?.value||'').trim().toLowerCase(),
     pw=document.getElementById('pw')?.value||'',pw2=document.getElementById('pw2')?.value||'',
-    suRole=document.querySelector('input[name="su-role"]:checked')?.value==='TEACHER'?'TEACHER':'STUDENT';
+    suRole=document.querySelector('input[name="su-role"]:checked')?.value==='TEACHER'?'TEACHER':'STUDENT',
+    className=(document.getElementById('su-class')?.value||'').trim(),
+    subject=(document.getElementById('su-subject')?.value||'').trim();
   authEmail=email;authSignupName=name;authSignupRole=suRole;
+  authSignupClassName=className;authSignupSubject=subject;
   if(!name){authErr='Nhập họ và tên.';render();return}
+  if(name.length>120){authErr='Họ và tên tối đa 120 ký tự.';render();return}
   if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)){authErr='Nhập đúng địa chỉ email.';render();return}
   if(pw.length<PW_MIN){authErr='Mật khẩu cần ít nhất '+PW_MIN+' ký tự.';render();return}
   if(pw!==pw2){authErr='Hai mật khẩu không khớp.';render();return}
+  if(suRole==='TEACHER'&&!!className!==!!subject){authErr='Nếu nhập thông tin lớp lúc đăng ký, hãy nhập cả tên lớp và môn học.';render();return}
+  if(suRole==='TEACHER'&&className.length>100){authErr='Tên lớp tối đa 100 ký tự.';render();return}
+  if(suRole==='TEACHER'&&subject.length>120){authErr='Tên môn học tối đa 120 ký tự.';render();return}
   backendBusy=true;authErr='';authMsg='';render();
-  const {data,error}=await supabaseClient.auth.signUp({email,password:pw,options:{data:{full_name:name,role:suRole},emailRedirectTo:location.href.split('#')[0]}});
+  const metadata={full_name:name,role:suRole};
+  if(suRole==='TEACHER'&&className&&subject){metadata.teacher_class_name=className;metadata.teacher_subject_name=subject}
+  const {data,error}=await supabaseClient.auth.signUp({email,password:pw,options:{data:metadata,emailRedirectTo:location.href.split('#')[0]}});
   backendBusy=false;
   if(error){authErr='Không tạo được tài khoản: '+backendErrorText(error);render();return}
-  if(data.session){authSignupName='';await activateBackendSession(data.session);return}
+  if(data.session){authSignupName='';authSignupClassName='';authSignupSubject='';await activateBackendSession(data.session);return}
   /* Supabase trả về người dùng không có "identities" khi email đã được đăng ký từ trước: không có thư nào được gửi. */
   if(data.user&&Array.isArray(data.user.identities)&&data.user.identities.length===0){
     authMode='login';authMsg='';authErr='Email '+email+' đã có tài khoản. Hãy đăng nhập, hoặc bấm “Quên mật khẩu?” nếu không nhớ mật khẩu.';render();return;
   }
   authMode='verify-signup';
-  authMsg='Đã tạo tài khoản '+(suRole==='TEACHER'?'giáo viên':'học sinh')+'. Hãy nhập mã xác nhận trong thư gửi tới '+email+'.';render();
+  authMsg='Đã tạo tài khoản '+(suRole==='TEACHER'?(className?'giáo viên cùng lớp '+className+' · môn '+subject:'giáo viên; có thể bổ sung lớp và môn học trong Tài khoản sau khi đăng nhập'):'học sinh')+'. Hãy nhập mã xác nhận trong thư gửi tới '+email+'.';render();
 }
 async function activateBackendSession(session){
   if(!session?.user){authErr='Không nhận được phiên đăng nhập.';render();return}

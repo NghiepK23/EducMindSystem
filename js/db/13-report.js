@@ -29,7 +29,6 @@ const DB_REPORT_ORG_FIELDS = [
   { key: 'school', label: 'Tên trường', ph: 'VD: TRƯỜNG THPT …' },
   { key: 'city', label: 'Địa danh (dòng ngày tháng)', ph: 'Tên tỉnh / thành phố' },
   { key: 'docNo', label: 'Số, ký hiệu văn bản', ph: 'VD: 12/BC-TH' },
-  { key: 'subject', label: 'Môn học', ph: 'Tin học' },
   { key: 'term', label: 'Học kỳ', ph: 'VD: Học kỳ I' },
   { key: 'author', label: 'Người lập báo cáo', ph: 'Mặc định: tên tài khoản' },
   { key: 'position', label: 'Chức danh', ph: 'Giáo viên bộ môn' },
@@ -41,7 +40,7 @@ function dbRepOrg() {
   const o = dbRepOrgLoad(), me = DB.me || {};
   return {
     parent: o.parent || '', school: o.school || '', city: o.city || '', docNo: o.docNo || '',
-    subject: o.subject || 'Tin học', term: o.term || '',
+    subject: DB.course && DB.course.title ? DB.course.title.trim() : 'Chưa thiết lập', term: o.term || '',
     author: o.author || me.full_name || me.email || '',
     position: o.position || 'Giáo viên bộ môn',
     recipient: o.recipient || 'Tổ trưởng chuyên môn và Ban Giám hiệu nhà trường',
@@ -94,7 +93,7 @@ DB_PAGES.report = {
     const stuId = dbIsTeacher() ? DB_REPORT_STU : me;
     const rep = dbReportData(d, stuId || null);
     return `<section class="panel" aria-labelledby="db-h-rep">
-      <div class="row between"><div><h2 id="db-h-rep">Báo cáo tiến bộ</h2><p class="lead">${stuId ? h((students.find((s) => s.id === stuId) || {}).name || '') : 'Tổng hợp cả lớp'} · ${dbIsTeacher() ? students.length + ' học sinh' : ''}</p></div>
+      <div class="row between"><div><h2 id="db-h-rep">Báo cáo tiến bộ</h2><p class="lead">${h((dbClass() || {}).name || '')} · Môn học: ${h(DB.course && DB.course.title || 'Chưa thiết lập')} · ${stuId ? h((students.find((s) => s.id === stuId) || {}).name || '') : 'Tổng hợp cả lớp'} · ${dbIsTeacher() ? students.length + ' học sinh' : ''}</p></div>
         <div class="row">${dbBtn('Xuất Excel', 'reportExcel', {}, 'light')}${dbBtn('Xuất Word', 'reportWord', {}, 'light')}${dbBtn('In báo cáo', 'reportPrint', {}, 'light')}</div></div>
       <p class="muted db-hint">Bản Word trình bày theo mẫu báo cáo hành chính (đầu trang đơn vị, tóm tắt, nhận xét, khu vực ký) để nộp cho Tổ trưởng / Ban Giám hiệu; bản Excel gồm các trang tổng quan, bảng điểm, mục tiêu để tiếp tục xử lý.</p>
       ${dbRepOrgForm()}

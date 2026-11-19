@@ -8,6 +8,10 @@
 .su-role label{display:flex;align-items:center;gap:6px;padding:5px 8px;border-radius:10px;background:var(--fill);cursor:pointer;font-weight:600;font-size:.82rem}
 .su-role label:has(input:checked){background:var(--brand-soft);box-shadow:0 0 0 2px var(--brand)}
 .su-role input{flex:none;margin:0}
+.su-teacher-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 12px}
+.su-teacher-fields[hidden]{display:none}
+.su-teacher-fields .field{min-width:0;margin:8px 0}
+.su-teacher-fields .field input{box-sizing:border-box;width:100%;min-width:0}
 
 /* ----- Biểu mẫu ----- */
 .db-form-row{display:flex;flex-wrap:wrap;align-items:flex-end;gap:12px;margin-top:8px}

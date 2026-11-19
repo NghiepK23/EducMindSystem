@@ -9,13 +9,14 @@ DB_PAGES.classes = {
     await dbLoadClasses();
     if (DB.classId && (!DB.course || DB.course.class_id !== DB.classId)) await dbLoadCourse();
     const ids = DB.classes.map((c) => c.id);
-    const members = await dbCallIn(EducMindDB.listMembers, ids);
+    const [members, courses] = await Promise.all([dbCallIn(EducMindDB.listMembers, ids), dbCall(EducMindDB.listCoursesForClasses(ids))]);
+    const coursesByClass = Object.fromEntries(courses.map((course) => [course.class_id, course]));
     if (dbIsTeacher()) {
       const [invites, profiles, archived] = await Promise.all([dbCallIn(EducMindDB.listInvites, ids), dbCallIn(EducMindDB.listProfiles, members.map((m) => m.student_id)), dbCall(EducMindDB.listArchivedClasses())]);
-      return { members, invites, profiles: dbById(profiles), archived };
+      return { members, invites, profiles: dbById(profiles), courses: coursesByClass, archived };
     }
     const teachers = await dbCallIn(EducMindDB.listProfiles, DB.classes.map((c) => c.owner_teacher_id));
-    return { members, profiles: dbById(teachers) };
+    return { members, profiles: dbById(teachers), courses: coursesByClass };
   },
   view(d) { return dbIsTeacher() ? dbClassesTeacher(d) : dbClassesStudent(d); },
 };
@@ -32,11 +33,13 @@ function dbClassesTeacher(d) {
   const byClass = dbGroup(d.members, 'class_id');
   const cards = DB.classes.map((c) => {
     const n = (byClass[c.id] || []).length, code = dbActiveCode(d.invites, c.id);
+    const subject = (d.courses || {})[c.id]?.title || '';
     return `<div class="classcard${c.id === DB.classId ? ' selected' : ''}">
       <div class="classcard-top">
         <button type="button" class="classcard-name" data-act="selectClass" data-id="${h(c.id)}" ${c.id === DB.classId ? 'aria-current="true"' : ''}><b>${h(c.name)}</b></button>
         <div class="classcard-actions">${dbBtn('Sửa', 'editClass', { id: c.id }, 'light mini')}${dbBtn('Xóa', 'archiveClass', { id: c.id }, 'light mini danger-soft')}</div>
       </div>
+      <div class="meta">Môn học: <b>${h(subject || 'Chưa thiết lập')}</b></div>
       <div class="meta">${dbClassMeta(c) || 'Chưa ghi khối / năm học'}</div>
       <div class="meta"><b>${n}</b> học sinh · Mã lớp <b class="db-code">${h(code || '—')}</b></div>
     </div>`;
@@ -52,6 +55,7 @@ function dbClassesTeacher(d) {
     <h2 id="db-h-newclass">Tạo lớp mới</h2>
     <form data-act="createClass" class="db-form-row" novalidate>
       ${dbField('Tên lớp', 'db-class-name', `<input id="db-class-name" name="name" maxlength="100" placeholder="Ví dụ: 10A1" required>`)}
+      ${dbField('Môn học', 'db-class-subject', `<input id="db-class-subject" name="subject" maxlength="120" placeholder="Ví dụ: Toán, Ngữ văn, Vật lí" required>`)}
       ${dbField('Khối', 'db-class-grade', `<input id="db-class-grade" name="grade" type="number" min="${EDUCMIND_GRADE_MIN}" max="${EDUCMIND_GRADE_MAX}" inputmode="numeric" placeholder="${EDUCMIND_GRADE_RANGE_LABEL}">`)}
       ${dbField('Năm học', 'db-class-year', `<input id="db-class-year" name="year" maxlength="20" placeholder="2026-2027">`)}
       <button type="submit" class="btn">Tạo lớp</button>
@@ -102,6 +106,7 @@ function dbClassesStudent(d) {
   const cards = DB.classes.map((c) => `<div class="classcard${c.id === DB.classId ? ' selected' : ''}">
       <div class="classcard-top"><button type="button" class="classcard-name" data-act="selectClass" data-id="${h(c.id)}" ${c.id === DB.classId ? 'aria-current="true"' : ''}><b>${h(c.name)}</b></button></div>
       <div class="meta">${dbClassMeta(c)}</div>
+      <div class="meta">Môn học: <b>${h(((d.courses || {})[c.id] || {}).title || 'Chưa thiết lập')}</b></div>
       <div class="meta">Giáo viên: <b>${h(dbName(d.profiles[c.owner_teacher_id]))}</b></div>
       ${joined[c.id] ? `<div class="meta">Vào lớp lúc ${dbDateTime(joined[c.id])}</div>` : ''}
     </div>`).join('');
@@ -143,37 +148,39 @@ function dbReadClassForm(v) {
   const name = (v.name || '').trim();
   if (!name) throw new Error('Nhập tên lớp.');
   if (name.length > 100) throw new Error('Tên lớp tối đa 100 ký tự.');
+  const subject = (v.subject || '').trim();
+  if (!subject) throw new Error('Nhập tên môn học.');
+  if (subject.length > 120) throw new Error('Tên môn học tối đa 120 ký tự.');
   let grade = null;
   if (v.grade !== '' && v.grade != null) {
     grade = Number(v.grade);
     if (!educmindGradeIsValid(grade)) throw new Error(`Khối là số nguyên từ ${EDUCMIND_GRADE_MIN} đến ${EDUCMIND_GRADE_MAX} (có thể để trống).`);
   }
-  return { name, grade, year: (v.year || '').trim() || null };
+  return { name, subject, grade, year: (v.year || '').trim() || null };
 }
 DB_ACT.createClass = (form) => dbRun(form, async (v) => {
   const c = dbReadClassForm(v);
   const grade = dbResolveClassGrade(c.name, c.grade);
-  const courseTitle = `Tin học ${grade}`;
-  const made = await dbCall(EducMindDB.createClass(c.name, grade, c.year));
+  const made = await dbCall(EducMindDB.createClassWithSubject(c.name, grade, c.year, c.subject));
   const row = Array.isArray(made) ? made[0] : made;
   DB.classId = row.class_id;
   try { localStorage.setItem('educmind.db.class', DB.classId); } catch (_) {}
   DB.course = null;
-  /* Mỗi lớp có sẵn một khóa học để chứa bài học, bài tập, câu hỏi. Nếu bước này lỗi, dbEnsureCourse() sẽ tạo lại khi cần. */
-  try { DB.course = await dbCall(EducMindDB.createCourse({ class_id: row.class_id, title: courseTitle })); } catch (e) { console.warn('Chưa tạo được khóa học mặc định:', e.message); }
   toast('Đã tạo lớp ' + c.name + '. Mã lớp: ' + row.join_code);
 });
-DB_ACT.editClass = (el) => {
+DB_ACT.editClass = async (el) => {
   const c = DB.classes.find((x) => x.id === el.dataset.id);
   if (!c) return;
+  const course = (DB.data.courses || {})[c.id] || null;
   dbOpenDialog({
     title: 'Sửa lớp ' + h(c.name), okLabel: 'Lưu thay đổi',
     body: dbField('Tên lớp', 'db-ec-name', `<input id="db-ec-name" name="name" maxlength="100" value="${h(c.name)}" required>`)
+      + dbField('Môn học', 'db-ec-subject', `<input id="db-ec-subject" name="subject" maxlength="120" value="${h(course ? course.title : '')}" required>`)
       + dbField('Khối', 'db-ec-grade', `<input id="db-ec-grade" name="grade" type="number" min="${EDUCMIND_GRADE_MIN}" max="${EDUCMIND_GRADE_MAX}" value="${h(c.grade == null ? '' : c.grade)}">`)
       + dbField('Năm học', 'db-ec-year', `<input id="db-ec-year" name="year" maxlength="20" value="${h(c.school_year || '')}">`),
     onOk: async (v) => {
       const x = dbReadClassForm(v);
-      await dbCall(EducMindDB.updateClass(c.id, { name: x.name, grade: x.grade, school_year: x.year }));
+      await dbCall(EducMindDB.updateClassWithSubject(c.id, { name: x.name, grade: x.grade, school_year: x.year, subject: x.subject }));
       toast('Đã lưu thông tin lớp.');
     },
   });

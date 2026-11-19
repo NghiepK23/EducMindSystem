@@ -45,7 +45,7 @@ async function verifyBackendCode(purpose){
     backendRecovery=true;authMode='reset';authErr='';authMsg='Mã đã xác nhận. Hãy đặt mật khẩu mới.';render();return;
   }
   if(!data.session){authErr='Mã đã xác nhận nhưng chưa mở được phiên đăng nhập. Hãy thử đăng nhập lại.';authMode='login';render();return}
-  authSignupName='';await activateBackendSession(data.session);
+  authSignupName='';authSignupClassName='';authSignupSubject='';await activateBackendSession(data.session);
 }
 async function resendBackendCode(purpose){
   if(!supabaseClient)return;

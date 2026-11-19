@@ -49,13 +49,18 @@ Hệ thống chỉ dùng **tài khoản thật** đăng ký bằng email:
 1. Bấm **Tạo tài khoản**, chọn vai trò **Giáo viên (TEACHER)** hoặc **Học sinh (STUDENT)**
    (vai trò không đổi được sau khi tạo).
 2. Mở hộp thư (kể cả thư rác), nhập **mã xác nhận email**, rồi đăng nhập.
-3. Giáo viên tạo **Lớp học** — hệ thống sinh **mã lớp 8 ký tự**; học sinh tự đăng ký
-   rồi vào lớp bằng mã đó.
+3. Khi đăng ký vai trò **Giáo viên**, có thể nhập **tên lớp** và **môn học** ngay hoặc
+   bổ sung sau trong **Tài khoản**. Giáo viên cần hoàn tất hai thông tin này trước khi
+   dùng chức năng dạy học; hệ thống sẽ nhắc nếu còn thiếu. Khi lưu, backend tạo/cập nhật
+   lớp, khóa học chứa môn học và **mã lớp 8 ký tự**. Học sinh tự đăng ký rồi vào lớp bằng mã đó.
 4. Giáo viên cũng có thể **tự tạo tài khoản cho học sinh** ngay trong trang lớp học
    (tự đặt mật khẩu giao cho học sinh).
 
 Tải lại trang bao nhiêu lần cũng giữ nguyên đăng nhập và dữ liệu — mọi thứ được lưu
 trên Supabase, không còn dữ liệu tạm trong bộ nhớ.
+
+Tên môn học được lưu trong `courses.title` và liên kết với lớp qua `courses.class_id`.
+Thông tin lớp/môn học trong Tài khoản và báo cáo/Xuất Excel-Word đều lấy từ dữ liệu này.
 
 ## Cấu trúc mã nguồn
 

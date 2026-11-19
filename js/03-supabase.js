@@ -62,6 +62,8 @@ const EducMindDB=(()=>{
     /* ----- Lớp học ----- */
     listClasses:()=>from('classes').select('id,name,grade,school_year,owner_teacher_id,created_at').is('deleted_at',null).order('created_at',{ascending:false}),
     createClass:(name,grade,year)=>rpc('create_class_with_code',{n:name,g:grade||null,y:year||null}),
+    createClassWithSubject:(name,grade,year,subject)=>rpc('create_class_with_subject',{p_name:name,p_grade:grade||null,p_school_year:year||null,p_subject:subject}),
+    updateClassWithSubject:(id,row)=>rpc('update_class_with_subject',{p_class:id,p_name:row.name,p_grade:row.grade,p_school_year:row.school_year,p_subject:row.subject}),
     updateClass:(id,row)=>from('classes').update(row).eq('id',id).select('id,name,grade,school_year,owner_teacher_id,created_at').single(),
     archiveClass:(id)=>from('classes').update({deleted_at:now()}).eq('id',id).select('id'),
     joinClass:(code)=>rpc('join_class_with_code',{k:code}),
@@ -81,6 +83,7 @@ const EducMindDB=(()=>{
 
     /* ----- Khóa học (mỗi lớp dùng một khóa học chứa toàn bộ nội dung) ----- */
     listCourses:(classId)=>from('courses').select('id,class_id,title,description,sequential_unlock,created_at').eq('class_id',classId).is('deleted_at',null).order('created_at'),
+    listCoursesForClasses:(classIds)=>classIds.length?from('courses').select('id,class_id,title,description,sequential_unlock,created_at').in('class_id',classIds).is('deleted_at',null).order('created_at'):Promise.resolve({data:[],error:null}),
     createCourse:(row)=>from('courses').insert(row).select('id,class_id,title,description,sequential_unlock,created_at').single(),
     /* Bật/tắt mở bài học tuần tự của khóa học. */
     updateCourse:(id,row)=>from('courses').update(row).eq('id',id).select('id,class_id,title,description,sequential_unlock,created_at').single(),
