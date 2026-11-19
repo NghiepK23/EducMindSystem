@@ -97,6 +97,15 @@ function dbClassMembersPanel(c, d) {
       ${dbBtn('Tạo tài khoản học sinh', 'createStudentAccount', { id: c.id, name: c.name }, 'light')}
       ${dbFormError()}
     </form>
+    <div class="db-class-import">
+      <div><b>Thêm học sinh bằng file Excel</b><p class="muted">Dùng đúng các cột STT, Họ và tên, Email. Học sinh cần có tài khoản đăng ký bằng email trong tệp; tên hiển thị trong lớp lấy từ tài khoản.</p></div>
+      <div class="row">
+        ${dbBtn('Tải file mẫu Excel', 'downloadClassStudentsTemplate', {}, 'light')}
+        ${dbBtn('Chọn file Excel', 'pickClassStudentsFile', {}, 'light')}
+        <input id="db-class-students-file" class="sr" type="file" accept=".xlsx,.xls,.csv" data-change="importClassStudents" aria-label="Chọn file danh sách học sinh">
+      </div>
+      <div id="db-class-import-status" class="muted" role="status" aria-live="polite"></div>
+    </div>
     ${rows.length ? dbTable(['Họ và tên', 'Email', 'Vào lớp lúc', '<span class="sr">Thao tác</span>'], rows, 'Học sinh của lớp') : dbEmpty('Lớp chưa có học sinh. Gửi mã lớp cho học sinh, thêm bằng email hoặc tạo tài khoản cho các em.')}
   </section>`;
 }
@@ -206,6 +215,92 @@ DB_ACT.addStudent = (form) => dbRun(form, async (v) => {
     NOT_A_STUDENT: 'Email này thuộc tài khoản giáo viên nên không thêm vào lớp như học sinh được.',
   }[r] || 'Không thêm được học sinh (' + r + ').');
 });
+DB_ACT.downloadClassStudentsTemplate = () => {
+  DBTF.exportExcel('Mau_them_hoc_sinh_vao_lop.xlsx', [{
+    name: 'Danh sách học sinh',
+    headers: ['STT', 'Họ và tên', 'Email'],
+    rows: [],
+    widths: [8, 32, 38],
+    notes: ['Nhập mỗi học sinh trên một dòng. Email phải thuộc tài khoản học sinh đã đăng ký.'],
+  }], { title: 'Danh sách học sinh thêm vào lớp' });
+  toast('Đã tải file mẫu Excel.');
+};
+DB_ACT.pickClassStudentsFile = () => document.getElementById('db-class-students-file')?.click();
+DB_ACT.importClassStudents = async (el) => {
+  const file = el.files && el.files[0];
+  if (!file) return;
+  const classId = DB.classId;
+  if (!dbIsTeacher() || !DB.classes.some((c) => c.id === classId)) throw new Error('Không tìm thấy lớp đang chọn.');
+  const status = document.getElementById('db-class-import-status');
+  if (status) status.textContent = 'Đang đọc và thêm học sinh…';
+  el.disabled = true;
+  try {
+    const rows = await readRows(file);
+    const headerIndex = rows.findIndex((row) => row.some((cell) => nz(cell) === 'email') && row.some((cell) => nz(cell) === 'stt'));
+    if (headerIndex < 0) throw new Error('Không tìm thấy tiêu đề STT và Email. Hãy dùng file mẫu Excel.');
+    const headers = rows[headerIndex].map(nz);
+    const nameIndex = headers.findIndex((header) => header === 'ho va ten' || header === 'ho ten');
+    const emailIndex = headers.indexOf('email');
+    const numberIndex = headers.indexOf('stt');
+    if (numberIndex < 0 || nameIndex < 0 || emailIndex < 0) throw new Error('Tệp cần có đủ các cột STT, Họ và tên, Email.');
+    const report = { added: [], notFound: [], alreadyMember: [], notStudent: [], skipped: [], failed: [] };
+    const seen = new Set(), candidates = [];
+    rows.slice(headerIndex + 1).forEach((row, index) => {
+      if (!row.some((cell) => String(cell == null ? '' : cell).trim())) return;
+      const line = headerIndex + index + 2;
+      const name = String(row[nameIndex] == null ? '' : row[nameIndex]).trim();
+      const email = String(row[emailIndex] == null ? '' : row[emailIndex]).trim().toLowerCase();
+      const number = String(row[numberIndex] == null ? '' : row[numberIndex]).trim() || String(line - headerIndex - 1);
+      const student = { number, name, email };
+      if (!name || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
+        report.skipped.push({ ...student, reason: !name ? 'Thiếu họ và tên.' : 'Email không hợp lệ.' });
+        return;
+      }
+      if (seen.has(email)) {
+        report.skipped.push({ ...student, reason: 'Email bị lặp trong tệp.' });
+        return;
+      }
+      seen.add(email);
+      student.line = line;
+      candidates.push(student);
+    });
+    if (!candidates.length && !report.skipped.length) throw new Error('Không có dòng dữ liệu học sinh trong tệp.');
+    for (const student of candidates) {
+      try {
+        const result = await dbCall(EducMindDB.addStudentByEmail(classId, student.email));
+        if (result === 'ADDED') report.added.push(student);
+        else if (result === 'NOT_FOUND') report.notFound.push(student);
+        else if (result === 'ALREADY_MEMBER') report.alreadyMember.push(student);
+        else if (result === 'NOT_A_STUDENT') report.notStudent.push(student);
+        else report.failed.push({ ...student, reason: 'Máy chủ trả về kết quả không xác định (' + String(result) + ').' });
+      } catch (error) {
+        dbLogError(error);
+        report.failed.push({ ...student, reason: dbErrText(error) });
+      }
+    }
+    const list = (items) => items.length
+      ? `<ul>${items.map((student) => `<li>Dòng ${h(student.line || student.number)} · ${h(student.name)} · ${h(student.email)}${student.reason ? ' — ' + h(student.reason) : ''}</li>`).join('')}</ul>`
+      : '';
+    const section = (title, items) => items.length ? `<p><b>${title} (${items.length})</b></p>${list(items)}` : '';
+    const body = `<p>Đã kiểm tra ${candidates.length + report.skipped.length} dòng học sinh trong tệp <b>${h(file.name)}</b>.</p>
+      ${section('Đã thêm vào lớp', report.added)}
+      ${section('Chưa thể thêm vì email chưa có tài khoản học sinh', report.notFound)}
+      ${section('Đã ở trong lớp', report.alreadyMember)}
+      ${section('Email thuộc tài khoản không phải học sinh', report.notStudent)}
+      ${section('Dòng bị bỏ qua', report.skipped)}
+      ${section('Lỗi khi thêm', report.failed)}
+      ${report.notFound.length ? '<p class="muted">Các em trong danh sách chưa có tài khoản với email tương ứng nên không được thêm vào lớp. Hãy yêu cầu các em đăng ký rồi tải lại tệp để thêm.</p>' : ''}`;
+    el.value = '';
+    if (status) status.textContent = '';
+    dbOpenDialog({ title: 'Kết quả thêm học sinh', wide: true, body });
+    await dbReload();
+  } finally {
+    el.disabled = false;
+    if (el.isConnected) el.value = '';
+    const currentStatus = document.getElementById('db-class-import-status');
+    if (currentStatus) currentStatus.textContent = '';
+  }
+};
 /* Giáo viên tạo tài khoản học sinh: email + họ tên + mật khẩu ban đầu do giáo viên đặt, thêm thẳng vào lớp. */
 DB_ACT.createStudentAccount = (el) => {
   const classId = el.dataset.id, className = el.dataset.name || '';

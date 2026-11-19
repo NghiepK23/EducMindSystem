@@ -22,10 +22,16 @@
 .db-form-row>.db-form-error{flex:1 1 100%}
 .db-class-member-add{margin:12px 0 18px;padding:14px;border:1px solid var(--line);border-radius:14px;background:var(--fill)}
 .db-class-member-add .field{flex-basis:260px}
+.db-class-import{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px 16px;margin:0 0 18px;padding:12px 14px;border:1px solid var(--line);border-radius:14px;background:var(--fill)}
+.db-class-import p{margin:3px 0 0;font-size:.8125rem}
+.db-class-import .row{gap:8px}
+.db-class-import [role="status"]:empty{display:none}
 @media(max-width:620px){
   .db-class-member-add{padding:12px}
   .db-class-member-add .field,.db-class-member-add>.btn{flex:1 1 100%}
   .db-class-member-add>.btn{width:100%}
+  .db-class-import,.db-class-import .row{width:100%}
+  .db-class-import .row>.btn{flex:1 1 100%;width:100%}
 }
 .db-add-row{margin-top:14px;padding-top:14px;box-shadow:0 -.5px 0 var(--line)}
 .db-form-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:0 16px}
