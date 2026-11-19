@@ -6,6 +6,7 @@
 const DB_SCHED_PRIO = ['Quá hạn', 'Hôm nay', 'Sắp tới', 'Nhắc lịch'];
 const dbSchedDay = (t) => { const d = new Date(t); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
 let DB_SCHED_SEL = '';   // ngày đang chọn trên lịch ('' = mọi ngày)
+let DB_SCHED_MONTH = ''; // tháng đang xem (YYYY-MM; '' = tháng hiện tại)
 
 DB_PAGES.schedule = {
   title: 'Lịch & việc cần làm',
@@ -24,11 +25,18 @@ DB_PAGES.schedule = {
   view(d) {
     if (!DB.classId) return `<section class="panel">${dbEmpty('Hãy chọn một lớp để xem lịch.')}</section>`;
     const items = (dbIsTeacher() ? dbSchedTeacher(d) : dbSchedStudent(d)).sort((x, y) => x.prio - y.prio || x.at - y.at);
+    // Sự kiện sử dụng thời điểm `at`, không có thuộc tính `day`.
+    const visibleItems = DB_SCHED_SEL
+      ? items.filter((x) => Number.isFinite(x.at) && dbSchedDay(x.at) === DB_SCHED_SEL)
+      : items;
+    const summary = DB_SCHED_SEL
+      ? visibleItems.length + ' việc trong ngày ' + dbDate(DB_SCHED_SEL)
+      : (items.length ? items.length + ' việc' : 'Không có việc nào — bạn đã cập nhật hết!');
     return `${dbSchedCalendar(items)}
     <section class="panel" aria-labelledby="db-h-sch">
       <h2 id="db-h-sch">Việc cần làm</h2>
-      <p class="lead">${items.length ? items.length + ' việc' + (DB_SCHED_SEL ? ' trong ngày ' + dbDate(DB_SCHED_SEL) : '') : 'Không có việc nào — bạn đã cập nhật hết!'}</p>
-      <div class="db-sched-list">${items.filter((x) => !DB_SCHED_SEL || x.day === DB_SCHED_SEL).map(dbSchedItem).join('') || dbEmpty('Không có việc nào trong ngày đang chọn.')}</div>
+      <p class="lead">${summary}</p>
+      <div class="db-sched-list">${visibleItems.map(dbSchedItem).join('') || dbEmpty(DB_SCHED_SEL ? 'Không có việc nào trong ngày đang chọn.' : 'Chưa có việc cần làm.')}</div>
     </section>`;
   },
 };
@@ -91,20 +99,52 @@ function dbSchedItem(x) {
     ${dbBtn(x.label, 'go', { page: x.page, ...x.arg }, 'light mini')}</div>`;
 }
 /* Lịch tháng: ô ngày có mốc sự kiện thì tô màu; bấm ngày để lọc danh sách việc. */
+function dbSchedVisibleMonth() {
+  if (!DB_SCHED_MONTH) { const now = new Date(); return new Date(now.getFullYear(), now.getMonth(), 1); }
+  const [year, month] = DB_SCHED_MONTH.split('-').map(Number);
+  return new Date(year, month - 1, 1);
+}
+function dbSchedMoveMonth(delta) {
+  const month = dbSchedVisibleMonth();
+  const next = new Date(month.getFullYear(), month.getMonth() + delta, 1);
+  DB_SCHED_MONTH = next.getFullYear() + '-' + String(next.getMonth() + 1).padStart(2, '0');
+  DB_SCHED_SEL = ''; // Không để ngày được chọn nằm ngoài tháng đang xem.
+  render();
+}
 function dbSchedCalendar(items) {
-  const now = new Date(), y = now.getFullYear(), m = now.getMonth();
+  const now = new Date(), month = dbSchedVisibleMonth(), y = month.getFullYear(), m = month.getMonth();
   const first = new Date(y, m, 1), startDow = (first.getDay() + 6) % 7, days = new Date(y, m + 1, 0).getDate();
   const byDay = {};
-  items.forEach((x) => { if (x.at) (byDay[dbSchedDay(x.at)] = byDay[dbSchedDay(x.at)] || []).push(x); });
+  items.forEach((x) => {
+    if (Number.isFinite(x.at)) {
+      const key = dbSchedDay(x.at);
+      (byDay[key] = byDay[key] || []).push(x);
+    }
+  });
   const cells = [];
   for (let i = 0; i < startDow; i++) cells.push('<div class="db-cal-cell empty"></div>');
   for (let day = 1; day <= days; day++) {
     const key = y + '-' + String(m + 1).padStart(2, '0') + '-' + String(day).padStart(2, '0'), ev = byDay[key] || [];
-    cells.push(`<button type="button" class="db-cal-cell${ev.length ? ' has-ev' : ''}${DB_SCHED_SEL === key ? ' sel' : ''}${key === dbSchedDay(now) ? ' today' : ''}" data-act="schedDay" data-day="${key}" title="${ev.length} sự kiện"><span class="db-cal-num">${day}</span>${ev.length ? `<span class="db-cal-dot">${ev.length}</span>` : ''}</button>`);
+    cells.push(`<button type="button" class="db-cal-cell${ev.length ? ' has-ev' : ''}${DB_SCHED_SEL === key ? ' sel' : ''}${key === dbSchedDay(now) ? ' today' : ''}" data-act="schedDay" data-day="${key}" aria-label="Ngày ${day}/${m + 1}/${y}, ${ev.length} việc" aria-pressed="${DB_SCHED_SEL === key}" title="${ev.length} sự kiện"><span class="db-cal-num">${day}</span>${ev.length ? `<span class="db-cal-dot">${ev.length}</span>` : ''}</button>`);
   }
-  return `<section class="panel" aria-labelledby="db-h-cal"><div class="row between"><h2 id="db-h-cal">Lịch tháng ${m + 1}/${y}</h2>${DB_SCHED_SEL ? dbBtn('Hiện mọi ngày', 'schedAll', {}, 'light mini') : ''}</div>
+  return `<section class="panel" aria-labelledby="db-h-cal">
+    <div class="db-sched-month-bar">
+      <h2 id="db-h-cal">Lịch tháng ${m + 1}/${y}</h2>
+      <div class="db-sched-month-actions">
+        <button type="button" class="btn light mini" data-act="schedMonthPrev" aria-label="Tháng trước" title="Tháng trước">‹</button>
+        <button type="button" class="btn light mini" data-act="schedMonthNext" aria-label="Tháng sau" title="Tháng sau">›</button>
+        ${dbBtn('Tháng hiện tại', 'schedMonthToday', {}, 'light mini')}
+        ${DB_SCHED_SEL ? dbBtn('Bỏ lọc ngày', 'schedAll', {}, 'light mini') : ''}
+      </div>
+    </div>
     <div class="db-cal">${['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'].map((x) => `<div class="db-cal-head">${x}</div>`).join('')}${cells.join('')}</div>
-    <p class="muted db-hint">Bấm một ngày để lọc việc cần làm theo ngày đó. Chấm tròn là số sự kiện (hạn nộp, mở/đóng kiểm tra).</p></section>`;
+    <p class="muted db-hint">Chọn một ngày để xem việc cần làm. Dấu tròn cho biết số sự kiện trong ngày.</p></section>`;
 }
-DB_ACT.schedDay = (el) => { DB_SCHED_SEL = DB_SCHED_SEL === el.dataset.day ? '' : el.dataset.day; render(); };
+DB_ACT.schedDay = (el) => {
+  DB_SCHED_SEL = DB_SCHED_SEL === el.dataset.day ? '' : el.dataset.day;
+  render();
+};
 DB_ACT.schedAll = () => { DB_SCHED_SEL = ''; render(); };
+DB_ACT.schedMonthPrev = () => dbSchedMoveMonth(-1);
+DB_ACT.schedMonthNext = () => dbSchedMoveMonth(1);
+DB_ACT.schedMonthToday = () => { DB_SCHED_MONTH = ''; DB_SCHED_SEL = ''; render(); };

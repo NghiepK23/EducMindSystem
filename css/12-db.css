@@ -279,6 +279,11 @@
 }
 
 /* ===== Lịch & việc cần làm (12-schedule) ===== */
+/* Chuyển tháng, trở về tháng hiện tại và bỏ lọc ngày. */
+.db-sched-month-bar{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px}
+.db-sched-month-actions{display:flex;align-items:center;flex-wrap:wrap;gap:6px}
+.db-sched-month-actions .btn{min-height:32px}
+
 .db-sched-list{display:grid;gap:8px}
 .db-sched-item{display:flex;align-items:center;gap:12px;padding:10px 12px;border:1px solid var(--line,#d8dde5);border-left-width:4px;border-radius:10px;background:var(--bg,#fff)}
 .db-sched-item.prio-0{border-left-color:#c0392b}
