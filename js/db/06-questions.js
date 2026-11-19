@@ -41,10 +41,12 @@ DB_PAGES.questions = {
   },
   view(d) {
     if (DB.arg.edit) return dbQuestionForm(d, DB.arg.edit === 'new' ? null : d.questions.find((q) => q.id === DB.arg.edit));
-    const byId = dbById(d.objectives), linksBy = dbGroup(d.qlinks, 'question_id');
+    const byId = dbById(d.objectives), lessonById = dbById(d.lessons), linksBy = dbGroup(d.qlinks, 'question_id');
     const rows = d.questions.map((q) => {
       const objs = (linksBy[q.id] || []).map((x) => byId[x.objective_id]).filter(Boolean);
+      const lessons = [...new Set(objs.map((o) => lessonById[o.lesson_id]?.title).filter(Boolean))];
       return `<tr data-kind="${h(q.kind)}" data-grade="${h(q.grade == null ? '' : q.grade)}" data-bloom="${h(q.bloom_level || '')}" data-text="${h((q.content || '').toLowerCase())}">
+        <td>${lessons.length ? lessons.map((title) => h(title)).join(' · ') : '<span class="muted">Chưa gắn</span>'}</td>
         <th scope="row"><div class="db-qtext">${h(q.content)}</div><div class="muted">Đáp án: ${h(dbAnswerKeyText(q))}</div></th>
         <td>${h(DB_QKIND[q.kind] || q.kind)}</td>
         <td>${h(DB_QDIFF[q.difficulty] || q.difficulty)}</td>
@@ -89,7 +91,10 @@ DB_PAGES.questions = {
         <label class="sr" for="db-q-grade">Lọc theo khối</label><select id="db-q-grade" data-change="filterQuestions"><option value="">Mọi khối</option>${educmindGradeOptions()}</select>
         <label class="sr" for="db-q-bloom">Lọc theo Bloom</label><select id="db-q-bloom" data-change="filterQuestions"><option value="">Mọi cấp độ Bloom</option>${Object.entries(DB_QBLOOM).map(([k, v]) => `<option value="${k}">${v}</option>`).join('')}</select>
       </div>` : ''}
-      ${rows.length ? dbTable(['Câu hỏi', 'Dạng', 'Độ khó', 'Khối', 'Bloom', 'Mục tiêu', '<span class="sr">Thao tác</span>'], rows, 'Ngân hàng câu hỏi') : dbEmpty('Chưa có câu hỏi nào.')}
+      ${rows.length ? `<details class="db-qtable-fold" open>
+        <summary><span>Danh sách câu hỏi</span><span class="pill plain">${rows.length} câu</span></summary>
+        ${dbTable(['Bài học', 'Câu hỏi', 'Dạng', 'Độ khó', 'Khối', 'Bloom', 'Mục tiêu', '<span class="sr">Thao tác</span>'], rows, 'Ngân hàng câu hỏi')}
+      </details>` : dbEmpty('Chưa có câu hỏi nào.')}
     </section>`;
   },
 };
@@ -114,9 +119,10 @@ function dbQuestionForm(d, q) {
   const tf = q && kind === 'TRUE_FALSE' ? (q.correct_answer === true || String(q.correct_answer).toLowerCase() === 'true' ? 'true' : q.correct_answer == null ? '' : 'false') : '';
   const ref = q && (kind === 'SHORT_ANSWER' || kind === 'ESSAY') && q.correct_answer != null ? String(q.correct_answer) : '';
   const picked = new Set(q ? d.qlinks.filter((x) => x.question_id === q.id).map((x) => x.objective_id) : []);
-  const objectivePicker = returnToAssessment && DB.arg.lesson_id
-    ? dbObjectivePicker(d, 'objectives', picked, null, { fold: true, open: DB.arg.lesson_id })
-    : dbObjectivePicker(d, 'objectives', picked);
+  const objectivePicker = dbObjectivePicker(d, 'objectives', picked, null, {
+    fold: true,
+    open: returnToAssessment ? DB.arg.lesson_id : null,
+  });
   const optionRows = Array.from({ length: DB_QOPTIONS }, (_, i) => `<div class="db-option">
       <span class="db-option-letter" aria-hidden="true">${dbLetter(i)}</span>
       <label class="sr" for="db-qo-${i}">Lựa chọn ${dbLetter(i)}</label><input id="db-qo-${i}" name="opt${i}" maxlength="500" value="${h(opts[i] == null ? '' : opts[i])}" placeholder="Nội dung lựa chọn ${dbLetter(i)}">
@@ -197,18 +203,25 @@ function dbParseQuestionImportRows(rows, lessonId) {
   ]);
   const diffByText = Object.fromEntries(Object.entries(DB_QDIFF).map(([key, value]) => [nz(value), key]));
   const bloomByText = Object.fromEntries(Object.entries(DB_QBLOOM).map(([key, value]) => [nz(value), key]));
-  const objectiveByCode = new Map(), objectivesByCodeKey = new Map();
+  const lessonOptions = (DB.data.lessons || []).filter((l) => !lessonId || l.id === lessonId);
+  const objectives = (DB.data.objectives || []).filter((o) => lessonOptions.some((l) => l.id === o.lesson_id));
+  const objectiveByCode = new Map(), objectivesByCodeKey = new Map(), lessonsByTitle = new Map();
   const addObjective = (map, code, id) => {
     if (!map.has(code)) map.set(code, new Set());
     map.get(code).add(id);
   };
-  (DB.data.objectives || []).filter((o) => !lessonId || o.lesson_id === lessonId).forEach((o) => {
+  objectives.forEach((o) => {
     const code = dbQuestionObjectiveCode(o.code);
     if (!code || !o.id) return;
     addObjective(objectiveByCode, code, o.id);
     addObjective(objectivesByCodeKey, dbQuestionObjectiveCodeKey(code), o.id);
   });
-  const parsed = [], skipped = [], unknownCodes = new Set(), ambiguousCodes = new Set();
+  lessonOptions.forEach((l) => {
+    const key = nz(l.title), matches = lessonsByTitle.get(key) || [];
+    matches.push(l);
+    lessonsByTitle.set(key, matches);
+  });
+  const parsed = [], skipped = [], unknownCodes = new Set(), ambiguousCodes = new Set(), unknownLessons = new Set(), ambiguousLessons = new Set();
   objects.forEach((o, i) => {
     try {
       const content = dbQuestionImportPick(o, ['nội dung', 'nội dung câu hỏi', 'content', 'câu hỏi']);
@@ -264,12 +277,30 @@ function dbParseQuestionImportRows(rows, lessonId) {
       const gradeRaw = dbQuestionImportPick(o, ['khối', 'grade']);
       const grade = gradeRaw ? Number(gradeRaw) : null;
       if (grade != null && !educmindGradeIsValid(grade)) throw new Error(`khối phải là số từ ${EDUCMIND_GRADE_MIN} đến ${EDUCMIND_GRADE_MAX}`);
+      const lessonNames = dbQuestionImportPick(o, ['bài học', 'lesson', 'lesson name']).split(/[;|]/).map((x) => x.trim()).filter(Boolean);
+      let rowObjectives = null;
+      if (lessonNames.length) {
+        const lessonIds = [];
+        let invalidLesson = false;
+        lessonNames.forEach((name) => {
+          const matches = lessonsByTitle.get(nz(name)) || [];
+          if (!matches.length) { unknownLessons.add(name); invalidLesson = true; }
+          else if (matches.length > 1) { ambiguousLessons.add(name); invalidLesson = true; }
+          else lessonIds.push(matches[0].id);
+        });
+        rowObjectives = invalidLesson ? [] : objectives.filter((objective) => lessonIds.includes(objective.lesson_id));
+      }
       const codes = dbQuestionImportPick(o, ['mục tiêu', 'mã mục tiêu', 'objectives']).split(/[,;|]/).map((x) => x.trim().toUpperCase()).filter(Boolean);
       const objectiveIds = [...new Set(codes.map((code) => {
-        const matches = objectiveByCode.get(dbQuestionObjectiveCode(code)) || objectivesByCodeKey.get(dbQuestionObjectiveCodeKey(code));
-        if (!matches || !matches.size) { unknownCodes.add(code); return null; }
-        if (matches.size > 1) { ambiguousCodes.add(code); return null; }
-        return matches.values().next().value;
+        const matches = rowObjectives
+          ? new Set(rowObjectives.filter((objective) => dbQuestionObjectiveCode(objective.code) === dbQuestionObjectiveCode(code)).map((objective) => objective.id))
+          : objectiveByCode.get(dbQuestionObjectiveCode(code)) || objectivesByCodeKey.get(dbQuestionObjectiveCodeKey(code));
+        const resolved = matches && matches.size ? matches : rowObjectives
+          ? new Set(rowObjectives.filter((objective) => dbQuestionObjectiveCodeKey(objective.code) === dbQuestionObjectiveCodeKey(code)).map((objective) => objective.id))
+          : objectivesByCodeKey.get(dbQuestionObjectiveCodeKey(code));
+        if (!resolved || !resolved.size) { unknownCodes.add(code); return null; }
+        if (resolved.size > 1) { ambiguousCodes.add(code); return null; }
+        return resolved.values().next().value;
       }).filter(Boolean))];
       parsed.push({
         row: { course_id: DB.course.id, content, kind, difficulty, grade, bloom_level: bloom, options, correct_answer },
@@ -280,7 +311,10 @@ function dbParseQuestionImportRows(rows, lessonId) {
     }
   });
   if (parsed.length > 200) throw new Error('Tệp có ' + parsed.length + ' câu hợp lệ; mỗi lần nhập tối đa 200 câu.');
-  return { parsed, skipped, unknownCodes: [...unknownCodes], ambiguousCodes: [...ambiguousCodes] };
+  return {
+    parsed, skipped, unknownCodes: [...unknownCodes], ambiguousCodes: [...ambiguousCodes],
+    unknownLessons: [...unknownLessons], ambiguousLessons: [...ambiguousLessons],
+  };
 }
 async function dbReadQuestionImport(file, lessonId) {
   if (!file) throw new Error('Hãy chọn tệp câu hỏi.');
@@ -338,26 +372,30 @@ DB_ACT.deleteQuestion = (el) => {
 
 /* ----- Xuất / nhập ngân hàng câu hỏi bằng Excel, CSV hoặc Word ----- */
 DB_ACT.exportQuestions = () => {
-  const d = DB.data, byObj = dbById(d.objectives), linksBy = dbGroup(d.qlinks, 'question_id');
+  const d = DB.data, byObj = dbById(d.objectives), byLesson = dbById(d.lessons), linksBy = dbGroup(d.qlinks, 'question_id');
   const rows = d.questions.map((q) => {
-    const objs = (linksBy[q.id] || []).map((x) => (byObj[x.objective_id] || {}).code).filter(Boolean).join(', ');
-    return [q.content, DB_QKIND[q.kind] || q.kind, DB_QDIFF[q.difficulty] || q.difficulty, q.grade == null ? '' : q.grade, DB_QBLOOM[q.bloom_level] || q.bloom_level || '',
-      (Array.isArray(q.options) ? q.options : []).join('\n'), dbAnswerKeyText(q), objs];
+    const objs = (linksBy[q.id] || []).map((x) => byObj[x.objective_id]).filter(Boolean);
+    const lessons = [...new Set(objs.map((o) => (byLesson[o.lesson_id] || {}).title).filter(Boolean))].join(' | ');
+    const codes = objs.map((o) => o.code).filter(Boolean).join(', ');
+    return [lessons, q.content, DB_QKIND[q.kind] || q.kind, DB_QDIFF[q.difficulty] || q.difficulty, q.grade == null ? '' : q.grade, DB_QBLOOM[q.bloom_level] || q.bloom_level || '',
+      (Array.isArray(q.options) ? q.options : []).join('\n'), dbAnswerKeyText(q), codes];
   });
-  DBTF.exportExcel(dbExportName('ngan-hang-cau-hoi', 'xlsx'), [{ name: 'Câu hỏi', headers: ['Nội dung', 'Dạng', 'Độ khó', 'Khối', 'Bloom', 'Lựa chọn', 'Đáp án', 'Mục tiêu'], rows }]);
+  DBTF.exportExcel(dbExportName('ngan-hang-cau-hoi', 'xlsx'), [{ name: 'Câu hỏi', headers: ['Bài học', 'Nội dung', 'Dạng', 'Độ khó', 'Khối', 'Bloom', 'Lựa chọn', 'Đáp án', 'Mục tiêu'], rows }]);
   toast('Đã xuất ngân hàng câu hỏi ra tệp Excel.');
 };
 /* Đọc tệp Excel/CSV/Word và hỏi xác nhận trước khi nhập vào ngân hàng hoặc gắn vào bài tập. */
 DB_ACT.importQuestionFile = (form) => dbRun(form, async () => {
   const input = form.querySelector('input[type="file"]');
-  const file = input.files && input.files[0], { parsed, skipped, unknownCodes, ambiguousCodes } = await dbReadQuestionImport(file);
+  const file = input.files && input.files[0], { parsed, skipped, unknownCodes, ambiguousCodes, unknownLessons, ambiguousLessons } = await dbReadQuestionImport(file);
   const assignmentId = form.dataset.assignmentId;
   dbOpenDialog({
     title: 'Nhập câu hỏi từ tệp',
     body: `<p class="muted">Tìm thấy <b>${parsed.length}</b> câu hỏi hợp lệ${skipped.length ? `, bỏ qua <b>${skipped.length}</b> dòng lỗi` : ''} trong tệp <b>${h(file.name)}</b>.</p>
       ${skipped.length ? `<p class="muted db-hint">${skipped.slice(0, 5).map(h).join('<br>')}${skipped.length > 5 ? '<br>…' : ''}</p>` : ''}
       ${unknownCodes.length ? `<p class="muted db-hint">Không tìm thấy mã mục tiêu trong lớp hiện tại: ${unknownCodes.map(h).join(', ')}. Các câu vẫn được nhập nhưng chưa gắn những mục tiêu này.</p>` : ''}
-      ${ambiguousCodes.length ? `<p class="muted db-hint">Mã mục tiêu trùng giữa nhiều bài học nên chưa thể chọn mục tiêu tương ứng: ${ambiguousCodes.map(h).join(', ')}. Hãy nhập từ chi tiết bài tập sau khi chọn bài học hoặc gắn mục tiêu thủ công trong Ngân hàng câu hỏi.</p>` : ''}
+      ${ambiguousCodes.length ? `<p class="muted db-hint">Mã mục tiêu trùng giữa nhiều bài học nên chưa thể chọn mục tiêu tương ứng: ${ambiguousCodes.map(h).join(', ')}. Hãy điền chính xác tên bài học ở cột Bài học trong tệp hoặc gắn mục tiêu thủ công trong Ngân hàng câu hỏi.</p>` : ''}
+      ${unknownLessons.length ? `<p class="muted db-hint">Không tìm thấy bài học trong lớp hiện tại: ${unknownLessons.map(h).join(', ')}. Các mục tiêu của những dòng này chưa được gắn.</p>` : ''}
+      ${ambiguousLessons.length ? `<p class="muted db-hint">Tên bài học trùng nên chưa thể xác định bài học: ${ambiguousLessons.map(h).join(', ')}. Các mục tiêu của những dòng này chưa được gắn.</p>` : ''}
       <p class="muted">${assignmentId ? 'Câu hỏi sẽ được thêm vào ngân hàng và gắn trực tiếp với bài tập này.' : 'Mã mục tiêu hợp lệ trong tệp sẽ được gắn tự động; câu chưa có mục tiêu có thể được gắn sau trong “Ngân hàng câu hỏi”.'}</p>`,
     okLabel: (assignmentId ? 'Nhập và thêm ' : 'Nhập ') + parsed.length + ' câu hỏi',
     onOk: async () => {
