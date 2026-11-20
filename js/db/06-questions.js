@@ -137,11 +137,6 @@ DB_PAGES.questions = {
           <p class="muted">Tự nhập nội dung, đáp án, độ khó và mục tiêu cho từng câu.</p>
           ${dbBtn(ic('plus', 16) + 'Thêm câu hỏi', 'go', { page: 'questions', edit: 'new' })}
         </article>
-        <article class="db-create-source-card">
-          <h3>Từ giáo án với AI</h3>
-          <p class="muted">Tải giáo án hoặc dán nội dung để Gemini đề xuất câu hỏi nháp. Bạn duyệt trước khi lưu.</p>
-          ${dbBtn(ic('spark', 16) + 'Tạo từ giáo án', 'go', { page: 'ai', source: 'plan' }, 'light')}
-        </article>
       </div>
       ${d.questions.length ? `<div class="row db-filter">
         <label class="sr" for="db-q-search">Tìm câu hỏi</label><input id="db-q-search" type="search" placeholder="Tìm theo nội dung" data-input="filterQuestions">

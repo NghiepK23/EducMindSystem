@@ -478,10 +478,6 @@
 .db-assignment-source .db-source-actions,.db-import-source .db-source-actions{flex-wrap:wrap;gap:8px;margin:10px 0}
 .db-assignment-source textarea{width:100%}
 .db-ai-consent{align-items:flex-start;margin:12px 0}
-.db-ai-plan{margin:12px 0;padding:12px;border:1px solid var(--line);border-radius:14px;background:var(--fill)}
-.db-ai-plan>summary{cursor:pointer;font-weight:650}
-.db-ai-plan>.field{margin-top:12px}
-.db-ai-plan #db-ai-plan-text{width:100%}
 .db-import-source{min-width:0}
 .db-import-source .db-form-error{margin-top:8px}
 @media(max-width:900px){.db-create-source{grid-template-columns:repeat(2,minmax(0,1fr))}}
