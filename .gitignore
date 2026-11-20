@@ -19,7 +19,7 @@ Thumbs.db
 !.vscode/extensions.json
 !.vscode/settings.json
 *.swp
-
+js/00-environment.local.js
 # Nhật ký
 *.log
 .vscode/
