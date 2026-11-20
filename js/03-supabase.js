@@ -205,6 +205,7 @@ const EducMindDB=(()=>{
     markNotificationRead:(id)=>from('notifications').update({is_read:true,read_at:now()}).eq('id',id).is('deleted_at',null).select('id'),
     markAllNotificationsRead:()=>from('notifications').update({is_read:true,read_at:now()}).eq('user_id',me()).eq('is_read',false).is('deleted_at',null).select('id'),
     hideNotification:(id)=>from('notifications').update({deleted_at:now()}).eq('id',id).eq('user_id',me()).is('deleted_at',null).select('id'),
+    hideAllNotifications:()=>from('notifications').update({deleted_at:now()}).eq('user_id',me()).is('deleted_at',null).select('id'),
 
     /* ----- Lịch sử chỉnh sửa (trigger ở máy chủ ghi; giáo viên chỉ đọc) ----- */
     listRevisions:(classId,limit)=>from('content_revisions').select('id,class_id,entity_type,entity_id,action,actor_id,before_state,after_state,created_at').eq('class_id',classId).order('created_at',{ascending:false}).limit(limit||200),

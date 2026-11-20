@@ -138,9 +138,12 @@ function dbShowNotifications() {
         <b>${h(n.title)}</b>${n.content ? `<span class="muted">${h(n.content)}</span>` : ''}<span class="muted db-notif-time">${dbDateTime(n.created_at)}${n.is_read ? '' : ' · chưa xem'}</span>
       </button><button type="button" class="btn light icon-only mini danger-soft db-notif-delete" data-iconified="1" data-act="hideNotification" data-id="${h(n.id)}" aria-label="Ẩn thông báo" title="Ẩn thông báo">${ic('trash', 18)}<span class="sr">Ẩn thông báo</span></button>
     </div>`).join('');
+  const controls = DB.notifs.length
+    ? `<div class="db-notif-controls">${dbBtn('Đánh dấu tất cả đã xem', 'readAllNotifs', {}, 'light mini')}${dbBtn('Ẩn tất cả', 'hideAllNotifications', {}, 'light mini danger-soft')}</div>`
+    : '';
   dbOpenDialog({
     title: 'Thông báo', wide: true,
-    body: (DB.notifs.some((n) => !n.is_read) ? `<div class="row" style="justify-content:flex-end">${dbBtn('Đánh dấu tất cả đã xem', 'readAllNotifs', {}, 'light mini')}</div>` : '') + (rows ? `<div class="db-notifs">${rows}</div>` : dbEmpty('Chưa có thông báo nào.')),
+    body: controls + (rows ? `<div class="db-notifs">${rows}</div>` : dbEmpty('Chưa có thông báo nào.')),
   });
 }
 DB_ACT.openNotifs = async () => {
@@ -166,6 +169,14 @@ DB_ACT.readAllNotifs = (el) => dbRun(el, async () => {
   DB.dialog = null; render();
   return false;
 }, 'Đã đánh dấu tất cả thông báo là đã xem.');
+DB_ACT.hideAllNotifications = () => dbConfirm('Ẩn tất cả thông báo?', 'Tất cả thông báo sẽ không còn hiển thị trong danh sách của bạn.', 'Ẩn tất cả', async () => {
+  await dbCall(EducMindDB.hideAllNotifications());
+  DB.notifs = [];
+  dbPaintBell();
+  toast('Đã ẩn tất cả thông báo khỏi danh sách của bạn.');
+  dbShowNotifications();
+  return false;
+}, true);
 DB_ACT.openNotif = async (el) => {
   const n = DB.notifs.find((x) => x.id === el.dataset.id);
   if (!n) return;

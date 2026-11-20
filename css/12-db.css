@@ -196,6 +196,11 @@
 .db-task:first-of-type{box-shadow:none}
 .db-task-title{font-size:1rem}
 .db-prose{white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.6;margin:12px 0}
+.db-prose .db-fill-gap{display:inline-block;width:10ch;max-width:100%;margin:0 3px;padding:3px 6px;vertical-align:baseline}
+.db-matching-list{display:grid;gap:8px;margin:10px 0}
+.db-matching-row{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--surface)}
+.db-matching-row>label,.db-matching-row>span:first-child{font-weight:600}
+.db-matching-row select{width:100%;min-width:0}
 .db-work summary{cursor:pointer;font-weight:600;color:var(--brand-ink,var(--brand))}
 .db-work .db-prose{max-width:46ch;max-height:260px;overflow:auto;padding:10px 12px;border-radius:10px;background:var(--fill)}
 .db-submission-toggle{display:grid;gap:3px;width:100%;padding:0;border:0;background:none;color:var(--brand-ink,var(--brand));font:600 .875rem/1.35 var(--font-body);text-align:left;cursor:pointer}
@@ -250,13 +255,16 @@
 .db-dlg-title{font-size:1.125rem;margin-bottom:8px}
 .db-dlg-actions{justify-content:flex-end;margin-top:16px}
 .db-dlg-wide{max-width:620px}
-.db-notifs{display:grid;gap:6px;max-height:60vh;overflow:auto;margin-top:8px}
-.db-notif-row{position:relative;display:flex;align-items:center;min-width:0}
-.db-notif{display:grid;gap:2px;width:100%;min-width:0;padding:10px 58px 10px 12px;border:0;border-radius:12px;background:var(--fill);color:inherit;font:inherit;text-align:left;cursor:pointer}
+.db-notif-controls{display:flex;justify-content:flex-end;flex-wrap:wrap;gap:8px;margin-bottom:8px}
+.db-notifs{display:grid;gap:6px;width:100%;min-width:0;max-height:60vh;overflow:auto;margin-top:8px}
+.db-notif-row{position:relative;display:flex;align-items:center;width:100%;min-width:0}
+.db-notif{display:grid;grid-template-columns:minmax(0,1fr);gap:2px;width:100%;min-width:0;padding:10px 58px 10px 12px;border:0;border-radius:12px;background:var(--fill);color:inherit;font:inherit;text-align:left;cursor:pointer}
 .db-notif-delete{position:absolute;top:50%;right:8px;z-index:1;transform:translateY(-50%)}
+.db-notif-row .db-notif-delete:hover,.db-notif-row .db-notif-delete:active{transform:translateY(-50%)}
 .db-notif:hover{background:var(--fill-2,var(--fill))}
 .db-notif.unread{box-shadow:inset 3px 0 0 var(--brand)}
 .db-notif .muted{font-size:.8125rem}
+.db-notif b,.db-notif .muted{min-width:0;overflow-wrap:anywhere}
 .db-notif-time{font-size:.75rem!important}
 .demo-notif-row{position:relative;display:flex;align-items:center;min-width:0;margin:0 0 6px}
 .demo-notif-entry{flex:1;min-width:0;width:100%;border:1px solid;border-radius:9px;padding:9px 11px;text-align:left;cursor:pointer;font:inherit;color:inherit}
