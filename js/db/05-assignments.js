@@ -169,14 +169,14 @@ function dbAssignmentTeacherList(d) {
     const subs = subsBy[a.id] || [], waiting = subs.filter((s) => s.score == null).length, pub = a.status === 'PUBLISHED';
     const questionCount = (questionsBy[a.id] || []).length;
     return `<details class="work-card">
-      <summary><span class="work-detail"><b>${h(a.title)}</b> ${dbStatusPill(a.status)} <span class="pill prog">${questionCount ? questionCount + ' câu hỏi' : 'Chưa có câu hỏi'}</span>
-        <div class="db-work-meta">
-          <span><small>Bài học</small><b>${h(dbLessonTitle(d, a.lesson_id) || 'Chưa gắn bài học')}</b></span>
-          <span><small>Hạn nộp</small><b>${dbDateTime(a.due_at)}</b></span>
-          <span><small>Điểm tối đa</small><b>${dbNum(a.max_score)} điểm</b></span>
-          <span><small>Bài nộp</small><b>${subs.length}/${total} đã nộp${waiting ? ` · ${waiting} chờ chấm` : ''}</b></span>
-        </div>
-      </span><span class="pill plain">Mở thao tác</span></summary>
+      <summary><div class="work-summary-head"><span class="work-detail"><b>${h(a.title)}</b></span>
+        <span class="work-summary-actions"><span class="pill prog">${questionCount ? questionCount + ' câu hỏi' : 'Chưa có câu hỏi'}</span> ${dbStatusPill(a.status)} <span class="pill plain">Mở thao tác</span></span>
+      </div><div class="db-work-meta">
+        <span><small>Bài học</small><b>${h(dbLessonTitle(d, a.lesson_id) || 'Chưa gắn bài học')}</b></span>
+        <span><small>Hạn nộp</small><b>${dbDateTime(a.due_at)}</b></span>
+        <span><small>Điểm tối đa</small><b>${dbNum(a.max_score)} điểm</b></span>
+        <span><small>Bài nộp</small><b>${subs.length}/${total} đã nộp${waiting ? ` · ${waiting} chờ chấm` : ''}</b></span>
+      </div></summary>
       <div class="work-actions">${dbBtn('Mở bài tập', 'go', { page: 'assignments', id: a.id }, 'light mini')}${dbBtn(pub ? 'Gỡ xuất bản' : 'Xuất bản', 'toggleAssignment', { id: a.id }, pub ? 'light mini' : 'mini db-work-publish')}${dbBtn('Sửa thông tin', 'go', { page: 'assignments', edit: a.id }, 'light mini')}${dbBtn('Xóa', 'deleteAssignment', { id: a.id }, 'light mini danger-soft')}</div>
       ${a.description ? `<p class="muted">${h(a.description)}</p>` : ''}
     </details>`;

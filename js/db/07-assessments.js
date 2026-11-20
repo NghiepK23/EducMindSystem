@@ -54,15 +54,15 @@ function dbAssessmentTeacherList(d) {
     const qs = aqBy[e.id] || [], att = attBy[e.id] || [], waiting = att.filter((t) => t.status === 'SUBMITTED').length, pub = e.status === 'PUBLISHED';
     const total = qs.reduce((s, x) => s + Number(x.weight), 0);
     return `<details class="work-card">
-      <summary><span class="work-detail"><b>${h(e.title)}</b> ${dbStatusPill(e.status)} <span class="pill prog">${qs.length} câu · ${dbNum(total)} điểm</span>
-        <div class="db-work-meta">
-          <span><small>Bài học</small><b>${h(dbLessonTitle(d, e.lesson_id) || 'Chưa gắn bài học')}</b></span>
-          <span><small>Mở bài</small><b>${dbDateTime(e.open_at)}</b></span>
-          <span><small>Đóng bài</small><b>${dbDateTime(e.close_at)}</b></span>
-          <span><small>Thời lượng · Số lượt</small><b>${h(e.duration_minutes)} phút · ${h(e.max_attempts)} lượt</b></span>
-          <span><small>Lượt làm</small><b>${att.length}${waiting ? ` · ${waiting} chờ chấm` : ''}</b></span>
-        </div>
-      </span><span class="pill plain">Mở thao tác</span></summary>
+      <summary><div class="work-summary-head"><span class="work-detail"><b>${h(e.title)}</b></span>
+        <span class="work-summary-actions"><span class="pill prog">${qs.length} câu · ${dbNum(total)} điểm</span> ${dbStatusPill(e.status)} <span class="pill plain">Mở thao tác</span></span>
+      </div><div class="db-work-meta">
+        <span><small>Bài học</small><b>${h(dbLessonTitle(d, e.lesson_id) || 'Chưa gắn bài học')}</b></span>
+        <span><small>Mở bài</small><b>${dbDateTime(e.open_at)}</b></span>
+        <span><small>Đóng bài</small><b>${dbDateTime(e.close_at)}</b></span>
+        <span><small>Thời lượng · Số lượt</small><b>${h(e.duration_minutes)} phút · ${h(e.max_attempts)} lượt</b></span>
+        <span><small>Lượt làm</small><b>${att.length}${waiting ? ` · ${waiting} chờ chấm` : ''}</b></span>
+      </div></summary>
       <div class="work-actions">${dbBtn('Mở bài kiểm tra', 'go', { page: 'assessments', id: e.id }, 'light mini')}${dbBtn(pub ? 'Gỡ xuất bản' : 'Xuất bản', 'toggleAssessment', { id: e.id }, pub ? 'light mini' : 'mini db-work-publish')}${dbBtn('Sửa thông tin', 'go', { page: 'assessments', edit: e.id }, 'light mini')}${dbBtn('Xóa', 'deleteAssessment', { id: e.id }, 'light mini danger-soft')}</div>
     </details>`;
   });

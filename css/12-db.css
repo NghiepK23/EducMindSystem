@@ -169,7 +169,9 @@
 .db-qtable-fold>.tablewrap{border:0;border-top:1px solid var(--line);border-radius:0}
 
 /* ----- Bài tập, bài kiểm tra ----- */
-.work-card .work-detail{display:block;flex:1}
+.work-card .work-detail{display:block;flex:1;min-width:0}
+.work-summary-head{display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:12px}
+.work-summary-actions{display:flex;align-items:center;justify-content:flex-end;flex-wrap:wrap;gap:6px;max-width:100%;flex:none}
 .db-task>.row.between>div:first-child{flex:1;min-width:0}
 .db-work-meta{display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:8px;margin-top:12px}
 .db-work-meta>span{display:grid;align-content:start;gap:4px;min-width:0;padding:9px 11px;border:1px solid var(--line);border-radius:11px;background:var(--fill)}
