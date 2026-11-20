@@ -7,7 +7,7 @@ const CORS_HEADERS = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
-const QUESTION_KINDS = ["SINGLE_CHOICE", "MULTIPLE_CHOICE", "TRUE_FALSE", "SHORT_ANSWER", "ESSAY"] as const;
+const QUESTION_KINDS = ["SINGLE_CHOICE", "MULTIPLE_CHOICE", "TRUE_FALSE", "FILL_IN_BLANK", "MATCHING", "SHORT_ANSWER", "ESSAY"] as const;
 const DIFFICULTIES = ["EASY", "MEDIUM", "HARD"] as const;
 const BLOOM_LEVELS = ["REMEMBER", "UNDERSTAND", "APPLY", "ANALYZE", "EVALUATE", "CREATE"] as const;
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -18,12 +18,14 @@ const GEMINI_RETRYABLE_STATUSES = new Set([429, 500, 502, 503, 504]);
 type QuestionKind = (typeof QUESTION_KINDS)[number];
 type Difficulty = (typeof DIFFICULTIES)[number];
 type BloomLevel = (typeof BLOOM_LEVELS)[number];
+type MatchingOptions = { left: string[]; right: string[] };
 type GeneratedQuestion = {
   objective_id: string;
   kind: QuestionKind;
   content: string;
-  options: string[];
+  options: string[] | MatchingOptions;
   correct_indices: number[];
+  fill_answers: string[];
   model_answer: string;
   difficulty: Difficulty;
   bloom_level: BloomLevel;
@@ -46,12 +48,22 @@ const RESPONSE_SCHEMA = {
       kind: { type: "STRING", enum: [...QUESTION_KINDS] },
       content: { type: "STRING" },
       options: { type: "ARRAY", items: { type: "STRING" } },
-      correct_indices: { type: "ARRAY", items: { type: "INTEGER" } },
+      correct_options: { type: "ARRAY", items: { type: "STRING", enum: ["A", "B", "C", "D"] } },
+      true_false_answer: { type: "STRING", enum: ["TRUE", "FALSE", "NOT_APPLICABLE"] },
+      fill_answers: { type: "ARRAY", items: { type: "STRING" } },
+      matching_pairs: {
+        type: "ARRAY",
+        items: {
+          type: "OBJECT",
+          properties: { left: { type: "STRING" }, right: { type: "STRING" } },
+          required: ["left", "right"],
+        },
+      },
       model_answer: { type: "STRING" },
       difficulty: { type: "STRING", enum: [...DIFFICULTIES] },
       bloom_level: { type: "STRING", enum: [...BLOOM_LEVELS] },
     },
-    required: ["objective_id", "kind", "content", "options", "correct_indices", "model_answer", "difficulty", "bloom_level"],
+    required: ["objective_id", "kind", "content", "options", "correct_options", "true_false_answer", "fill_answers", "matching_pairs", "model_answer", "difficulty", "bloom_level"],
   },
 };
 
@@ -72,6 +84,32 @@ function jsonResponse(body: Record<string, unknown>, status = 200): Response {
 
 function setting<T extends string>(value: unknown, values: readonly T[], name: string): T | "AUTO" {
   if (value === undefined || value === null || value === "" || value === "AUTO") return "AUTO";
+  if (typeof value === "string" && name === "dạng câu hỏi") {
+    const normalized = value.trim().toLocaleLowerCase("vi");
+    const kindAliases: Record<string, QuestionKind> = {
+      "FILL_IN_BLANK": "FILL_IN_BLANK",
+      "fill_in_blank": "FILL_IN_BLANK",
+      "fill in blank": "FILL_IN_BLANK",
+      "dien khuyet": "FILL_IN_BLANK",
+      "điền khuyết": "FILL_IN_BLANK",
+      "MATCHING": "MATCHING",
+      "matching": "MATCHING",
+      "ghep doi": "MATCHING",
+      "ghép đôi": "MATCHING",
+      "SINGLE_CHOICE": "SINGLE_CHOICE",
+      "single_choice": "SINGLE_CHOICE",
+      "MULTIPLE_CHOICE": "MULTIPLE_CHOICE",
+      "multiple_choice": "MULTIPLE_CHOICE",
+      "TRUE_FALSE": "TRUE_FALSE",
+      "true_false": "TRUE_FALSE",
+      "SHORT_ANSWER": "SHORT_ANSWER",
+      "short_answer": "SHORT_ANSWER",
+      "ESSAY": "ESSAY",
+      "essay": "ESSAY",
+    };
+    const alias = kindAliases[normalized] ?? kindAliases[value.trim()];
+    if (alias) return alias;
+  }
   if (!isOneOf(value, values)) throw new Error(`Giá trị ${name} trong yêu cầu không hợp lệ.`);
   return value;
 }
@@ -95,7 +133,10 @@ function parseGeneratedQuestions(
       kind,
       content,
       options,
-      correct_indices: correctIndices,
+      correct_options: correctOptions,
+      true_false_answer: trueFalseAnswer,
+      fill_answers: fillAnswers,
+      matching_pairs: matchingPairs,
       model_answer: modelAnswer,
       difficulty,
       bloom_level: bloomLevel,
@@ -115,34 +156,77 @@ function parseGeneratedQuestions(
     if (!Array.isArray(options) || !options.every((option): option is string => typeof option === "string")) {
       throw new Error(`Lựa chọn câu hỏi ${index + 1} không hợp lệ.`);
     }
-    if (!Array.isArray(correctIndices) || !correctIndices.every((answer): answer is number => Number.isInteger(answer))) {
-      throw new Error(`Đáp án câu hỏi ${index + 1} không hợp lệ.`);
-    }
     if (typeof modelAnswer !== "string" || modelAnswer.length > 5000) {
       throw new Error(`Đáp án tham khảo câu hỏi ${index + 1} không hợp lệ.`);
     }
-
-    const normalizedOptions = options.map((option) => option.trim());
-    if (new Set(correctIndices).size !== correctIndices.length) {
-      throw new Error(`Câu hỏi ${index + 1} có chỉ số đáp án bị lặp.`);
+    if (!Array.isArray(correctOptions) || !correctOptions.every((answer) =>
+      typeof answer === "string" && ["A", "B", "C", "D"].includes(answer)
+    )) {
+      throw new Error(`Đáp án lựa chọn câu hỏi ${index + 1} không hợp lệ.`);
     }
+    if (typeof trueFalseAnswer !== "string" || !["TRUE", "FALSE", "NOT_APPLICABLE"].includes(trueFalseAnswer)) {
+      throw new Error(`Đáp án Đúng/Sai câu hỏi ${index + 1} không hợp lệ.`);
+    }
+    if (!Array.isArray(fillAnswers) || !fillAnswers.every((answer) => typeof answer === "string")) {
+      throw new Error(`Đáp án điền khuyết câu hỏi ${index + 1} không hợp lệ.`);
+    }
+    if (!Array.isArray(matchingPairs) || !matchingPairs.every((pair) =>
+      isRecord(pair) && typeof pair.left === "string" && typeof pair.right === "string"
+    )) {
+      throw new Error(`Các cặp ghép câu hỏi ${index + 1} không hợp lệ.`);
+    }
+
+    let normalizedOptions = options.map((option) => option.trim());
+    let finalCorrectIndices: number[] = [];
+    let finalOptions: string[] | MatchingOptions = normalizedOptions;
     if (kind === "SINGLE_CHOICE" || kind === "MULTIPLE_CHOICE") {
-      if (normalizedOptions.length !== 4 || normalizedOptions.some((option) => !option || option.length > 500)) {
+      if (normalizedOptions.length !== 4 || normalizedOptions.some((option) => !option || option.length > 500)
+        || trueFalseAnswer !== "NOT_APPLICABLE" || fillAnswers.length || matchingPairs.length) {
         throw new Error(`Câu trắc nghiệm ${index + 1} phải có đúng 4 lựa chọn hợp lệ.`);
       }
       if (new Set(normalizedOptions.map((option) => option.toLocaleLowerCase())).size !== normalizedOptions.length) {
         throw new Error(`Câu trắc nghiệm ${index + 1} có lựa chọn bị trùng.`);
       }
-      if (correctIndices.length < (kind === "SINGLE_CHOICE" ? 1 : 2)
-        || (kind === "SINGLE_CHOICE" && correctIndices.length !== 1)
-        || correctIndices.some((answer) => answer < 0 || answer >= normalizedOptions.length)) {
-        throw new Error(`Chỉ số đáp án câu hỏi ${index + 1} nằm ngoài phạm vi.`);
+      const normalizedCorrectIndices = correctOptions.map((answer) => answer.charCodeAt(0) - 65);
+      if (new Set(normalizedCorrectIndices).size !== normalizedCorrectIndices.length) {
+        throw new Error(`Câu hỏi ${index + 1} có chữ cái đáp án bị lặp.`);
       }
+      if (normalizedCorrectIndices.length < (kind === "SINGLE_CHOICE" ? 1 : 2)
+        || (kind === "SINGLE_CHOICE" && normalizedCorrectIndices.length !== 1)
+        || normalizedCorrectIndices.some((answer) => answer >= normalizedOptions.length)) {
+        throw new Error(`Câu hỏi trắc nghiệm ${index + 1} có số đáp án đúng không hợp lệ.`);
+      }
+      finalCorrectIndices = normalizedCorrectIndices;
     } else if (kind === "TRUE_FALSE") {
-      if (normalizedOptions.length !== 0 || correctIndices.length !== 1 || ![0, 1].includes(correctIndices[0])) {
+      if (normalizedOptions.length || correctOptions.length || fillAnswers.length || matchingPairs.length
+        || !["TRUE", "FALSE"].includes(trueFalseAnswer)) {
         throw new Error(`Câu Đúng/Sai ${index + 1} cần một đáp án hợp lệ.`);
       }
-    } else if (normalizedOptions.length !== 0 || correctIndices.length !== 0 || !modelAnswer.trim()) {
+      finalCorrectIndices = [trueFalseAnswer === "TRUE" ? 0 : 1];
+      normalizedOptions = [];
+      finalOptions = [];
+    } else if (kind === "FILL_IN_BLANK") {
+      const blankCount = (content.match(/_{3,}/g) || []).length;
+      if (normalizedOptions.length || correctOptions.length || trueFalseAnswer !== "NOT_APPLICABLE"
+        || matchingPairs.length || !blankCount || fillAnswers.length !== blankCount
+        || fillAnswers.some((answer) => !answer.trim())) {
+        throw new Error(`Câu điền khuyết ${index + 1} cần đáp án cho từng chỗ trống.`);
+      }
+      finalOptions = [];
+    } else if (kind === "MATCHING") {
+      if (normalizedOptions.length || correctOptions.length || trueFalseAnswer !== "NOT_APPLICABLE"
+        || fillAnswers.length || matchingPairs.length < 2 || matchingPairs.length > 20
+        || matchingPairs.some((pair) => !pair.left.trim() || !pair.right.trim())
+        || new Set(matchingPairs.map((pair) => pair.left.trim().toLocaleLowerCase())).size !== matchingPairs.length
+        || new Set(matchingPairs.map((pair) => pair.right.trim().toLocaleLowerCase())).size !== matchingPairs.length) {
+        throw new Error(`Câu ghép đôi ${index + 1} cần ít nhất hai cặp hợp lệ.`);
+      }
+      const left = matchingPairs.map((pair) => pair.left.trim());
+      const right = matchingPairs.map((pair) => pair.right.trim());
+      finalOptions = { left, right };
+      finalCorrectIndices = left.map((_, i) => i);
+    } else if (normalizedOptions.length !== 0 || correctOptions.length !== 0 || trueFalseAnswer !== "NOT_APPLICABLE"
+      || fillAnswers.length || matchingPairs.length || !modelAnswer.trim()) {
       throw new Error(`Câu trả lời mở ${index + 1} cần đáp án tham khảo và không có lựa chọn.`);
     }
 
@@ -150,8 +234,9 @@ function parseGeneratedQuestions(
       objective_id: objectiveId,
       kind,
       content: content.trim(),
-      options: normalizedOptions,
-      correct_indices: correctIndices,
+      options: finalOptions,
+      correct_indices: finalCorrectIndices,
+      fill_answers: fillAnswers.map((answer) => answer.trim()),
       model_answer: modelAnswer.trim(),
       difficulty: requestedDifficulty === "AUTO" ? difficulty : requestedDifficulty,
       bloom_level: requestedBloom === "AUTO" ? bloomLevel : requestedBloom,
@@ -328,10 +413,13 @@ async function loadAndGenerate(
     `Dạng câu hỏi yêu cầu: ${requestedKind}. Nếu AUTO, phân bổ đa dạng các dạng phù hợp.`,
     `Độ khó yêu cầu: ${requestedDifficulty}. Nếu AUTO, phân bổ hợp lý EASY, MEDIUM, HARD.`,
     `Cấp độ Bloom yêu cầu: ${requestedBloom}. Nếu AUTO, phân bổ hợp lý các cấp độ.`,
-    "SINGLE_CHOICE và MULTIPLE_CHOICE phải có đúng 4 lựa chọn; correct_indices bắt đầu từ 0.",
-    "SINGLE_CHOICE có đúng 1 chỉ số đáp án; MULTIPLE_CHOICE có từ 2 chỉ số trở lên.",
-    "TRUE_FALSE dùng options=[] và correct_indices=[0] cho Đúng hoặc [1] cho Sai.",
-    "SHORT_ANSWER và ESSAY dùng options=[], correct_indices=[] và model_answer là đáp án tham khảo.",
+    "SINGLE_CHOICE và MULTIPLE_CHOICE phải có đúng 4 lựa chọn; correct_options ghi chữ cái đáp án đúng, chỉ dùng A, B, C, D.",
+    "SINGLE_CHOICE có đúng một chữ cái trong correct_options; MULTIPLE_CHOICE có từ hai chữ cái trở lên.",
+    "TRUE_FALSE dùng options=[], correct_options=[] và true_false_answer là TRUE hoặc FALSE.",
+    "FILL_IN_BLANK dùng options=[], correct_options=[], matching_pairs=[]; nội dung đánh dấu từng chỗ trống bằng ___ và fill_answers có đúng một đáp án cho mỗi chỗ theo thứ tự.",
+    "MATCHING dùng options=[], correct_options=[], fill_answers=[]; matching_pairs có từ 2 đến 20 cặp duy nhất, mỗi cặp gồm left và right.",
+    "SINGLE_CHOICE, MULTIPLE_CHOICE, FILL_IN_BLANK, MATCHING, SHORT_ANSWER và ESSAY dùng true_false_answer=\"NOT_APPLICABLE\".",
+    "SHORT_ANSWER và ESSAY dùng options=[], correct_options=[] và model_answer là đáp án tham khảo.",
     "Với dạng trắc nghiệm, đặt model_answer thành chuỗi rỗng. Tránh câu hỏi mơ hồ; đáp án cần đúng và duy nhất theo mục tiêu.",
     `CONTEXT:\n${context}`,
   ].join("\n");
