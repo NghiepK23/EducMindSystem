@@ -40,6 +40,7 @@
 .db-form-grid .field input,.db-form-grid .field select,.field textarea{width:100%}
 .db-late-grid .field input[type="checkbox"]{width:auto}
 .db-form-actions{justify-content:flex-end;margin-top:18px}
+.db-form-actions [hidden]{display:none!important}
 .db-label{display:block;font-size:.8125rem;color:var(--muted);font-weight:600;margin-bottom:6px}
 .db-hint{font-size:.78125rem;margin-top:2px}
 .db-course-context{display:grid;gap:4px;min-width:0;margin:0 0 14px;padding:10px 12px;border:1px solid var(--line);border-radius:12px;background:var(--surface)}
