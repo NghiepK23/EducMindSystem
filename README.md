@@ -77,7 +77,7 @@ js/
     01-core.js             Vào app, đăng xuất, phiên, đồng bộ chuông báo
     02-shell.js            Vỏ ứng dụng: điều hướng theo vai trò, chuông thông báo
     03-classes.js … 13-report.js   Lớp học, nội dung, bài tập, câu hỏi, thi, tiến độ,
-                           nhập/xuất, lịch & cần làm, báo cáo
+                           nhập/xuất, lịch & việc cần làm, báo cáo
     14-ai.js               AI tạo câu hỏi nháp (giáo viên)
     15-games.js            Trò chơi ôn tập 3 chế độ
     16-live.js             Realtime cho chuông thông báo (tự fallback polling)
@@ -235,5 +235,5 @@ Lưu ý bảo mật của backend:
   theo số lượt giáo viên đặt — kể cả lượt bù).
 - **Trò chơi ôn tập** 3 chế độ: Nhanh (60 giây), Đua tốc độ (10 câu × 20 giây),
   Sinh tồn (3 mạng) — chơi bằng câu hỏi trắc nghiệm của lớp, không ảnh hưởng điểm chính thức.
-- Xem tiến độ, mức nắm vững, lỗ hổng kiến thức, đề xuất luyện tập, lịch & cần làm,
+- Xem tiến độ, mức nắm vững, lỗ hổng kiến thức, đề xuất luyện tập, lịch & việc cần làm,
   báo cáo tiến bộ của bản thân; nhận thông báo Realtime.
