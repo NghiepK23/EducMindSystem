@@ -5,7 +5,7 @@ P.questions=P.assessments;
 TITLES.questions='Ngân hàng câu hỏi';
 let QID=1,pendOnly=false;
 const NL=String.fromCharCode(10);
-const QT={SINGLE_CHOICE:'Một lựa chọn',MULTIPLE_CHOICE:'Nhiều lựa chọn',TRUE_FALSE:'Đúng/Sai',SHORT_ANSWER:'Trả lời ngắn',ESSAY:'Tự luận'},QTK=Object.keys(QT),QTV=QTK.map(k=>QT[k]);
+const QT={SINGLE_CHOICE:'Một lựa chọn',MULTIPLE_CHOICE:'Nhiều lựa chọn',TRUE_FALSE:'Đúng/Sai',FILL_IN_BLANK:'Điền khuyết',MATCHING:'Ghép đôi',SHORT_ANSWER:'Trả lời ngắn',ESSAY:'Tự luận'},QTK=Object.keys(QT),QTV=QTK.map(k=>QT[k]);
 const DF={EASY:'Dễ',MEDIUM:'Trung bình',HARD:'Khó'},DFK=Object.keys(DF),DFV=DFK.map(k=>DF[k]);
 const BL=['Nhớ','Hiểu','Vận dụng','Phân tích','Đánh giá','Sáng tạo'];
 const ST={IN_PROGRESS:'Đang làm',SUBMITTED:'Đã nộp, chờ chấm',GRADED:'Đã chấm'};
@@ -55,7 +55,7 @@ function qbLessonOf(c,q){
 function normQ(c,q){
   q.diff=q.diff||'MEDIUM';q.bloom=q.bloom||'Vận dụng';
   q.type=q.type&&QT[q.type]?q.type:'SINGLE_CHOICE';
-  q.opts=Array.isArray(q.opts)?q.opts:[];
+  q.opts=Array.isArray(q.opts)||q.type==='MATCHING'&&q.opts&&Array.isArray(q.opts.left)&&Array.isArray(q.opts.right)?q.opts:[];
   q.objs=(q.objs||[]).filter(j=>typeof j==='number'&&j>=0);
   q.src=q.src||'MANUAL';
   if(!q.lesson){const l=q.objs.length?lessonOf(c,q.objs[0]):null;q.lesson=l?l.name:''}

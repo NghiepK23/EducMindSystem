@@ -2,10 +2,15 @@
    Hộp thoại nhập câu hỏi / danh sách học sinh từ tệp Excel, CSV, Word; tải tệp mẫu. */
 /* --- 3. Nhập câu hỏi / danh sách học sinh từ tệp Excel (.xlsx, .csv) hoặc Word (.docx có bảng) --- */
 const IMPFMT={
-  questions:{title:'Nhập câu hỏi từ tệp',file:'Mau_cau_hoi.xlsx',sheet:'Câu hỏi',w:[6,24,48,18,18,18,18,14,14,12,12],
-    head:['STT','Bài học','Câu hỏi','Đáp án A','Đáp án B','Đáp án C','Đáp án D','Đáp án đúng','Mục tiêu','Độ khó','Mức Bloom'],
-    rows:[['1','','Địa chỉ IPv4 gồm bao nhiêu bit?','8','16','32','64','C','','Dễ','Nhớ'],['2','','Những thiết bị nào là thiết bị mạng?','Router','Switch','Bàn phím','Chuột','A, B','','Trung bình','Hiểu']],
-    note:'Bắt buộc: Câu hỏi, các đáp án và Đáp án đúng. Nhiều chữ cái ở Đáp án đúng (ví dụ A, B) là câu nhiều lựa chọn; để trống các đáp án là câu tự luận. Cột Bài học (không bắt buộc) cần ghi đúng tên bài học, dùng để phân giải mã mục tiêu trùng giữa các bài; nhiều bài học cách nhau bằng dấu |. Cột Mục tiêu (mã cách nhau dấu phẩy, phải là mã mục tiêu có thật trong lớp đang chọn; để trống = câu tổng hợp, không gắn mục tiêu), Độ khó (Dễ/Trung bình/Khó) và Mức Bloom là tùy chọn. Dòng lỗi được bỏ qua, các dòng còn lại vẫn nhập.'},
+  questions:{title:'Nhập câu hỏi từ tệp',file:'Mau_cau_hoi.xlsx',sheet:'Câu hỏi',w:[6,24,48,20,18,18,18,18,24,34,14,14,12],
+    head:['STT','Bài học','Câu hỏi','Dạng câu hỏi','Đáp án A','Đáp án B','Đáp án C','Đáp án D','Đáp án đúng','Cặp ghép (mỗi dòng: trái => phải)','Mục tiêu','Độ khó','Mức Bloom'],
+    rows:[
+      ['1','','Địa chỉ IPv4 gồm bao nhiêu bit?','Một lựa chọn','8','16','32','64','C','','','Dễ','Nhớ'],
+      ['2','','Những thiết bị nào là thiết bị mạng?','Nhiều lựa chọn','Router','Switch','Bàn phím','Chuột','A, B','','','Trung bình','Hiểu'],
+      ['3','','Thủ đô của Việt Nam là _____.','Điền khuyết','','','','','Hà Nội','','','Dễ','Nhớ'],
+      ['4','','Ghép mỗi thuật ngữ với mô tả phù hợp.','Ghép đôi','','','','','','Router => Kết nối các mạng\nSwitch => Kết nối thiết bị trong cùng mạng','','Trung bình','Hiểu'],
+    ],
+    note:'Dạng câu hỏi có thể để trống cho câu trắc nghiệm cũ hoặc chọn Một lựa chọn, Nhiều lựa chọn, Điền khuyết, Ghép đôi, Đúng / Sai, Trả lời ngắn, Tự luận. Điền khuyết: đánh dấu từng ô bằng ít nhất ba dấu gạch dưới (___); nhập đáp án theo đúng thứ tự, mỗi ô ngăn cách bằng |. Ghép đôi: mỗi dòng trong cột Cặp ghép có dạng “Mục bên trái => Mục bên phải”; cần ít nhất hai dòng. Trắc nghiệm: điền đáp án A–D và ghi chữ cái đúng ở Đáp án đúng. Cột Bài học (không bắt buộc) ghi đúng tên bài học; nhiều bài cách nhau bằng |. Cột Mục tiêu (mã cách nhau dấu phẩy), Độ khó và Mức Bloom là tùy chọn. Dòng lỗi được bỏ qua, các dòng còn lại vẫn nhập.'},
   students:{title:'Nhập danh sách học sinh từ tệp',file:'Mau_danh_sach_hoc_sinh.xlsx',sheet:'Học sinh',w:[6,28,34,26],
     head:['Họ tên','Email','Mật khẩu mặc định'],rows:[['Nguyễn Văn An','an.nv@school.edu.vn',''],['Trần Thị Bình','binh.tt@school.edu.vn','HocSinh@2026']]}
 };

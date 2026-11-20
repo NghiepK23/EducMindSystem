@@ -4,7 +4,7 @@ function parseQuestions(c,rows,reuse){
   const hi=rows.findIndex(r=>r.some(x=>nz(x)==='cau hoi'));
   if(hi<0)throw new Error('Không thấy dòng tiêu đề có cột “Câu hỏi”. Hãy dùng đúng tệp mẫu.');
   const H=rows[hi].map(nz),col=k=>H.findIndex(h=>h===k||h.startsWith(k));
-  const ci=col('cau hoi'),li=col('bai hoc'),oi=['a','b','c','d'].map(l=>col('dap an '+l)),ai=col('dap an dung'),gi=col('muc tieu'),di=col('do kho'),bi=H.findIndex(h=>h.includes('bloom'));
+  const ci=col('cau hoi'),li=col('bai hoc'),ki=col('dang cau hoi'),pi=col('cap ghep'),oi=['a','b','c','d'].map(l=>col('dap an '+l)),ai=col('dap an dung'),gi=col('muc tieu'),di=col('do kho'),bi=H.findIndex(h=>h.includes('bloom'));
   if(ci<0||oi.some(i=>i<0)||ai<0)throw new Error('Thiếu cột bắt buộc: Câu hỏi, Đáp án A–D hoặc Đáp án đúng.');
   const cmAll={};c.lessonsData.forEach(l=>(l.objs||[]).forEach(o=>{const k=String(o.code||'').toUpperCase();(cmAll[k]=cmAll[k]||[]).push(o.idx)}));
   const cm=codeMap(c),DK={'de':'EASY','trung binh':'MEDIUM','kho':'HARD'},seen=new Set(c.bank.filter(q=>!q.del).map(q=>nz(q.content))),items=[],err=[],warn=[],bm=new Map(c.bank.filter(q=>!q.del).map(q=>[nz(q.content),q])),ff=new Set(),wi=H.findIndex(h=>h==='diem'||h.indexOf('diem ')===0);
@@ -14,9 +14,17 @@ function parseQuestions(c,rows,reuse){
     if(!content){err.push(L+'thiếu nội dung câu hỏi.');return}
     let pw=null;if(wi>=0&&cell(wi)){pw=parseFloat(cell(wi).replace(',','.'));if(!(pw>0)){err.push(L+'điểm phải là số lớn hơn 0.');return}}
     if(seen.has(nz(content))){const bq=bm.get(nz(content));if(reuse&&bq&&!ff.has(nz(content))){ff.add(nz(content));items.push({content:bq.content,type:bq.type,opts:bq.opts.slice(),ans:bq.ans,objs:(bq.objs||[]).slice(),diff:bq.diff,bloom:bq.bloom,reuse:bq.id,w:pw});return}err.push(L+'câu hỏi đã có trong ngân hàng hoặc bị trùng trong tệp.');return}
-    const opts=oi.map(cell),given=opts.map((o,i)=>o?i:-1).filter(i=>i>=0),raw=cell(ai).toUpperCase();
+    const opts=oi.map(cell),given=opts.map((o,i)=>o?i:-1).filter(i=>i>=0),raw=cell(ai).toUpperCase(),requested=nz(cell(ki));
     let type,ans=null,op=[];
-    if(!given.length)type=raw?'SHORT_ANSWER':'ESSAY';
+    if(requested==='dien khuyet'||requested==='fill in the blank'||requested==='fill in blank'){
+      const gaps=(content.match(/_{3,}/g)||[]).length,answers=cell(ai).split(/\r?\n|\|/).map(x=>x.trim()).filter(Boolean);
+      if(!gaps||answers.length!==gaps){err.push(L+'cần đánh dấu mỗi chỗ trống bằng ___ và nhập đúng một đáp án cho mỗi chỗ.');return}
+      type='FILL_IN_BLANK';ans=answers;
+    }else if(requested==='ghep doi'||requested==='matching'){
+      const pairs=cell(pi).split(/\r?\n|\|/).map(x=>x.split(/\s*(?:=>|→|\t)\s*/).map(y=>y.trim()));
+      if(pairs.length<2||pairs.some(x=>x.length!==2||!x[0]||!x[1])){err.push(L+'cặp ghép phải có ít nhất hai dòng theo dạng “Mục trái => Mục phải”.');return}
+      type='MATCHING';op={left:pairs.map(x=>x[0]),right:pairs.map(x=>x[1])};ans=op.left.map((_,i)=>i);
+    }else if(!given.length)type=raw?'SHORT_ANSWER':'ESSAY';
     else{
       if(given.some((v,i)=>v!==i)){err.push(L+'các đáp án phải điền liên tiếp từ A.');return}
       if(given.length<2){err.push(L+'câu trắc nghiệm cần ít nhất 2 phương án.');return}
@@ -75,7 +83,7 @@ async function impPick(kind,f){
     }
     const R=parseQuestions(c,rows,kind==='asg');IMPSTATE={kind,items:R.items};
     const W=R.warn||[];
-    out.innerHTML=`<p><b>${R.items.length}</b> câu hợp lệ · <b>${R.err.length}</b> dòng lỗi (bị bỏ qua)${W.length?' · <b>'+W.length+'</b> cảnh báo (câu vẫn được nhập)':''}.</p>${R.items.length?`<div class='tablewrap' style='max-height:200px;overflow:auto'><table><thead><tr><th scope='col'>Câu hỏi</th><th scope='col'>Loại</th><th scope='col'>Đáp án đúng</th></tr></thead><tbody>${R.items.slice(0,8).map(o=>`<tr><td>${esc(o.content)}</td><td>${QT[o.type]}${o.reuse?' · đã có trong ngân hàng':''}</td><td>${o.ans==null?'—':[].concat(o.ans).map(i=>String.fromCharCode(65+i)).join(', ')}</td></tr>`).join('')}</tbody></table></div>${R.items.length>8?`<p class='muted' style='margin:4px 0'>…và ${R.items.length-8} câu khác.</p>`:''}`:''}${W.length?`<div style='margin-top:8px'><div class='muted' style='font-size:12.5px'><b>Cảnh báo:</b> ${esc(W[0])}</div>${W.slice(1,3).map(w=>`<div class='muted' style='font-size:12.5px'>${esc(w)}</div>`).join('')}${W.length>3?`<div class='muted' style='font-size:12.5px'>…và ${W.length-3} cảnh báo khác.</div>`:''}</div>`:''}${R.err.length?`<div style='margin-top:8px'>${R.err.slice(0,10).map(e=>`<div class='muted' style='font-size:12.5px'>${esc(e)}</div>`).join('')}${R.err.length>10?`<div class='muted'>…và ${R.err.length-10} lỗi khác.</div>`:''}</div>`:''}<div class='row' style='margin-top:12px'><button class='btn' ${R.items.length?'':'disabled'} onclick='${kind==="asg"?"impCommitA()":"impCommitQ()"}'>${kind==='asg'?'Thêm '+R.items.length+' câu vào bài tập':'Nhập '+R.items.length+' câu vào ngân hàng'}</button></div>`;
+    out.innerHTML=`<p><b>${R.items.length}</b> câu hợp lệ · <b>${R.err.length}</b> dòng lỗi (bị bỏ qua)${W.length?' · <b>'+W.length+'</b> cảnh báo (câu vẫn được nhập)':''}.</p>${R.items.length?`<div class='tablewrap' style='max-height:200px;overflow:auto'><table><thead><tr><th scope='col'>Câu hỏi</th><th scope='col'>Loại</th><th scope='col'>Đáp án đúng</th></tr></thead><tbody>${R.items.slice(0,8).map(o=>{const answer=o.type==='MATCHING'?o.opts.left.map((left,i)=>left+' → '+o.opts.right[i]).join(' · '):o.type==='FILL_IN_BLANK'?[].concat(o.ans).join(' · '):o.ans==null?'—':[].concat(o.ans).map(i=>String.fromCharCode(65+i)).join(', ');return `<tr><td>${esc(o.content)}</td><td>${QT[o.type]}${o.reuse?' · đã có trong ngân hàng':''}</td><td>${esc(answer)}</td></tr>`}).join('')}</tbody></table></div>${R.items.length>8?`<p class='muted' style='margin:4px 0'>…và ${R.items.length-8} câu khác.</p>`:''}`:''}${W.length?`<div style='margin-top:8px'><div class='muted' style='font-size:12.5px'><b>Cảnh báo:</b> ${esc(W[0])}</div>${W.slice(1,3).map(w=>`<div class='muted' style='font-size:12.5px'>${esc(w)}</div>`).join('')}${W.length>3?`<div class='muted' style='font-size:12.5px'>…và ${W.length-3} cảnh báo khác.</div>`:''}</div>`:''}${R.err.length?`<div style='margin-top:8px'>${R.err.slice(0,10).map(e=>`<div class='muted' style='font-size:12.5px'>${esc(e)}</div>`).join('')}${R.err.length>10?`<div class='muted'>…và ${R.err.length-10} lỗi khác.</div>`:''}</div>`:''}<div class='row' style='margin-top:12px'><button class='btn' ${R.items.length?'':'disabled'} onclick='${kind==="asg"?"impCommitA()":"impCommitQ()"}'>${kind==='asg'?'Thêm '+R.items.length+' câu vào bài tập':'Nhập '+R.items.length+' câu vào ngân hàng'}</button></div>`;
   }catch(e){out.innerHTML=`<div class='notice'><div>${esc(e.message||'Không đọc được tệp.')}</div></div>`}
 }
 function impCommitQ(){
