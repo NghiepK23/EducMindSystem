@@ -791,23 +791,40 @@ input[type="file"]::file-selector-button:active{transform:scale(.97)}
   opacity:.9;
 }
 .login{
-  background-image:
-    radial-gradient(420px circle at var(--lg-mx,50%) var(--lg-my,0%),rgba(255,255,255,.7),rgba(255,255,255,0) 66%),
-    linear-gradient(168deg,rgba(255,255,255,.66),rgba(255,255,255,.44));
-  background-color:rgba(255,255,255,.22);
+  --login-card-bg-image:url('../assets/background_login.png');
+  isolation:isolate;
+  overflow:hidden;
+  background-image:none;
+  background-color:transparent;
   border:1px solid rgba(255,255,255,.6);
   -webkit-backdrop-filter:var(--lg-blur-sheet);
   backdrop-filter:var(--lg-blur-sheet);
   box-shadow:inset 0 1px 0 rgba(255,255,255,.95),inset 0 0 0 1px rgba(255,255,255,.4),0 2px 8px rgba(15,23,42,.06),0 40px 90px -36px rgba(15,23,42,.42);
   border-radius:32px;
 }
-.login.login-dark{
+.login::before{
+  content:"";position:absolute;inset:0;z-index:-1;pointer-events:none;border-radius:inherit;
   background-image:
-    radial-gradient(420px circle at var(--lg-mx,50%) var(--lg-my,0%),rgba(255,255,255,.16),rgba(255,255,255,0) 66%),
-    linear-gradient(168deg,rgba(34,36,44,.86),rgba(18,20,26,.76));
-  background-color:rgba(18,20,26,.4);
+    radial-gradient(420px circle at 50% 0%,rgba(255,255,255,.7),rgba(255,255,255,0) 66%),
+    linear-gradient(168deg,rgba(255,255,255,.72),rgba(255,255,255,.62)),
+    var(--login-card-bg-image);
+  background-position:center;
+  background-size:cover;
+  background-repeat:no-repeat;
+  filter:blur(3px);
+  transform:scale(1.025);
+}
+.login.login-dark{
+  background-image:none;
+  background-color:transparent;
   border:1px solid rgba(255,255,255,.14);
   box-shadow:inset 0 1px 0 rgba(255,255,255,.18),inset 0 0 0 1px rgba(255,255,255,.06),0 40px 90px -30px rgba(0,0,0,.85);
+}
+.login.login-dark::before{
+  background-image:
+    radial-gradient(420px circle at 50% 0%,rgba(255,255,255,.16),rgba(255,255,255,0) 66%),
+    linear-gradient(168deg,rgba(34,36,44,.78),rgba(18,20,26,.68)),
+    var(--login-card-bg-image);
 }
 .login .btn.light{background-image:linear-gradient(180deg,rgba(255,255,255,.72),rgba(255,255,255,.44))}
 .login.login-dark .btn.light{background-image:linear-gradient(180deg,rgba(255,255,255,.14),rgba(255,255,255,.07))}
