@@ -354,7 +354,9 @@ td{font-size:.84375rem}
 .db-pf-chip[aria-expanded="true"]{background:var(--brand-soft);color:var(--brand-ink)}
 .db-pf-chip[aria-expanded="true"] .db-pf-chev{border-color:var(--brand-ink)}
 .db-pf-chip-t,.db-pf-th-t{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.db-pf-th-t{flex:1 1 auto;min-width:0}
 .db-pf-th{display:inline-flex;align-items:center;gap:6px;max-width:13rem;padding:0;border:0;background:none;color:inherit;font:inherit;letter-spacing:inherit;text-align:left}
+.db-pf-th>.muted{flex:none;white-space:nowrap}
 .db-pf-th:hover{color:var(--brand-ink)}
 .db-pf-still .bar span{animation:none}
 @media(pointer:coarse){.db-pf-chip{min-height:44px}}
