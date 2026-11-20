@@ -6,19 +6,72 @@
      Đúng / Sai     : correct_answer = true hoặc false
      Trả lời ngắn, Tự luận : giáo viên chấm tay; correct_answer là đáp án tham khảo (có thể để trống) */
 
-const DB_QKIND = { SINGLE_CHOICE: 'Một lựa chọn', MULTIPLE_CHOICE: 'Nhiều lựa chọn', TRUE_FALSE: 'Đúng / Sai', SHORT_ANSWER: 'Trả lời ngắn', ESSAY: 'Tự luận' };
+const DB_QKIND = { SINGLE_CHOICE: 'Một lựa chọn', MULTIPLE_CHOICE: 'Nhiều lựa chọn', TRUE_FALSE: 'Đúng / Sai', FILL_IN_BLANK: 'Điền khuyết', MATCHING: 'Ghép đôi', SHORT_ANSWER: 'Trả lời ngắn', ESSAY: 'Tự luận' };
 const DB_QDIFF = { EASY: 'Dễ', MEDIUM: 'Trung bình', HARD: 'Khó' };
 /* Phân loại theo khối (3–12) và cấp độ tư duy Bloom. */
 const DB_QBLOOM = { REMEMBER: 'Nhớ', UNDERSTAND: 'Hiểu', APPLY: 'Vận dụng', ANALYZE: 'Phân tích', EVALUATE: 'Đánh giá', CREATE: 'Sáng tạo' };
-const DB_QAUTO = ['SINGLE_CHOICE', 'MULTIPLE_CHOICE', 'TRUE_FALSE'];
+const DB_QAUTO = ['SINGLE_CHOICE', 'MULTIPLE_CHOICE', 'TRUE_FALSE', 'FILL_IN_BLANK', 'MATCHING'];
 const DB_QOPTIONS = 6;   // số ô lựa chọn tối đa trong biểu mẫu
 const dbLetter = (i) => String.fromCharCode(65 + i);
+function dbQuestionMatchingOptions(options) {
+  return {
+    left: options && Array.isArray(options.left) ? options.left : [],
+    right: options && Array.isArray(options.right) ? options.right : [],
+  };
+}
+function dbQuestionMatchingOrder(questionId, count) {
+  const order = Array.from({ length: count }, (_, i) => i);
+  let seed = 2166136261;
+  for (const char of String(questionId || '')) seed = Math.imul(seed ^ char.charCodeAt(0), 16777619) >>> 0;
+  for (let i = count - 1; i > 0; i--) {
+    seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
+    const j = seed % (i + 1);
+    [order[i], order[j]] = [order[j], order[i]];
+  }
+  if (count > 1 && order.every((value, i) => value === i)) order.reverse();
+  return order;
+}
+function dbQuestionBlankCount(content) {
+  return (String(content || '').match(/_{3,}/g) || []).length;
+}
+function dbQuestionFillMarkup(content, questionId, answer, surface, disabled = false) {
+  const values = Array.isArray(answer) ? answer : [];
+  let index = 0;
+  return String(content || '').split(/(_{3,})/g).map((part) => {
+    if (!/^_{3,}$/.test(part)) return h(part);
+    const gap = index++, id = `${surface}-${questionId}-${gap}`;
+    const attrs = surface === 'exam'
+      ? `data-q="${h(questionId)}" data-part-index="${gap}" data-input="examText" data-change="examTextNow"`
+      : `data-assignment-answer="${h(questionId)}" data-part-index="${gap}" data-input="assignmentAnswerChanged"`;
+    return `<input class="db-fill-gap" id="${h(id)}" type="text" maxlength="1000" aria-label="Đáp án chỗ trống ${gap + 1}" value="${h(values[gap] == null ? '' : values[gap])}" ${attrs}${disabled ? ' disabled' : ''}>`;
+  }).join('');
+}
+function dbQuestionMatchingMarkup(questionId, options, answer, surface, disabled = false) {
+  const matching = dbQuestionMatchingOptions(options), selected = Array.isArray(answer) ? answer : [];
+  const order = dbQuestionMatchingOrder(questionId, matching.right.length);
+  return `<div class="db-matching-list">${matching.left.map((left, i) => {
+    const id = `${surface}-${questionId}-${i}`;
+    const attrs = surface === 'exam'
+      ? `data-q="${h(questionId)}" data-part-index="${i}" data-change="examAnswer"`
+      : `data-assignment-answer="${h(questionId)}" data-part-index="${i}" data-change="assignmentAnswerChanged"`;
+    return `<div class="db-matching-row"><label for="${h(id)}">${h(left)}</label><select id="${h(id)}" ${attrs}${disabled ? ' disabled' : ''}><option value="">Chọn mục tương ứng</option>${order.map((rightIndex) => `<option value="${rightIndex}" ${!disabled && selected[i] != null && selected[i] !== '' && Number(selected[i]) === rightIndex ? 'selected' : ''}>${h(matching.right[rightIndex])}</option>`).join('')}</select></div>`;
+  }).join('')}</div>`;
+}
+function dbQuestionMatchingPreview(options) {
+  const matching = dbQuestionMatchingOptions(options);
+  return `<div class="db-matching-list">${matching.left.map((left, i) => `<div class="db-matching-row"><span>${h(left)}</span><span>${h(matching.right[i] || '')}</span></div>`).join('')}</div>`;
+}
 /* Đáp án đúng ở dạng chữ để hiển thị cho giáo viên. */
 function dbAnswerKeyText(q) {
   const a = q.correct_answer, opts = Array.isArray(q.options) ? q.options : [];
   if (a == null || a === '') return DB_QAUTO.includes(q.kind) ? 'Chưa có đáp án' : 'Giáo viên chấm tay';
   if (q.kind === 'TRUE_FALSE') return a === true || String(a).toLowerCase() === 'true' ? 'Đúng' : 'Sai';
   if (q.kind === 'SINGLE_CHOICE' || q.kind === 'MULTIPLE_CHOICE') return [].concat(a).map((i) => dbLetter(Number(i)) + (opts[Number(i)] != null ? '. ' + opts[Number(i)] : '')).join('; ');
+  if (q.kind === 'FILL_IN_BLANK') return [].concat(a).map((answer, i) => `${i + 1}. ${answer}`).join(' · ');
+  if (q.kind === 'MATCHING') {
+    const matching = dbQuestionMatchingOptions(q.options);
+    return [].concat(a).map((rightIndex, i) => `${matching.left[i] || ''} → ${matching.right[Number(rightIndex)] || ''}`).join(' · ');
+  }
   return String(a);
 }
 /* Câu trả lời của học sinh ở dạng chữ. */
@@ -27,6 +80,11 @@ function dbAnswerText(q, a) {
   if (a == null || a === '' || (Array.isArray(a) && !a.length)) return '';
   if (q.kind === 'TRUE_FALSE') return a === true || String(a).toLowerCase() === 'true' ? 'Đúng' : 'Sai';
   if (q.kind === 'SINGLE_CHOICE' || q.kind === 'MULTIPLE_CHOICE') return [].concat(a).map((i) => dbLetter(Number(i)) + (opts[Number(i)] != null ? '. ' + opts[Number(i)] : '')).join('; ');
+  if (q.kind === 'FILL_IN_BLANK') return [].concat(a).map((answer, i) => `${i + 1}. ${answer}`).join(' · ');
+  if (q.kind === 'MATCHING') {
+    const matching = dbQuestionMatchingOptions(q.options);
+    return [].concat(a).map((rightIndex, i) => rightIndex == null ? '' : `${matching.left[i] || ''} → ${matching.right[Number(rightIndex)] || ''}`).filter(Boolean).join(' · ');
+  }
   return String(a);
 }
 
@@ -115,6 +173,8 @@ function dbQuestionForm(d, q) {
     : returnToAssessment ? { page: 'assessments', id: DB.arg.assessment_id }
       : { page: 'questions' };
   const kind = q ? q.kind : 'SINGLE_CHOICE', opts = q && Array.isArray(q.options) ? q.options : [];
+  const matching = dbQuestionMatchingOptions(q && q.options);
+  const fillAnswers = q && kind === 'FILL_IN_BLANK' && Array.isArray(q.correct_answer) ? q.correct_answer : [];
   const correct = new Set(q && (kind === 'SINGLE_CHOICE' || kind === 'MULTIPLE_CHOICE') && q.correct_answer != null ? [].concat(q.correct_answer).map(Number) : []);
   const tf = q && kind === 'TRUE_FALSE' ? (q.correct_answer === true || String(q.correct_answer).toLowerCase() === 'true' ? 'true' : q.correct_answer == null ? '' : 'false') : '';
   const ref = q && (kind === 'SHORT_ANSWER' || kind === 'ESSAY') && q.correct_answer != null ? String(q.correct_answer) : '';
@@ -128,6 +188,17 @@ function dbQuestionForm(d, q) {
       <label class="sr" for="db-qo-${i}">Lựa chọn ${dbLetter(i)}</label><input id="db-qo-${i}" name="opt${i}" maxlength="500" value="${h(opts[i] == null ? '' : opts[i])}" placeholder="Nội dung lựa chọn ${dbLetter(i)}">
       <label class="db-check"><input type="checkbox" name="ok${i}" ${correct.has(i) ? 'checked' : ''}> Đúng</label>
     </div>`).join('');
+  const fillAnswerRows = `<div class="field db-only" data-for="FILL_IN_BLANK">
+      ${dbField('Đáp án theo thứ tự chỗ trống', 'db-qf-fill', `<textarea id="db-qf-fill" name="fill_answers" rows="4" placeholder="Mỗi dòng là đáp án của một chỗ trống">${h(fillAnswers.join('\n'))}</textarea>`, 'Trong nội dung, đánh dấu mỗi chỗ trống bằng ít nhất ba dấu gạch dưới, ví dụ: _____. Mỗi dòng đáp án ứng với một chỗ trống.')}
+    </div>`;
+  const matchingRows = `<div class="field db-only" data-for="MATCHING">
+      <span class="db-label">Các cặp cần ghép</span>
+      <div class="muted db-hint">Mỗi dòng hai ô cùng vị trí tạo thành một cặp. Khi làm bài, cột phải sẽ được xáo trộn.</div>
+      <div class="db-form-grid">
+        ${dbField('Cột trái (mỗi dòng một mục)', 'db-qf-match-left', `<textarea id="db-qf-match-left" name="match_left" rows="6">${h(matching.left.join('\n'))}</textarea>`)}
+        ${dbField('Cột phải, theo cặp cùng dòng', 'db-qf-match-right', `<textarea id="db-qf-match-right" name="match_right" rows="6">${h(matching.right.join('\n'))}</textarea>`)}
+      </div>
+    </div>`;
   return `<section class="panel" aria-labelledby="db-h-qf">
     <h2 id="db-h-qf">${q ? 'Sửa câu hỏi' : 'Thêm câu hỏi'}</h2>
     ${returnToAssessment ? `<p class="lead">Câu hỏi mới sẽ được thêm vào bài kiểm tra nháp sau khi lưu.</p>` : ''}
@@ -146,6 +217,8 @@ function dbQuestionForm(d, q) {
         <div class="muted db-hint">Bỏ trống ô không dùng. Đánh dấu “Đúng” cho lựa chọn đúng (một lựa chọn: đúng một ô; nhiều lựa chọn: một hoặc nhiều ô).</div>
         ${optionRows}
       </div>
+      ${fillAnswerRows}
+      ${matchingRows}
       <div class="db-only" data-for="TRUE_FALSE">${dbField('Đáp án đúng', 'db-qf-tf', `<select id="db-qf-tf" name="tf"><option value="">Chọn đáp án</option><option value="true" ${tf === 'true' ? 'selected' : ''}>Đúng</option><option value="false" ${tf === 'false' ? 'selected' : ''}>Sai</option></select>`)}</div>
       <div class="db-only" data-for="SHORT_ANSWER ESSAY">${dbField('Đáp án tham khảo (không bắt buộc)', 'db-qf-ref', `<textarea id="db-qf-ref" name="ref" rows="2" maxlength="2000">${h(ref)}</textarea>`, 'Câu trả lời ngắn và tự luận do giáo viên chấm tay. Học sinh không nhìn thấy đáp án tham khảo.')}</div>
       <div class="field"><span class="db-label">Mục tiêu mà câu hỏi đánh giá</span>${objectivePicker}</div>
@@ -177,12 +250,27 @@ function dbReadQuestion(v) {
   } else if (v.kind === 'TRUE_FALSE') {
     if (v.tf !== 'true' && v.tf !== 'false') throw new Error('Chọn đáp án đúng (Đúng hoặc Sai).');
     row.correct_answer = v.tf === 'true';
+  } else if (v.kind === 'FILL_IN_BLANK') {
+    const blanks = dbQuestionBlankCount(v.content), answers = String(v.fill_answers || '').split(/\r?\n/).map((answer) => answer.trim());
+    if (!blanks) throw new Error('Dùng ít nhất một cụm ___ để đánh dấu chỗ trống trong nội dung.');
+    if (answers.length !== blanks || answers.some((answer) => !answer)) throw new Error(`Nhập đúng ${blanks} đáp án, mỗi đáp án trên một dòng.`);
+    row.correct_answer = answers;
+  } else if (v.kind === 'MATCHING') {
+    const left = String(v.match_left || '').split(/\r?\n/).map((item) => item.trim()).filter(Boolean);
+    const right = String(v.match_right || '').split(/\r?\n/).map((item) => item.trim()).filter(Boolean);
+    if (left.length < 2 || left.length !== right.length) throw new Error('Cần ít nhất hai cặp và số mục ở hai cột phải bằng nhau.');
+    if (new Set(left.map((item) => item.toLocaleLowerCase())).size !== left.length
+      || new Set(right.map((item) => item.toLocaleLowerCase())).size !== right.length) throw new Error('Mỗi cột không được có mục bị trùng.');
+    row.options = { left, right };
+    row.correct_answer = left.map((_, i) => i);
   } else row.correct_answer = v.ref ? v.ref : null;
   return row;
 }
 function dbQuestionImportPick(o, names) {
   for (const name of names) {
-    const value = o[nz(name)];
+    const key = nz(name);
+    const header = Object.keys(o).find((candidate) => candidate === key || candidate.startsWith(key + ' '));
+    const value = o[key] == null ? o[header] : o[key];
     if (value != null && String(value).trim() !== '') return String(value).trim();
   }
   return '';
@@ -231,7 +319,8 @@ function dbParseQuestionImportRows(rows, lessonId) {
       if (!content) throw new Error('thiếu nội dung');
       if (content.length > 4000) throw new Error('nội dung dài quá 4.000 ký tự');
       const answer = dbQuestionImportPick(o, ['đáp án', 'đáp án đúng', 'correct', 'correct answer']);
-      let options = dbQuestionImportPick(o, ['lựa chọn', 'các lựa chọn', 'options'])
+      const rawOptions = dbQuestionImportPick(o, ['lựa chọn', 'các lựa chọn', 'options', 'cặp ghép']);
+      let options = rawOptions
         .split(/\n|\|/).map((x) => x.trim()).filter(Boolean);
       if (!options.length) {
         options = ['A', 'B', 'C', 'D', 'E', 'F'].map((letter) =>
@@ -245,11 +334,14 @@ function dbParseQuestionImportRows(rows, lessonId) {
         'trac nghiem': answerParts.length > 1 ? 'MULTIPLE_CHOICE' : 'SINGLE_CHOICE',
         'trac nghiem mot lua chon': 'SINGLE_CHOICE', 'trac nghiem nhieu lua chon': 'MULTIPLE_CHOICE',
         'dung sai': 'TRUE_FALSE', 'true false': 'TRUE_FALSE',
+        'dien khuyet': 'FILL_IN_BLANK', 'fill in the blank': 'FILL_IN_BLANK', 'fill in blank': 'FILL_IN_BLANK',
+        'ghep doi': 'MATCHING', 'matching': 'MATCHING',
         'tra loi ngan': 'SHORT_ANSWER', 'short answer': 'SHORT_ANSWER', 'tu luan': 'ESSAY', 'essay': 'ESSAY',
       };
       let kind = DB_QKIND[rawKind] ? rawKind : (kindByText[nz(rawKind)] || kindAliases[nz(rawKind)]);
       if (!kind) {
-        if (options.length >= 2) kind = answerParts.length > 1 ? 'MULTIPLE_CHOICE' : 'SINGLE_CHOICE';
+        if (rawOptions.includes('=>') || rawOptions.includes('→')) kind = 'MATCHING';
+        else if (options.length >= 2) kind = answerParts.length > 1 ? 'MULTIPLE_CHOICE' : 'SINGLE_CHOICE';
         else if (/^(đúng|sai|true|false)$/i.test(answer)) kind = 'TRUE_FALSE';
         else kind = answer ? 'SHORT_ANSWER' : 'ESSAY';
       }
@@ -269,6 +361,23 @@ function dbParseQuestionImportRows(rows, lessonId) {
         if (!/^(đúng|sai|true|false)$/i.test(answer)) throw new Error('đáp án Đúng/Sai không hợp lệ');
         correct_answer = /^(đúng|true)$/i.test(answer);
         options = [];
+      } else if (kind === 'FILL_IN_BLANK') {
+        const blankCount = dbQuestionBlankCount(content);
+        const answers = answer.split(/\r?\n|\|/).map((x) => x.trim()).filter(Boolean);
+        if (!blankCount) throw new Error('nội dung cần đánh dấu chỗ trống bằng ít nhất ba dấu gạch dưới');
+        if (answers.length !== blankCount) throw new Error('cần có một đáp án cho mỗi chỗ trống, ngăn cách bằng |');
+        options = [];
+        correct_answer = answers;
+      } else if (kind === 'MATCHING') {
+        const pairs = rawOptions.split(/\r?\n|\|/).map((line) => line.split(/\s*(?:=>|→|\t)\s*/).map((part) => part.trim()));
+        if (pairs.length < 2 || pairs.some((pair) => pair.length !== 2 || !pair[0] || !pair[1])) {
+          throw new Error('cặp ghép phải có ít nhất hai dòng theo dạng “Mục bên trái => Mục bên phải”');
+        }
+        const left = pairs.map((pair) => pair[0]), right = pairs.map((pair) => pair[1]);
+        if (new Set(left.map((x) => x.toLocaleLowerCase())).size !== left.length
+          || new Set(right.map((x) => x.toLocaleLowerCase())).size !== right.length) throw new Error('cột ghép đôi không được có mục bị trùng');
+        options = { left, right };
+        correct_answer = left.map((_, index) => index);
       } else {
         options = [];
         correct_answer = answer || null;
@@ -380,8 +489,15 @@ DB_ACT.exportQuestions = () => {
     const objs = (linksBy[q.id] || []).map((x) => byObj[x.objective_id]).filter(Boolean);
     const lessons = [...new Set(objs.map((o) => (byLesson[o.lesson_id] || {}).title).filter(Boolean))].join(' | ');
     const codes = objs.map((o) => o.code).filter(Boolean).join(', ');
+    const matching = dbQuestionMatchingOptions(q.options);
+    const options = q.kind === 'MATCHING'
+      ? matching.left.map((left, i) => `${left} => ${matching.right[i] || ''}`).join('\n')
+      : (Array.isArray(q.options) ? q.options : []).join('\n');
+    const answer = q.kind === 'FILL_IN_BLANK' && Array.isArray(q.correct_answer)
+      ? q.correct_answer.join('\n')
+      : dbAnswerKeyText(q);
     return [lessons, q.content, DB_QKIND[q.kind] || q.kind, DB_QDIFF[q.difficulty] || q.difficulty, q.grade == null ? '' : q.grade, DB_QBLOOM[q.bloom_level] || q.bloom_level || '',
-      (Array.isArray(q.options) ? q.options : []).join('\n'), dbAnswerKeyText(q), codes];
+      options, answer, codes];
   });
   DBTF.exportExcel(dbExportName('ngan-hang-cau-hoi', 'xlsx'), [{ name: 'Câu hỏi', headers: ['Bài học', 'Nội dung', 'Dạng', 'Độ khó', 'Khối', 'Bloom', 'Lựa chọn', 'Đáp án', 'Mục tiêu'], rows }]);
   toast('Đã xuất ngân hàng câu hỏi ra tệp Excel.');

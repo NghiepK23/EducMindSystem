@@ -184,7 +184,7 @@ function dbAiRow(o, byObj, byLesson, index) {
         }).join('')}</ul>` : ''}
         ${!hasOptionAnswers ? `<div class="db-ai-answer">${o.correct_answer == null
           ? '<b>Chấm điểm:</b> Giáo viên chấm tay (chưa có đáp án tham khảo).'
-          : `<b>Đáp án tham khảo:</b> ${h(dbAnswerKeyText(o))}`}</div>` : ''}
+          : `<b>${o.kind === 'FILL_IN_BLANK' || o.kind === 'MATCHING' ? 'Đáp án đúng' : 'Đáp án tham khảo'}:</b> ${h(dbAnswerKeyText(o))}`}</div>` : ''}
       </div>
     </div>
     <div class="db-ai-actions" role="group" aria-label="Thao tác bản nháp">
@@ -410,6 +410,8 @@ DB_ACT.aiEditApprove = (el) => {
   const request = DB.data.requests.find((r) => r.id === o.request_id);
   const assignment = (DB.data.assignments || []).find((a) => a.id === request?.parameters?.assignment_id);
   const opts = Array.isArray(o.options) ? o.options : [], choice = o.kind === 'SINGLE_CHOICE' || o.kind === 'MULTIPLE_CHOICE';
+  const matching = dbQuestionMatchingOptions(o.options);
+  const fillAnswers = o.kind === 'FILL_IN_BLANK' && Array.isArray(o.correct_answer) ? o.correct_answer : [];
   const ansLetters = o.kind === 'SINGLE_CHOICE' && o.correct_answer != null ? dbLetter(Number(o.correct_answer))
     : o.kind === 'MULTIPLE_CHOICE' && o.correct_answer != null ? [].concat(o.correct_answer).map((i) => dbLetter(Number(i))).join(', ')
     : o.kind === 'TRUE_FALSE' ? (o.correct_answer === true || String(o.correct_answer).toLowerCase() === 'true' ? 'Đúng' : 'Sai')
@@ -419,6 +421,8 @@ DB_ACT.aiEditApprove = (el) => {
     wide: true,
     body: `${dbField('Nội dung câu hỏi', 'db-ae-c', `<textarea id="db-ae-c" name="content" rows="3" required>${h(o.content)}</textarea>`)}
       ${choice ? dbField('Các lựa chọn (mỗi dòng một lựa chọn)', 'db-ae-o', `<textarea id="db-ae-o" name="options" rows="4">${h(opts.join('\n'))}</textarea>`) : ''}
+      ${o.kind === 'FILL_IN_BLANK' ? dbField('Đáp án theo thứ tự chỗ trống (mỗi dòng một đáp án)', 'db-ae-fill', `<textarea id="db-ae-fill" name="fill_answers" rows="4">${h(fillAnswers.join('\n'))}</textarea>`, 'Nội dung câu hỏi cần có đúng một cụm ___ cho mỗi dòng đáp án.') : ''}
+      ${o.kind === 'MATCHING' ? `<div class="db-form-grid">${dbField('Cột trái (mỗi dòng một mục)', 'db-ae-left', `<textarea id="db-ae-left" name="match_left" rows="4">${h(matching.left.join('\n'))}</textarea>`)}${dbField('Cột phải (mỗi dòng một mục)', 'db-ae-right', `<textarea id="db-ae-right" name="match_right" rows="4">${h(matching.right.join('\n'))}</textarea>`)}</div>` : ''}
       ${choice ? dbField(o.kind === 'TRUE_FALSE' ? 'Đáp án đúng' : 'Đáp án đúng (chữ cái, nhiều đáp án cách nhau bằng dấu phẩy)', 'db-ae-a', o.kind === 'TRUE_FALSE'
         ? `<select id="db-ae-a" name="answer"><option value="Đúng" ${ansLetters === 'Đúng' ? 'selected' : ''}>Đúng</option><option value="Sai" ${ansLetters === 'Sai' ? 'selected' : ''}>Sai</option></select>`
         : `<input id="db-ae-a" name="answer" maxlength="20" value="${h(ansLetters)}" placeholder="VD: A hoặc A, C">`) : ''}
@@ -457,6 +461,22 @@ function dbAiParseEdit(o, v) {
     const t = String(v.answer || '').trim().toLowerCase();
     if (t !== 'đúng' && t !== 'sai') throw new Error('Chọn đáp án Đúng hoặc Sai.');
     correct_answer = t === 'đúng';
+  } else if (o.kind === 'FILL_IN_BLANK') {
+    const blanks = dbQuestionBlankCount(content);
+    const answers = String(v.fill_answers || '').split(/\r?\n/).map((answer) => answer.trim());
+    if (!blanks || answers.length !== blanks || answers.some((answer) => !answer)) {
+      throw new Error('Nội dung cần đánh dấu mỗi chỗ trống bằng ___ và nhập đúng một đáp án cho mỗi chỗ.');
+    }
+    options = [];
+    correct_answer = answers;
+  } else if (o.kind === 'MATCHING') {
+    const left = String(v.match_left || '').split(/\r?\n/).map((item) => item.trim()).filter(Boolean);
+    const right = String(v.match_right || '').split(/\r?\n/).map((item) => item.trim()).filter(Boolean);
+    if (left.length < 2 || left.length !== right.length) throw new Error('Ghép đôi cần ít nhất hai cặp và hai cột phải có cùng số mục.');
+    if (new Set(left.map((item) => item.toLocaleLowerCase())).size !== left.length
+      || new Set(right.map((item) => item.toLocaleLowerCase())).size !== right.length) throw new Error('Mỗi cột ghép đôi không được có mục bị trùng.');
+    options = { left, right };
+    correct_answer = left.map((_, i) => i);
   }
   const grade = v.grade ? Number(v.grade) : null;
   if (grade != null && !educmindGradeIsValid(grade)) throw new Error(`Khối phải là số từ ${EDUCMIND_GRADE_MIN} đến ${EDUCMIND_GRADE_MAX}.`);

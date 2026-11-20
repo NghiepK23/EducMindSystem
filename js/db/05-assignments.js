@@ -122,6 +122,8 @@ function dbAssignmentSteps(a, active, creating = false) {
 }
 function dbAssignmentPreviewResponse(q) {
   const options = Array.isArray(q.options) ? q.options : [];
+  if (q.kind === 'FILL_IN_BLANK') return '';
+  if (q.kind === 'MATCHING') return dbQuestionMatchingPreview(q.options);
   if (q.kind === 'SINGLE_CHOICE' || q.kind === 'MULTIPLE_CHOICE') {
     const type = q.kind === 'SINGLE_CHOICE' ? 'radio' : 'checkbox';
     return `<div class="db-answers">${options.map((option, i) => `<label class="objrow"><input type="${type}" disabled><span class="db-assignment-choice-letter" aria-hidden="true">${dbLetter(i)}</span><span class="db-assignment-choice-text">${h(option)}</span></label>`).join('')}</div>`;
@@ -143,7 +145,7 @@ function dbAssignmentCreatePreview(form) {
   const source = form.querySelector('[name="content_source"]:checked')?.value || 'BANK';
   const questions = [...form.querySelectorAll('input[name="pick"]:checked')].map((input) => DB.data.questions.find((q) => q.id === input.value)).filter(Boolean);
   const questionPreview = questions.length
-    ? questions.map((q, i) => `<article class="db-assignment-preview-question"><h3>Câu ${i + 1} · ${h(DB_QKIND[q.kind] || q.kind)}</h3><div class="db-prose">${h(q.content)}</div>${dbAssignmentPreviewResponse(q)}</article>`).join('')
+    ? questions.map((q, i) => `<article class="db-assignment-preview-question"><h3>Câu ${i + 1} · ${h(DB_QKIND[q.kind] || q.kind)}</h3><div class="db-prose">${q.kind === 'FILL_IN_BLANK' ? dbQuestionFillMarkup(q.content, q.id, null, 'preview', true) : h(q.content)}</div>${dbAssignmentPreviewResponse(q)}</article>`).join('')
     : source === 'FILE'
       ? `<p class="muted">${h(form.querySelector('#db-af-file-preview')?.textContent || 'Chưa chọn tệp câu hỏi.')}</p>`
       : source === 'PLAN'
@@ -643,7 +645,7 @@ function dbAssignmentTeacherPreview(d, a) {
     const q = questions[link.question_id];
     if (!q) return `<article class="db-assignment-preview-question"><h3>Câu ${i + 1}</h3><p class="muted">Câu hỏi không còn trong ngân hàng.</p></article>`;
     return `<article class="db-assignment-preview-question"><div class="row between"><h3>Câu ${i + 1} · ${h(DB_QKIND[q.kind] || q.kind)}</h3></div>
-      <div class="db-prose">${h(q.content)}</div>${dbAssignmentPreviewResponse(q)}
+      <div class="db-prose">${q.kind === 'FILL_IN_BLANK' ? dbQuestionFillMarkup(q.content, q.id, null, 'preview', true) : h(q.content)}</div>${dbAssignmentPreviewResponse(q)}
     </article>`;
   });
   return `<section class="panel db-assignment-preview" aria-labelledby="db-h-ap">
@@ -828,7 +830,7 @@ function dbAssignmentStudentQuestions(d, submission, editable, presentation) {
   const items = questions.map((q, i) => {
     const saved = answers[q.question_id], answer = saved ? saved.answer_content : null, options = Array.isArray(q.options) ? q.options : [], name = 'db-asg-' + q.question_id;
     const hasAnswer = !dbAssignmentAnswerBlank(answer);
-    let response;
+    let response, questionContent = h(q.content);
     if (!editable) {
       if (q.kind === 'SINGLE_CHOICE' || q.kind === 'MULTIPLE_CHOICE') {
         const selected = new Set(answer == null || answer === '' ? [] : [].concat(answer).map(Number));
@@ -851,12 +853,20 @@ function dbAssignmentStudentQuestions(d, submission, editable, presentation) {
       response = `<div class="muted db-hint">Chọn mọi đáp án đúng.</div>` + options.map((option, k) => `<label class="objrow" data-choice="${k}"><input type="checkbox" name="${h(name)}" value="${k}" data-change="assignmentAnswerChanged" data-assignment-answer="${h(q.question_id)}" ${selected.has(k) ? 'checked' : ''}><span class="db-assignment-choice-letter" aria-hidden="true">${dbLetter(k)}</span><span class="db-assignment-choice-text">${h(option)}</span></label>`).join('');
     } else if (q.kind === 'TRUE_FALSE') {
       response = [['true', 'Đúng', '✓'], ['false', 'Sai', '×']].map(([value, label, icon]) => `<label class="objrow"><input type="radio" name="${h(name)}" value="${value}" data-change="assignmentAnswerChanged" data-assignment-answer="${h(q.question_id)}" ${answer != null && String(answer) === value ? 'checked' : ''}><span class="db-assignment-choice-letter" aria-hidden="true">${icon}</span><span class="db-assignment-choice-text">${label}</span></label>`).join('');
+    } else if (q.kind === 'FILL_IN_BLANK') {
+      if (editable) questionContent = dbQuestionFillMarkup(q.content, q.question_id, answer, 'assignment');
+      const text = saved ? dbAnswerText(q, answer) : '';
+      response = editable ? '' : `<div class="db-assignment-review-answer"><b>Câu trả lời</b><div>${text ? h(text) : '<span class="muted">Chưa trả lời</span>'}</div></div>`;
+    } else if (q.kind === 'MATCHING') {
+      response = editable
+        ? dbQuestionMatchingMarkup(q.question_id, q.options, answer, 'assignment')
+        : `<div class="db-assignment-review-answer"><b>Câu trả lời</b><div>${hasAnswer ? h(dbAnswerText(q, answer)) : '<span class="muted">Chưa trả lời</span>'}</div></div>`;
     } else if (q.kind === 'SHORT_ANSWER') {
       response = `<label class="sr" for="${h(name)}">Câu trả lời câu ${i + 1}</label><input id="${h(name)}" type="text" maxlength="1000" value="${h(answer == null ? '' : answer)}" data-input="assignmentAnswerChanged" data-assignment-answer="${h(q.question_id)}" placeholder="Câu trả lời của em">`;
     } else {
       response = `<label class="sr" for="${h(name)}">Bài làm câu ${i + 1}</label><textarea id="${h(name)}" rows="5" maxlength="20000" data-input="assignmentAnswerChanged" data-assignment-answer="${h(q.question_id)}" placeholder="Bài làm của em">${h(answer == null ? '' : answer)}</textarea>`;
     }
-    return `<fieldset class="field db-question db-assignment-game-question${hasAnswer ? ' answered' : ''}" data-game-question="${i}" tabindex="-1" ${i !== current ? 'hidden' : ''}><legend><span class="db-assignment-q-number">${String(i + 1).padStart(2, '0')}</span><span><b>Câu ${i + 1}</b><small>${h(DB_QKIND[q.kind] || q.kind)}</small></span></legend><div class="db-prose">${h(q.content)}</div><div class="db-answers">${response}</div></fieldset>`;
+    return `<fieldset class="field db-question db-assignment-game-question${hasAnswer ? ' answered' : ''}" data-game-question="${i}" tabindex="-1" ${i !== current ? 'hidden' : ''}><legend><span class="db-assignment-q-number">${String(i + 1).padStart(2, '0')}</span><span><b>Câu ${i + 1}</b><small>${h(DB_QKIND[q.kind] || q.kind)}</small></span></legend><div class="db-prose">${questionContent}</div><div class="db-answers">${response}</div></fieldset>`;
   }).join('');
   const progress = Math.round(answered / questions.length * 100);
   const progressHeader = `<div class="db-assignment-game-progress">
@@ -1043,12 +1053,14 @@ function dbReadAssignmentAnswers(form, questions) {
     else if (q.kind === 'TRUE_FALSE') {
       const checked = controls.find((x) => x.checked);
       answer = checked ? checked.value === 'true' : '';
-    } else answer = controls[0] ? controls[0].value : '';
+    } else if (q.kind === 'FILL_IN_BLANK') answer = controls.map((x) => x.value);
+    else if (q.kind === 'MATCHING') answer = controls.map((x) => x.value === '' ? null : Number(x.value));
+    else answer = controls[0] ? controls[0].value : '';
     return [q.question_id, answer];
   }));
 }
 function dbAssignmentAnswerBlank(value) {
-  return value == null || value === '' || (Array.isArray(value) && !value.length) || (typeof value === 'string' && !value.trim());
+  return value == null || value === '' || (Array.isArray(value) && !value.some((item) => item != null && String(item).trim() !== '')) || (typeof value === 'string' && !value.trim());
 }
 function dbAssignmentStudentDetail(d, a) {
   const s = d.submissions.find((x) => x.assignment_id === a.id), w = dbAssignmentWindow(a), graded = s && s.score != null;

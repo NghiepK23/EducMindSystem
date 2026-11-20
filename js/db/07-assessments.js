@@ -209,8 +209,9 @@ function dbAssessmentTeacherPreview(d, e, aq) {
     const opts = Array.isArray(q.options) ? q.options : [];
     return `<article class="db-assessment-preview-question">
       <div class="row between"><h3>Câu ${i + 1}</h3><span class="pill plain">${dbNum(item.weight)} điểm · ${h(DB_QKIND[q.kind] || q.kind)}</span></div>
-      <div class="db-prose">${h(q.content)}</div>
+      <div class="db-prose">${q.kind === 'FILL_IN_BLANK' ? dbQuestionFillMarkup(q.content, q.id, null, 'preview', true) : h(q.content)}</div>
       ${opts.length ? `<ol class="db-options" type="A">${opts.map((option) => `<li>${h(option)}</li>`).join('')}</ol>` : ''}
+      ${q.kind === 'MATCHING' ? dbQuestionMatchingPreview(q.options) : ''}
       <details><summary>Đáp án / cách chấm cho giáo viên</summary><p class="muted">${h(dbAnswerKeyText(q))}</p></details>
     </article>`;
   });
