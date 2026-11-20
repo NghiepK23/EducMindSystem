@@ -120,11 +120,13 @@
 .db-topic-list .topic-folder{margin:0}
 .db-topic-list .topic-folder .topic-title small{display:block;margin-top:3px;font-size:.75rem;font-weight:400}
 .db-topic-list .topic-actions .pill{font-size:.7rem}
-.db-order-actions{display:inline-flex;align-items:center;gap:2px;flex:none}
-.db-order-btn{display:grid;place-items:center;width:30px;height:32px;padding:0;border:0;border-radius:8px;background:var(--btn-light);color:var(--muted)}
-.db-order-btn:hover:not(:disabled){background:var(--brand-soft);color:var(--brand-ink,var(--brand))}
-.db-order-btn:disabled{opacity:.38;cursor:not-allowed}
-.db-order-btn:focus-visible{outline:2px solid var(--brand);outline-offset:1px}
+.db-sort-handle{display:grid;place-items:center;flex:none;width:30px;height:34px;padding:0;border:0;border-radius:8px;background:var(--btn-light);color:var(--muted);font:700 1.15rem/1 var(--font-body);cursor:grab;touch-action:none;user-select:none}
+.db-sort-handle:hover{background:var(--brand-soft);color:var(--brand-ink,var(--brand))}
+.db-sort-handle:active{cursor:grabbing}
+.db-sort-handle:focus-visible{outline:2px solid var(--brand);outline-offset:1px}
+.db-sortable-lesson-row.is-sorting,.db-topic-list>.topic-folder.is-sorting{position:relative;z-index:2;opacity:.72;box-shadow:0 8px 24px rgba(0,0,0,.18)}
+.db-topic-list>.topic-folder.is-sorting{outline:2px solid var(--brand)}
+.db-sortable-lesson-row.is-sorting{border-radius:10px;outline:2px solid var(--brand)}
 .db-sortable-lesson-row{display:flex;align-items:center;gap:4px;min-width:0}
 .db-sortable-lesson-row+.db-sortable-lesson-row{box-shadow:0 -.5px 0 var(--line)}
 .db-sortable-lesson-row>.folder-lesson-row{flex:1;min-width:0;width:auto}

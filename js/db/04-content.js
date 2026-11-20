@@ -83,11 +83,11 @@ function dbContentRootView(d, lessonsBy, objBy) {
   const cards = d.topics.map((t, i) => {
     const lessons = lessonsBy[t.id] || [];
     const objectiveCount = lessons.reduce((n, l) => n + (objBy[l.id] || []).length, 0);
-    const lessonRows = lessons.map((l, index) => dbContentLessonRow(l, objBy, t.id, index, lessons.length)).join('');
-    return `<details class="topic-folder">
+    const lessonRows = lessons.map((l) => dbContentLessonRow(l, objBy, t.id)).join('');
+    return `<details class="topic-folder" data-sort-item data-id="${h(t.id)}">
       <summary><span class="topic-mark">${String(i + 1).padStart(2, '0')}</span><span class="topic-title">${h(t.title)}<small class="muted">${lessons.length} bài học · ${objectiveCount} mục tiêu</small></span>
         <span class="topic-actions">
-          ${dbOrderButtons('topic', t.id, t.title, i, d.topics.length)}
+          ${dbContentSortHandle('topic', t.id, t.title)}
           <span class="pill plain">${lessons.length} bài học</span>
           <button type="button" class="topic-icon-btn" data-act="openContentTopic" data-id="${h(t.id)}" aria-label="Mở chủ đề ${h(t.title)} để thêm bài học" title="Thêm bài học">${ic('plus', 16)}</button>
           <button type="button" class="topic-icon-btn" data-act="editTopic" data-id="${h(t.id)}" aria-label="Sửa chủ đề ${h(t.title)}" title="Sửa chủ đề">${ic('edit', 16)}</button>
@@ -113,27 +113,24 @@ function dbContentRootView(d, lessonsBy, objBy) {
   </section>`;
 }
 
-function dbOrderButtons(kind, id, title, index, count, topicId) {
-  const action = kind === 'topic' ? 'moveTopic' : 'moveLesson';
+function dbContentSortHandle(kind, id, title) {
+  if (!dbIsTeacher()) return '';
   const label = kind === 'topic' ? 'chủ đề' : 'bài học';
-  const scope = topicId ? ` data-topic-id="${h(topicId)}"` : '';
-  return `<span class="db-order-actions">
-    <button type="button" class="db-order-btn" data-act="${action}" data-id="${h(id)}" data-direction="up"${scope} aria-label="Đưa ${label} ${h(title)} lên" title="Đưa lên" ${index === 0 ? 'disabled' : ''}>${ic('chevronUp', 16)}</button>
-    <button type="button" class="db-order-btn" data-act="${action}" data-id="${h(id)}" data-direction="down"${scope} aria-label="Đưa ${label} ${h(title)} xuống" title="Đưa xuống" ${index === count - 1 ? 'disabled' : ''}>${ic('chevronDown', 16)}</button>
-  </span>`;
+  return `<button type="button" class="db-sort-handle" data-sort-handle data-sort-kind="${kind}" data-id="${h(id)}" aria-label="Giữ và kéo để sắp xếp ${label} ${h(title)}" title="Giữ và kéo để sắp xếp" aria-keyshortcuts="ArrowUp ArrowDown">⠿</button>`;
 }
 
-function dbContentLessonRow(lesson, objBy, topicId, index, count) {
+function dbContentLessonRow(lesson, objBy, topicId) {
   const objectiveCount = (objBy[lesson.id] || []).length;
-  return `<div class="db-sortable-lesson-row">
+  return `<div class="db-sortable-lesson-row" data-sort-item data-id="${h(lesson.id)}">
+    ${dbContentSortHandle('lesson', lesson.id, lesson.title)}
     <button type="button" class="folder-lesson-row" data-act="openContentLesson" data-id="${h(lesson.id)}" data-topic-id="${h(topicId)}">
       <span class="lesson-name"><b>${h(lesson.title)}</b><small>${objectiveCount} mục tiêu cần đạt · ${h(lesson.status === 'PUBLISHED' ? 'Đã xuất bản' : 'Bản nháp')}</small></span>${ic('arrow', 17)}
-    </button>${dbOrderButtons('lesson', lesson.id, lesson.title, index, count, topicId)}
+    </button>
   </div>`;
 }
 
 function dbContentTopicView(d, topic, lessons, objBy) {
-  const rows = lessons.map((l, index) => dbContentLessonRow(l, objBy, topic.id, index, lessons.length)).join('');
+  const rows = lessons.map((l) => dbContentLessonRow(l, objBy, topic.id)).join('');
   const published = topic.status === 'PUBLISHED';
   return `<div class="folder-wrap">
     <nav class="folder-crumb" aria-label="Đường dẫn"><button type="button" data-act="openContentRoot">Thư mục nội dung</button><span aria-hidden="true">›</span><b>${h(topic.title)}</b></nav>
@@ -309,148 +306,232 @@ function dbUnusedDisplayOrder(usedOrders) {
   return null;
 }
 
-async function dbMoveContentItem(el, kind) {
-  const scope = el.closest('[data-sort-scope]');
-  const courseId = DB.course && DB.course.id;
-  if (!scope || scope.dataset.sortBusy === '1' || !courseId || !DB.data) return;
-
-  let items, update;
-  if (kind === 'topic') {
-    if (scope.dataset.sortScope !== 'topics') return;
-    items = DB.data.topics.filter((topic) => topic.course_id === courseId);
-    update = EducMindDB.updateTopic;
-  } else {
-    const topicId = el.dataset.topicId;
-    if (scope.dataset.sortScope !== 'lessons' || !topicId || scope.dataset.topicId !== topicId
-      || !DB.data.topics.some((topic) => topic.id === topicId && topic.course_id === courseId)) return;
-    items = DB.data.lessons.filter((lesson) => lesson.course_id === courseId && lesson.topic_id === topicId);
-    update = EducMindDB.updateLesson;
+function dbContentOrderScope(scope, kind) {
+  if (!dbIsTeacher() || DB.page !== 'content' || !DB.course || !DB.data || !scope) return null;
+  const courseId = DB.course.id;
+  if (kind === 'topic' && scope.dataset.sortScope === 'topics') {
+    return { items: DB.data.topics.filter((topic) => topic.course_id === courseId), update: EducMindDB.updateTopic };
   }
+  const topicId = scope.dataset.topicId;
+  if (kind === 'lesson' && scope.dataset.sortScope === 'lessons' && topicId
+    && DB.data.topics.some((topic) => topic.id === topicId && topic.course_id === courseId)) {
+    return {
+      items: DB.data.lessons.filter((lesson) => lesson.course_id === courseId && lesson.topic_id === topicId),
+      update: EducMindDB.updateLesson,
+    };
+  }
+  return null;
+}
 
-  const index = items.findIndex((item) => item.id === el.dataset.id);
-  const nextIndex = index + (el.dataset.direction === 'up' ? -1 : 1);
-  if (index < 0 || nextIndex < 0 || nextIndex >= items.length) return;
+function dbContentSortChildren(scope) {
+  return [...scope.children].filter((child) => child.hasAttribute('data-sort-item'));
+}
 
-  const usedOrders = [];
+function dbTemporaryOrders(usedOrders, count) {
+  const used = new Set(usedOrders);
+  let start = 0;
+  while (start <= 2147483647 - count + 1) {
+    let available = true;
+    for (let i = 0; i < count; i++) {
+      if (used.has(start + i)) { start += i + 1; available = false; break; }
+    }
+    if (available) return Array.from({ length: count }, (_, i) => start + i);
+  }
+  return null;
+}
+
+async function dbPersistContentOrder(scope, kind, orderedIds) {
+  const context = dbContentOrderScope(scope, kind);
+  if (!context || scope.dataset.sortBusy === '1') return;
+  const { items, update } = context;
+  const byId = new Map(items.map((item) => [item.id, item]));
+  const currentIds = items.slice().sort((a, b) => Number(a.display_order) - Number(b.display_order)).map((item) => item.id);
+  if (orderedIds.length !== currentIds.length || new Set(orderedIds).size !== currentIds.length
+    || orderedIds.some((id) => !byId.has(id))) {
+    throw new Error('Danh sách cần sắp xếp không khớp với dữ liệu hiện tại.');
+  }
+  const from = currentIds.findIndex((id, index) => id !== orderedIds[index]);
+  if (from < 0) return;
+  const movedId = currentIds[from];
+  const to = orderedIds.indexOf(movedId);
+  if (to < 0) throw new Error('Không tìm thấy mục cần di chuyển.');
+
   const originalOrders = new Map();
+  const usedOrders = new Set();
   for (const item of items) {
     const order = Number(item.display_order);
     if (item.display_order == null || !Number.isInteger(order) || order < -2147483648 || order > 2147483647) {
-      return dbMoveContentItemError(scope, new Error('Thứ tự hiện tại không hợp lệ.'));
+      throw new Error('Thứ tự hiện tại không hợp lệ.');
     }
-    if (usedOrders.includes(order)) {
-      return dbMoveContentItemError(scope, new Error('Phát hiện giá trị thứ tự bị trùng. Không thể hoán đổi an toàn.'));
-    }
-    usedOrders.push(order);
+    if (usedOrders.has(order)) throw new Error('Phát hiện giá trị thứ tự bị trùng.');
+    usedOrders.add(order);
     originalOrders.set(item.id, order);
   }
+  const affected = [movedId];
+  if (from < to) for (let i = from + 1; i <= to; i++) affected.push(currentIds[i]);
+  else for (let i = from - 1; i >= to; i--) affected.push(currentIds[i]);
+  const temporaryOrder = dbUnusedDisplayOrder([...usedOrders]);
+  if (temporaryOrder == null) throw new Error('Không tìm được giá trị thứ tự tạm thời chưa sử dụng.');
 
-  const temporaryOrder = dbUnusedDisplayOrder(usedOrders);
-  if (temporaryOrder == null) {
-    return dbMoveContentItemError(scope, new Error('Không tìm được giá trị thứ tự tạm thời chưa sử dụng.'));
-  }
-
-  const ordered = items.slice();
-  [ordered[index], ordered[nextIndex]] = [ordered[nextIndex], ordered[index]];
-  const moved = items[index], neighbor = items[nextIndex];
-  const movedOrder = originalOrders.get(moved.id), neighborOrder = originalOrders.get(neighbor.id);
-  const updates = kind === 'topic' ? EducMindDB.updateTopic : EducMindDB.updateLesson;
-  const buttons = [...scope.querySelectorAll('.db-order-btn')];
   scope.dataset.sortBusy = '1';
   scope.setAttribute('aria-busy', 'true');
-  buttons.forEach((button) => { button.disabled = true; });
-
+  scope.querySelectorAll('[data-sort-handle]').forEach((handle) => { handle.disabled = true; });
   try {
-    await dbCall(updates(moved.id, { display_order: temporaryOrder }));
-    await dbCall(updates(neighbor.id, { display_order: movedOrder }));
-    await dbCall(updates(moved.id, { display_order: neighborOrder }));
-
-    if (kind === 'topic') {
-      let position = 0;
-      DB.data.topics = DB.data.topics.map((topic) => {
-        if (topic.course_id !== courseId) return topic;
-        const item = ordered[position++];
-        return { ...item, display_order: originalOrders.get(item.id) };
-      });
+    await dbCall(update(movedId, { display_order: temporaryOrder }));
+    if (from < to) {
+      for (let i = from + 1; i <= to; i++) {
+        await dbCall(update(currentIds[i], { display_order: originalOrders.get(currentIds[i - 1]) }));
+      }
     } else {
-      let position = 0;
-      DB.data.lessons = DB.data.lessons.map((lesson) => {
-        if (lesson.course_id !== courseId || lesson.topic_id !== scope.dataset.topicId) return lesson;
-        const item = ordered[position++];
-        return { ...item, display_order: originalOrders.get(item.id) };
+      for (let i = from - 1; i >= to; i--) {
+        await dbCall(update(currentIds[i], { display_order: originalOrders.get(currentIds[i + 1]) }));
+      }
+    }
+    await dbCall(update(movedId, { display_order: originalOrders.get(currentIds[to]) }));
+
+    const finalOrders = new Map(currentIds.map((id) => [id, originalOrders.get(id)]));
+    orderedIds.forEach((id, index) => finalOrders.set(id, originalOrders.get(currentIds[index])));
+    const key = kind === 'topic' ? 'topics' : 'lessons';
+    DB.data[key] = DB.data[key].map((item) => finalOrders.has(item.id)
+      ? { ...item, display_order: finalOrders.get(item.id) }
+      : item).sort((a, b) => Number(a.display_order) - Number(b.display_order));
+    if (kind === 'topic') {
+      dbContentSortChildren(scope).forEach((topic, index) => {
+        const mark = topic.querySelector('.topic-mark');
+        if (mark) mark.textContent = String(index + 1).padStart(2, '0');
       });
     }
-    render();
     toast(kind === 'topic' ? 'Đã cập nhật thứ tự chủ đề.' : 'Đã cập nhật thứ tự bài học.');
   } catch (error) {
     dbLogError(error);
     const rollbackErrors = [];
-    for (const item of [moved, neighbor]) {
-      try {
-        await dbCall(updates(item.id, { display_order: originalOrders.get(item.id) }));
-      } catch (rollbackError) {
-        dbLogError(rollbackError);
-        rollbackErrors.push(`${item.id}: ${dbErrText(rollbackError)}`);
+    const rollbackOrders = dbTemporaryOrders([...originalOrders.values()], affected.length);
+    if (rollbackOrders) {
+      for (let i = 0; i < affected.length; i++) {
+        try {
+          await dbCall(update(affected[i], { display_order: rollbackOrders[i] }));
+        } catch (rollbackError) {
+          dbLogError(rollbackError);
+          rollbackErrors.push(`${affected[i]}: ${dbErrText(rollbackError)}`);
+        }
       }
-    }
+      if (!rollbackErrors.length) {
+        for (const id of affected) {
+          try {
+            await dbCall(update(id, { display_order: originalOrders.get(id) }));
+          } catch (rollbackError) {
+            dbLogError(rollbackError);
+            rollbackErrors.push(`${id}: ${dbErrText(rollbackError)}`);
+          }
+        }
+      }
+    } else rollbackErrors.push('Không tìm được thứ tự tạm thời để khôi phục.');
 
+    const openTopics = [...document.querySelectorAll('.db-topic-list .topic-folder[open]')]
+      .map((topic) => topic.dataset.id);
     let reloadError = '';
     try {
       const reloaded = await dbReload();
       reloadError = !reloaded ? 'Tải lại bị gián đoạn.' : DB.loadError;
+      if (reloaded) {
+        document.querySelectorAll('.db-topic-list .topic-folder[data-id]').forEach((topic) => {
+          if (openTopics.includes(topic.dataset.id)) topic.open = true;
+        });
+      }
     } catch (refreshError) {
       dbLogError(refreshError);
       reloadError = dbErrText(refreshError);
     }
-
-    if (rollbackErrors.length) {
-      toast(reloadError
-        ? `Không lưu được thứ tự (${dbErrText(error)}). Khôi phục thất bại: ${rollbackErrors.join('; ')}. Tải lại cũng thất bại: ${reloadError}`
-        : `Không lưu được thứ tự (${dbErrText(error)}). Khôi phục thất bại: ${rollbackErrors.join('; ')}. Đã tải lại dữ liệu; hãy kiểm tra thứ tự hiện tại.`);
-    } else if (reloadError) {
-      toast(`Không lưu được thứ tự (${dbErrText(error)}). Các yêu cầu khôi phục thành công nhưng không xác nhận được trạng thái sau tải lại: ${reloadError}`);
-    } else {
-      toast(`Không lưu được thứ tự (${dbErrText(error)}). Đã khôi phục thứ tự ban đầu và tải lại dữ liệu từ máy chủ.`);
-    }
+    toast(rollbackErrors.length
+      ? `Không lưu được thứ tự (${dbErrText(error)}). Khôi phục thất bại: ${rollbackErrors.join('; ')}${reloadError ? `. Tải lại cũng thất bại: ${reloadError}` : '. Đã tải lại dữ liệu; hãy kiểm tra thứ tự hiện tại.'}`
+      : reloadError
+        ? `Không lưu được thứ tự (${dbErrText(error)}). Không xác nhận được trạng thái sau tải lại: ${reloadError}`
+        : 'Không lưu được thứ tự. Đã khôi phục thứ tự ban đầu và tải lại dữ liệu từ máy chủ.');
   } finally {
-    buttons.forEach((button) => { button.disabled = false; });
     if (scope.isConnected) {
+      scope.querySelectorAll('[data-sort-handle]').forEach((handle) => { handle.disabled = false; });
       delete scope.dataset.sortBusy;
       scope.removeAttribute('aria-busy');
     }
   }
 }
 
-async function dbMoveContentItemError(scope, error) {
-  if (scope.dataset.sortBusy === '1') return;
-  const buttons = [...scope.querySelectorAll('.db-order-btn')];
-  scope.dataset.sortBusy = '1';
-  scope.setAttribute('aria-busy', 'true');
-  buttons.forEach((button) => { button.disabled = true; });
-
-  try {
-    let reloadError = '';
-    try {
-      const reloaded = await dbReload();
-      reloadError = !reloaded ? 'Tải lại bị gián đoạn.' : DB.loadError;
-    } catch (refreshError) {
-      dbLogError(refreshError);
-      reloadError = dbErrText(refreshError);
+function dbRequestContentOrder(scope, kind, orderedIds, source) {
+  dbPersistContentOrder(scope, kind, orderedIds).catch((error) => {
+    dbLogError(error);
+    const context = dbContentOrderScope(scope, kind);
+    if (context && scope.isConnected) {
+      const nodes = new Map(dbContentSortChildren(scope).map((node) => [node.dataset.id, node]));
+      context.items.slice().sort((a, b) => Number(a.display_order) - Number(b.display_order))
+        .forEach((item) => {
+          const node = nodes.get(item.id);
+          if (node) scope.appendChild(node);
+        });
     }
-    toast(reloadError
-      ? `Không thể đổi thứ tự (${dbErrText(error)}). Tải lại dữ liệu cũng thất bại: ${reloadError}`
-      : `Không thể đổi thứ tự (${dbErrText(error)}). Danh sách đã được tải lại từ máy chủ.`);
-  } finally {
-    buttons.forEach((button) => { button.disabled = false; });
-    if (scope.isConnected) {
-      delete scope.dataset.sortBusy;
-      scope.removeAttribute('aria-busy');
-    }
-  }
+    dbShowError(error, source);
+  });
 }
 
-DB_ACT.moveTopic = (el) => dbMoveContentItem(el, 'topic');
-DB_ACT.moveLesson = (el) => dbMoveContentItem(el, 'lesson');
+let dbContentDrag = null;
+app.addEventListener('pointerdown', (ev) => {
+  const handle = ev.target.closest('[data-sort-handle]');
+  if (!handle || handle.disabled || ev.button !== 0 || !dbIsTeacher() || DB.page !== 'content') return;
+  const kind = handle.dataset.sortKind;
+  const scope = handle.closest('[data-sort-scope]');
+  const item = handle.closest('[data-sort-item]');
+  if (!scope || !item || item.parentElement !== scope || !dbContentOrderScope(scope, kind) || scope.dataset.sortBusy === '1') return;
+  dbContentDrag = {
+    pointerId: ev.pointerId, handle, item, scope, kind,
+    startX: ev.clientX, startY: ev.clientY, active: false,
+    originalItems: dbContentSortChildren(scope),
+  };
+  handle.setPointerCapture(ev.pointerId);
+  ev.preventDefault();
+});
+app.addEventListener('pointermove', (ev) => {
+  const drag = dbContentDrag;
+  if (!drag || drag.pointerId !== ev.pointerId) return;
+  if (!drag.active && Math.hypot(ev.clientX - drag.startX, ev.clientY - drag.startY) < 6) return;
+  drag.active = true;
+  drag.item.classList.add('is-sorting');
+  ev.preventDefault();
+  const underPointer = document.elementFromPoint(ev.clientX, ev.clientY);
+  const target = underPointer && underPointer.closest('[data-sort-item]');
+  if (!target || target === drag.item || target.parentElement !== drag.scope) return;
+  const rect = target.getBoundingClientRect();
+  if (ev.clientY < rect.top + rect.height / 2) drag.scope.insertBefore(drag.item, target);
+  else drag.scope.insertBefore(drag.item, target.nextSibling);
+});
+function dbFinishContentDrag(ev, cancelled) {
+  const drag = dbContentDrag;
+  if (!drag || drag.pointerId !== ev.pointerId) return;
+  dbContentDrag = null;
+  drag.item.classList.remove('is-sorting');
+  if (cancelled) drag.originalItems.forEach((item) => drag.scope.appendChild(item));
+  else if (drag.active) {
+    const orderedIds = dbContentSortChildren(drag.scope).map((item) => item.dataset.id);
+    dbRequestContentOrder(drag.scope, drag.kind, orderedIds, drag.handle);
+  }
+}
+app.addEventListener('pointerup', (ev) => dbFinishContentDrag(ev, false));
+app.addEventListener('pointercancel', (ev) => dbFinishContentDrag(ev, true));
+app.addEventListener('click', (ev) => {
+  if (ev.target.closest('[data-sort-handle]')) ev.preventDefault();
+});
+app.addEventListener('keydown', (ev) => {
+  const handle = ev.target.closest('[data-sort-handle]');
+  if (!handle || !['ArrowUp', 'ArrowDown'].includes(ev.key) || !dbIsTeacher()) return;
+  const scope = handle.closest('[data-sort-scope]');
+  const item = handle.closest('[data-sort-item]');
+  if (!scope || !item || item.parentElement !== scope || scope.dataset.sortBusy === '1') return;
+  ev.preventDefault();
+  const siblings = dbContentSortChildren(scope);
+  const index = siblings.indexOf(item), next = index + (ev.key === 'ArrowUp' ? -1 : 1);
+  if (next < 0 || next >= siblings.length) return;
+  if (next < index) scope.insertBefore(item, siblings[next]);
+  else scope.insertBefore(item, siblings[next].nextSibling);
+  dbRequestContentOrder(scope, handle.dataset.sortKind, dbContentSortChildren(scope).map((child) => child.dataset.id), handle);
+});
 
 DB_ACT.openContentRoot = () => { DB.arg = {}; render(); };
 DB_ACT.openContentTopic = (el) => { DB.arg = { topicId: el.dataset.id }; render(); };
