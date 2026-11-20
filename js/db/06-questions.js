@@ -194,9 +194,11 @@ function dbQuestionObjectiveCodeKey(code) {
   return dbQuestionObjectiveCode(code).replace(/^LO0+(?=\d+$)/, 'LO');
 }
 function dbParseQuestionImportRows(rows, lessonId) {
-  if (!rows.length || !rows[0].some((x) => String(x).trim())) throw new Error('Tệp không có hàng tiêu đề.');
-  const headers = rows[0].map((x) => nz(x));
-  const objects = rows.slice(1).map((cells) => Object.fromEntries(headers.map((key, i) => [key, cells[i] == null ? '' : cells[i]])));
+  const contentHeaders = new Set(['nội dung', 'nội dung câu hỏi', 'content', 'câu hỏi'].map(nz));
+  const headerIndex = rows.findIndex((cells) => cells.some((cell) => contentHeaders.has(nz(cell))));
+  if (headerIndex < 0) throw new Error('Không tìm thấy cột nội dung câu hỏi trong hàng tiêu đề.');
+  const headers = rows[headerIndex].map((x) => nz(x));
+  const objects = rows.slice(headerIndex + 1).map((cells) => Object.fromEntries(headers.map((key, i) => [key, cells[i] == null ? '' : cells[i]])));
   const kindByText = Object.fromEntries([
     ...Object.entries(DB_QKIND).map(([key, value]) => [nz(value), key]),
     ...Object.keys(DB_QKIND).map((key) => [nz(key), key]),
@@ -223,6 +225,7 @@ function dbParseQuestionImportRows(rows, lessonId) {
   });
   const parsed = [], skipped = [], unknownCodes = new Set(), ambiguousCodes = new Set(), unknownLessons = new Set(), ambiguousLessons = new Set();
   objects.forEach((o, i) => {
+    if (Object.values(o).every((value) => !String(value == null ? '' : value).trim())) return;
     try {
       const content = dbQuestionImportPick(o, ['nội dung', 'nội dung câu hỏi', 'content', 'câu hỏi']);
       if (!content) throw new Error('thiếu nội dung');
@@ -307,7 +310,7 @@ function dbParseQuestionImportRows(rows, lessonId) {
         objectiveIds,
       });
     } catch (e) {
-      skipped.push('Dòng ' + (i + 2) + ': ' + (e.message || 'dữ liệu không hợp lệ'));
+      skipped.push('Dòng ' + (headerIndex + i + 2) + ': ' + (e.message || 'dữ liệu không hợp lệ'));
     }
   });
   if (parsed.length > 200) throw new Error('Tệp có ' + parsed.length + ' câu hợp lệ; mỗi lần nhập tối đa 200 câu.');
