@@ -24,17 +24,35 @@ function closeDlg(){if(typeof datePopClose==='function')datePopClose();dlg=null;
 function dateToIso(v){const m=/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(String(v==null?'':v).trim());if(!m)return '';const d=('0'+m[1]).slice(-2),mo=('0'+m[2]).slice(-2);return m[3]+'-'+mo+'-'+d}
 function isoToDate(iso){const m=/^(\d{4})-(\d{2})-(\d{2})$/.exec(String(iso==null?'':iso));return m?m[3]+'/'+m[2]+'/'+m[1]:''}
 let datePop=null;
+function datePopNow(){return new Date(simNow())}
+function datePopMinIso(txtId,now=datePopNow()){
+  const txt=document.getElementById(txtId);
+  const fieldLabel=txt?.closest('.field')?.querySelector('label')?.textContent||'';
+  const isTimeField=/hạn nộp|mở|đóng|ngày/i.test(fieldLabel)||/^ab-(due|lc)$/.test(txtId);
+  if(!isTimeField)return '';
+  const minDate=new Date(now.getFullYear(),now.getMonth(),now.getDate());
+  if(!/mở/i.test(fieldLabel)){
+    const endOfToday=new Date(minDate);endOfToday.setHours(23,59,0,0);
+    if(now.getTime()>endOfToday.getTime())minDate.setDate(minDate.getDate()+1);
+  }
+  return minDate.getFullYear()+'-'+datePopPad(minDate.getMonth()+1)+'-'+datePopPad(minDate.getDate());
+}
 /* Mở lịch chọn ngày ngay trong trang: luôn nằm trong khung nhìn, không bị cắt mép */
 function dateOpen(txtId){
   const txt=document.getElementById(txtId);
   if(!txt)return;
   if(datePop&&datePop.inputId===txtId){datePopClose();return}
   datePopClose();
-  const iso=dateToIso(txt.value),d=iso?new Date(iso+'T00:00:00'):new Date();
+  const now=datePopNow(),today=new Date(now.getFullYear(),now.getMonth(),now.getDate()),minIso=datePopMinIso(txtId,now);
+  const iso=dateToIso(txt.value);
+  let d=iso?new Date(iso+'T00:00:00'):today;
+  if(isNaN(d))d=today;
+  const minDate=minIso?new Date(minIso+'T00:00:00'):today;
+  if(minIso&&iso&&iso<minIso)d=minDate;
   const el=document.createElement('div');
   el.className='datepop';el.setAttribute('role','dialog');el.setAttribute('aria-label','Chọn ngày');
   document.body.appendChild(el);
-  datePop={inputId:txtId,el,y:d.getFullYear(),m:d.getMonth()};
+  datePop={inputId:txtId,el,y:d.getFullYear(),m:d.getMonth(),minIso};
   datePopPaint();datePopPlace();
   setTimeout(()=>{
     document.addEventListener('mousedown',datePopOutside,true);
@@ -42,7 +60,7 @@ function dateOpen(txtId){
     window.addEventListener('scroll',datePopPlace,true);
     window.addEventListener('resize',datePopPlace);
   },0);
-  const f=el.querySelector('.dp-day[aria-selected="true"]')||el.querySelector('.dp-day:not(.dp-out)');
+  const f=el.querySelector('.dp-day[aria-selected="true"]:not(:disabled)')||el.querySelector('.dp-day:not(.dp-out):not(:disabled)');
   if(f)try{f.focus({preventScroll:true})}catch(e){f.focus()}
 }
 function datePopClose(){
@@ -65,7 +83,7 @@ function datePopKey(e){
   if(e.key==='Escape'){e.preventDefault();e.stopPropagation();datePopClose();return}
   const step=e.key==='ArrowLeft'?-1:e.key==='ArrowRight'?1:e.key==='ArrowUp'?-7:e.key==='ArrowDown'?7:0;
   if(!step)return;
-  const days=[...datePop.el.querySelectorAll('.dp-day')];
+  const days=[...datePop.el.querySelectorAll('.dp-day:not(:disabled)')];
   const i=days.indexOf(document.activeElement);
   if(i<0)return;
   e.preventDefault();
@@ -75,9 +93,10 @@ function datePopKey(e){
 function datePopPad(n){return n<10?'0'+n:''+n}
 function datePopPaint(){
   if(!datePop)return;
+  datePop.minIso=datePopMinIso(datePop.inputId);
   const y=datePop.y,m=datePop.m;
   const txt=document.getElementById(datePop.inputId),sel=txt?dateToIso(txt.value):'';
-  const now=new Date(),tIso=now.getFullYear()+'-'+datePopPad(now.getMonth()+1)+'-'+datePopPad(now.getDate());
+  const now=datePopNow(),tIso=now.getFullYear()+'-'+datePopPad(now.getMonth()+1)+'-'+datePopPad(now.getDate());
   const first=new Date(y,m,1),lead=(first.getDay()+6)%7;         /* tuần bắt đầu từ thứ hai */
   const total=Math.ceil((lead+new Date(y,m+1,0).getDate())/7)*7;
   const dow=['T2','T3','T4','T5','T6','T7','CN'];
@@ -87,23 +106,30 @@ function datePopPaint(){
     const cur=new Date(y,m,dayNo);
     const iso=cur.getFullYear()+'-'+datePopPad(cur.getMonth()+1)+'-'+datePopPad(cur.getDate());
     const out=cur.getMonth()!==m;
-    cells+=`<button type='button' class='dp-day${out?' dp-out':''}${iso===sel?'':' '}${iso===tIso?' dp-today':''}' data-iso='${iso}' aria-selected='${iso===sel?'true':'false'}' onclick="datePick('${iso}')">${cur.getDate()}</button>`;
+    const disabled=!!datePop.minIso&&iso<datePop.minIso;
+    cells+=`<button type='button' class='dp-day${out?' dp-out':''}${iso===sel?'':' '}${iso===tIso?' dp-today':''}${disabled?' dp-disabled':''}' data-iso='${iso}' aria-selected='${iso===sel?'true':'false'}'${disabled?' disabled':''} onclick="datePick('${iso}')">${cur.getDate()}</button>`;
   }
   datePop.el.innerHTML=`<div class='dp-head'><b class='dp-title'>Tháng ${m+1} năm ${y}</b><span class='dp-nav'>`+
-    `<button type='button' aria-label='Tháng trước' title='Tháng trước' onclick='dateNav(-1)'><span aria-hidden='true' style='font-size:18px;line-height:1'>‹</span></button>`+
+    (()=>{let canPrev=true;if(datePop.minIso){const min=new Date(datePop.minIso+'T00:00:00');canPrev=y>min.getFullYear()||(y===min.getFullYear()&&m>min.getMonth())}return `<button type='button' aria-label='Tháng trước' title='Tháng trước' ${canPrev?'':'disabled'} onclick='dateNav(-1)'><span aria-hidden='true' style='font-size:18px;line-height:1'>‹</span></button>`})()+
     `<button type='button' aria-label='Tháng sau' title='Tháng sau' onclick='dateNav(1)'><span aria-hidden='true' style='font-size:18px;line-height:1'>›</span></button></span></div>`+
     `<div class='dp-grid'>${dow.map(d=>`<span class='dp-dow'>${d}</span>`).join('')}${cells}</div>`+
-    `<div class='dp-foot'><button type='button' class='btn light' onclick="datePick('${tIso}')">Hôm nay</button>`+
+    `<div class='dp-foot'><button type='button' class='btn light' onclick="datePick('${datePop.minIso&&tIso<datePop.minIso?datePop.minIso:tIso}')">${datePop.minIso&&tIso<datePop.minIso?'Ngày gần nhất':'Hôm nay'}</button>`+
     `<button type='button' class='btn light' onclick='datePopClose()'>Đóng</button></div>`;
   datePopPlace();
 }
 function dateNav(d){
   if(!datePop)return;
   const m=datePop.m+d,y=datePop.y+(m<0?-1:m>11?1:0);
+  if(datePop.minIso){
+    const min=new Date(datePop.minIso+'T00:00:00');
+    if(y<min.getFullYear()||(y===min.getFullYear()&&m<min.getMonth()))return;
+  }
   datePop.m=(m+12)%12;datePop.y=y;datePopPaint();
 }
 function datePick(iso){
   if(!datePop)return;
+  datePop.minIso=datePopMinIso(datePop.inputId);
+  if(datePop.minIso&&iso<datePop.minIso){datePopPaint();return}
   const id=datePop.inputId;
   datePopClose();
   dateSet(id,iso);

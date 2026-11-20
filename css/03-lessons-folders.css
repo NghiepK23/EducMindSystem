@@ -49,7 +49,7 @@
 .scope-lesson{margin:10px 0 0 10px;padding:9px 12px;background:var(--fill);border-radius:14px}
 .scope-lesson>summary{display:flex;align-items:center;gap:8px;padding:3px 0}
 .work-card{margin:8px 0 0;background:var(--surface);border-radius:14px;box-shadow:0 0 0 .5px var(--line);padding:11px 13px}
-.work-card>summary{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.work-card>summary{display:block}
 .work-card[open]>summary{padding-bottom:10px;box-shadow:0 .5px 0 var(--line);margin-bottom:10px}
 .work-card .work-detail{min-width:0}
 .work-card .work-actions{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}

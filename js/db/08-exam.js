@@ -51,7 +51,7 @@ DB_PAGES.exam = {
   /* Rời trang làm bài: lưu nốt câu đang gõ dở và dừng đồng hồ trên màn hình (đồng hồ ở máy chủ vẫn chạy). */
   leave() { dbExamStop(true); },
 };
-const dbExamBlank = (v) => v == null || v === '' || (Array.isArray(v) && !v.length);
+const dbExamBlank = (v) => v == null || v === '' || (Array.isArray(v) && !v.some((item) => item != null && String(item).trim() !== ''));
 const dbExamProgressText = () => `Đã trả lời ${DBX.questions.filter((q) => !dbExamBlank(DBX.answers[q.question_id])).length}/${DBX.questions.length} câu`;
 function dbExamClock() {
   const left = Math.max(0, Math.ceil((DBX.endsAt - dbNow()) / 1000)), hh = Math.floor(left / 3600), mm = Math.floor((left % 3600) / 60), ss = left % 60;
@@ -60,15 +60,17 @@ function dbExamClock() {
 const DB_EXAM_STATE = { saved: 'Đã lưu', dirty: 'Đang chờ lưu…', saving: 'Đang lưu…', error: 'Chưa lưu được' };
 function dbExamQuestion(q, i) {
   const id = q.question_id, a = DBX.answers[id], opts = Array.isArray(q.options) ? q.options : [], st = DBX.state[id];
-  let input;
+  let input, content = h(q.content);
   if (q.kind === 'SINGLE_CHOICE') input = opts.map((o, k) => `<label class="objrow"><input type="radio" name="q-${h(id)}" value="${k}" data-change="examAnswer" data-q="${h(id)}" ${Number(a) === k && a != null && a !== '' ? 'checked' : ''}><span>${dbLetter(k)}. ${h(o)}</span></label>`).join('');
   else if (q.kind === 'MULTIPLE_CHOICE') { const set = new Set([].concat(a == null ? [] : a).map(Number)); input = `<div class="muted db-hint">Chọn mọi đáp án đúng.</div>` + opts.map((o, k) => `<label class="objrow"><input type="checkbox" name="q-${h(id)}" value="${k}" data-change="examAnswer" data-q="${h(id)}" ${set.has(k) ? 'checked' : ''}><span>${dbLetter(k)}. ${h(o)}</span></label>`).join(''); }
   else if (q.kind === 'TRUE_FALSE') input = [['true', 'Đúng'], ['false', 'Sai']].map(([val, label]) => `<label class="objrow"><input type="radio" name="q-${h(id)}" value="${val}" data-change="examAnswer" data-q="${h(id)}" ${a != null && String(a) === val ? 'checked' : ''}><span>${label}</span></label>`).join('');
+  else if (q.kind === 'FILL_IN_BLANK') { content = dbQuestionFillMarkup(q.content, id, a, 'exam'); input = ''; }
+  else if (q.kind === 'MATCHING') input = dbQuestionMatchingMarkup(id, q.options, a, 'exam');
   else if (q.kind === 'SHORT_ANSWER') input = `<label class="sr" for="db-xa-${h(id)}">Câu trả lời câu ${i + 1}</label><input id="db-xa-${h(id)}" type="text" maxlength="1000" value="${h(a == null ? '' : a)}" data-input="examText" data-change="examTextNow" data-q="${h(id)}" placeholder="Câu trả lời của em" autocomplete="off">`;
   else input = `<label class="sr" for="db-xa-${h(id)}">Bài làm câu ${i + 1}</label><textarea id="db-xa-${h(id)}" rows="7" maxlength="20000" data-input="examText" data-change="examTextNow" data-q="${h(id)}" placeholder="Bài làm của em">${h(a == null ? '' : a)}</textarea>`;
   return `<section class="panel db-question" aria-labelledby="db-xq-${i}">
     <div class="row between"><h2 id="db-xq-${i}">Câu ${i + 1}</h2><div class="row"><span class="muted">${h(DB_QKIND[q.kind] || q.kind)} · ${dbNum(q.weight)} điểm</span><span class="db-save-state" id="db-xs-${h(id)}" data-state="${h(st || '')}" role="status">${st ? DB_EXAM_STATE[st] : ''}</span></div></div>
-    <div class="db-prose">${h(q.content)}</div>
+    <div class="db-prose">${content}</div>
     <div class="db-answers" role="group" aria-labelledby="db-xq-${i}">${input}</div>
   </section>`;
 }
@@ -83,6 +85,7 @@ DB_ACT.examAnswer = (el) => {
   if (!DBX) return;
   const id = el.dataset.q, q = DBX.questions.find((x) => x.question_id === id);
   if (q.kind === 'MULTIPLE_CHOICE') DBX.answers[id] = [...document.querySelectorAll(`#main input[data-q="${id}"]:checked`)].map((x) => Number(x.value)).sort((a, b) => a - b);
+  else if (q.kind === 'MATCHING') DBX.answers[id] = [...document.querySelectorAll(`#main select[data-q="${id}"]`)].map((x) => x.value === '' ? null : Number(x.value));
   else if (q.kind === 'TRUE_FALSE') DBX.answers[id] = el.value === 'true';
   else DBX.answers[id] = Number(el.value);
   dbExamSave(id);
@@ -90,7 +93,11 @@ DB_ACT.examAnswer = (el) => {
 DB_ACT.examText = (el) => {
   if (!DBX) return;
   const id = el.dataset.q;
-  DBX.answers[id] = el.value; DBX.state[id] = 'dirty'; dbExamPaint(id);
+  const q = DBX.questions.find((x) => x.question_id === id);
+  DBX.answers[id] = q && q.kind === 'FILL_IN_BLANK'
+    ? [...document.querySelectorAll(`#main input[data-q="${id}"][data-part-index]`)].map((x) => x.value)
+    : el.value;
+  DBX.state[id] = 'dirty'; dbExamPaint(id);
   clearTimeout(DBX.debounce[id]);
   DBX.debounce[id] = setTimeout(() => dbExamSave(id), DB_EXAM_SAVE_DELAY);
 };

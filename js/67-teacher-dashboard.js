@@ -50,7 +50,7 @@ function dashboardPage(){
   const dueSoon=c.assignments.filter(a=>a.status==='Đã xuất bản'&&scopeLive(c,a)&&dueMs(a)>=simNow()&&dueMs(a)<=simNow()+7*864e5).slice(0,3).map(a=>`<div class='td-deadline-row'><span class='td-deadline-icon'>${ic('calendar',16)}</span><span><b>${esc(a.name)}</b><small>Hạn ${esc(a.due)} · ${esc(scopeLbl(c,a.scope))}</small></span></div>`).join('');
   return `<div class='teacher-dashboard'>
     <section class='td-welcome'>
-      <div class='td-welcome-copy'><span class='td-eyebrow'>TEACHER COMMAND CENTER · ${esc(c.id)}</span><h2>${dashboardGreeting()}, ${esc(acctName())}</h2><p>Toàn cảnh lớp học, bài tập và những học sinh cần được đồng hành hôm nay.</p>
+      <div class='td-welcome-copy'><span class='td-eyebrow'>TRUNG TÂM QUẢN LÝ GIẢNG DẠY · ${esc(c.id)}</span><h2>${dashboardGreeting()}, ${esc(acctName())}</h2><p>Toàn cảnh lớp học, bài tập và những học sinh cần được đồng hành hôm nay.</p>
         <div class='td-welcome-actions'><button class='btn' onclick="setPage('assignments')">${ic('assignments',17)}Tạo bài tập</button><button class='btn light' onclick="setPage('overview')">${ic('lessons',17)}Soạn bài</button></div>
       </div><span class='td-welcome-art' aria-hidden='true'><img src='assets/student-characters.png' alt=''></span>
     </section>
@@ -61,21 +61,21 @@ function dashboardPage(){
       <article class='td-metric'><span class='td-metric-icon is-warn'>${ic('students',19)}</span><span class='td-metric-label'>Học sinh cần hỗ trợ</span><b>${studentsToSupport.size}</b><small>Theo các mục tiêu đang mở</small></article>
     </section>
     <div class='td-dashboard-grid'>
-      <section class='panel td-panel td-analytics'><header class='td-section-head'><div><span class='td-eyebrow'>LEARNING ANALYTICS</span><h3>Tiến độ và kết quả lớp học</h3></div><button class='btn light mini' onclick="setPage('report')">Báo cáo chi tiết</button></header>
+      <section class='panel td-panel td-analytics'><header class='td-section-head'><div><span class='td-eyebrow'>PHÂN TÍCH HỌC TẬP</span><h3>Tiến độ và kết quả lớp học</h3></div><button class='btn light mini' onclick="setPage('report')">Báo cáo chi tiết</button></header>
         <div class='td-analytics-summary'><div><span>Bài tập đã giao</span><b>${published.length}</b></div><div><span>Tổng lượt đã nộp</span><b>${submitted.size}</b></div><div><span>Mức nắm vững TB</span><b>${classMastery==null?'—':classMastery+'%'}</b></div><div><span>Điểm kiểm tra TB</span><b>${quizAverage==null?'—':quizAverage+'%'}</b></div></div>
         <h4>Tỷ lệ nộp theo bài tập</h4>${assignmentRows||`<div class='td-empty'>Chưa có bài tập đã xuất bản để phân tích.</div>`}
       </section>
       <section class='panel td-panel td-priorities'><header class='td-section-head'><div><span class='td-eyebrow'>CẦN XỬ LÝ</span><h3>Việc cần ưu tiên</h3></div><span class='td-count'>${pendingAsg+pendingQuiz}</span></header>
         <p class='td-panel-note'>Bài tập chờ chấm và lượt kiểm tra cần đánh giá.</p>${actionRows}${quizRow}${!actionRows&&!quizRow?`<div class='td-empty'>Không có bài nộp nào đang chờ chấm.</div>`:''}
       </section>
-      <section class='panel td-panel td-insights'><header class='td-section-head'><div><span class='td-eyebrow'>TEACHING INSIGHTS</span><h3>Học sinh cần đồng hành</h3></div><button class='btn light mini' onclick="setPage('gaps')">Mở phân tích</button></header>
+      <section class='panel td-panel td-insights'><header class='td-section-head'><div><span class='td-eyebrow'>PHÂN TÍCH GIẢNG DẠY</span><h3>Học sinh cần đồng hành</h3></div><button class='btn light mini' onclick="setPage('gaps')">Mở phân tích</button></header>
         ${helpRows||`<div class='td-empty'>Chưa ghi nhận mục tiêu nào đang cần củng cố.</div>`}
         ${classMastery==null?`<p class='td-panel-note'>Lớp sẽ có phân tích tiến bộ khi ghi nhận thêm kết quả học tập.</p>`:`<div class='td-class-progress'><span>Mức nắm vững của lớp</span><b>${classMastery}%</b><span class='td-chart-track'><i style='width:${classMastery}%'></i></span></div>`}
       </section>
       <section class='panel td-panel td-deadlines'><header class='td-section-head'><div><span class='td-eyebrow'>7 NGÀY TỚI</span><h3>Hạn nộp sắp đến</h3></div><button class='btn light mini' onclick="setPage('calendar')">Lịch</button></header>
         ${dueSoon||`<div class='td-empty'>Không có hạn nộp nào trong 7 ngày tới.</div>`}
       </section>
-      <section class='panel td-panel td-recent'><header class='td-section-head'><div><span class='td-eyebrow'>RECENT ACTIVITY</span><h3>Hoạt động gần đây</h3></div></header>
+      <section class='panel td-panel td-recent'><header class='td-section-head'><div><span class='td-eyebrow'>HOẠT ĐỘNG GẦN ĐÂY</span><h3>Hoạt động gần đây</h3></div></header>
         ${recent||`<div class='td-empty'>Chưa có hoạt động học tập được ghi nhận.</div>`}
       </section>
       <section class='td-ai-card'><span class='td-ai-icon'>${ic('spark',18)}</span><span><b>EducMind AI</b><small>Khởi tạo câu hỏi từ mục tiêu học tập, giáo viên duyệt trước khi sử dụng.</small></span><button class='btn light mini' onclick="setPage('questions')">Khám phá AI</button></section>

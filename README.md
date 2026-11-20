@@ -49,13 +49,18 @@ Hệ thống chỉ dùng **tài khoản thật** đăng ký bằng email:
 1. Bấm **Tạo tài khoản**, chọn vai trò **Giáo viên (TEACHER)** hoặc **Học sinh (STUDENT)**
    (vai trò không đổi được sau khi tạo).
 2. Mở hộp thư (kể cả thư rác), nhập **mã xác nhận email**, rồi đăng nhập.
-3. Giáo viên tạo **Lớp học** — hệ thống sinh **mã lớp 8 ký tự**; học sinh tự đăng ký
-   rồi vào lớp bằng mã đó.
+3. Khi đăng ký vai trò **Giáo viên**, có thể nhập **tên lớp** và **môn học** ngay hoặc
+   bổ sung sau trong **Tài khoản**. Giáo viên cần hoàn tất hai thông tin này trước khi
+   dùng chức năng dạy học; hệ thống sẽ nhắc nếu còn thiếu. Khi lưu, backend tạo/cập nhật
+   lớp, khóa học chứa môn học và **mã lớp 8 ký tự**. Học sinh tự đăng ký rồi vào lớp bằng mã đó.
 4. Giáo viên cũng có thể **tự tạo tài khoản cho học sinh** ngay trong trang lớp học
    (tự đặt mật khẩu giao cho học sinh).
 
 Tải lại trang bao nhiêu lần cũng giữ nguyên đăng nhập và dữ liệu — mọi thứ được lưu
 trên Supabase, không còn dữ liệu tạm trong bộ nhớ.
+
+Tên môn học được lưu trong `courses.title` và liên kết với lớp qua `courses.class_id`.
+Thông tin lớp/môn học trong Tài khoản và báo cáo/Xuất Excel-Word đều lấy từ dữ liệu này.
 
 ## Cấu trúc mã nguồn
 
@@ -72,7 +77,7 @@ js/
     01-core.js             Vào app, đăng xuất, phiên, đồng bộ chuông báo
     02-shell.js            Vỏ ứng dụng: điều hướng theo vai trò, chuông thông báo
     03-classes.js … 13-report.js   Lớp học, nội dung, bài tập, câu hỏi, thi, tiến độ,
-                           nhập/xuất, lịch & cần làm, báo cáo
+                           nhập/xuất, lịch & việc cần làm, báo cáo
     14-ai.js               AI tạo câu hỏi nháp (giáo viên)
     15-games.js            Trò chơi ôn tập 3 chế độ
     16-live.js             Realtime cho chuông thông báo (tự fallback polling)
@@ -230,5 +235,5 @@ Lưu ý bảo mật của backend:
   theo số lượt giáo viên đặt — kể cả lượt bù).
 - **Trò chơi ôn tập** 3 chế độ: Nhanh (60 giây), Đua tốc độ (10 câu × 20 giây),
   Sinh tồn (3 mạng) — chơi bằng câu hỏi trắc nghiệm của lớp, không ảnh hưởng điểm chính thức.
-- Xem tiến độ, mức nắm vững, lỗ hổng kiến thức, đề xuất luyện tập, lịch & cần làm,
+- Xem tiến độ, mức nắm vững, lỗ hổng kiến thức, đề xuất luyện tập, lịch & việc cần làm,
   báo cáo tiến bộ của bản thân; nhận thông báo Realtime.

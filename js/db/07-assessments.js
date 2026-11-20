@@ -54,15 +54,15 @@ function dbAssessmentTeacherList(d) {
     const qs = aqBy[e.id] || [], att = attBy[e.id] || [], waiting = att.filter((t) => t.status === 'SUBMITTED').length, pub = e.status === 'PUBLISHED';
     const total = qs.reduce((s, x) => s + Number(x.weight), 0);
     return `<details class="work-card">
-      <summary><span class="work-detail"><b>${h(e.title)}</b> ${dbStatusPill(e.status)} <span class="pill prog">${qs.length} câu · ${dbNum(total)} điểm</span>
-        <div class="db-work-meta">
-          <span><small>Bài học</small><b>${h(dbLessonTitle(d, e.lesson_id) || 'Chưa gắn bài học')}</b></span>
-          <span><small>Mở bài</small><b>${dbDateTime(e.open_at)}</b></span>
-          <span><small>Đóng bài</small><b>${dbDateTime(e.close_at)}</b></span>
-          <span><small>Thời lượng · Số lượt</small><b>${h(e.duration_minutes)} phút · ${h(e.max_attempts)} lượt</b></span>
-          <span><small>Lượt làm</small><b>${att.length}${waiting ? ` · ${waiting} chờ chấm` : ''}</b></span>
-        </div>
-      </span><span class="pill plain">Mở thao tác</span></summary>
+      <summary><div class="work-summary-head"><span class="work-detail"><b>${h(e.title)}</b></span>
+        <span class="work-summary-actions"><span class="pill prog">${qs.length} câu · ${dbNum(total)} điểm</span> ${dbStatusPill(e.status)} <span class="pill plain">Mở thao tác</span></span>
+      </div><div class="db-work-meta">
+        <span><small>Bài học</small><b>${h(dbLessonTitle(d, e.lesson_id) || 'Chưa gắn bài học')}</b></span>
+        <span><small>Mở bài</small><b>${dbDateTime(e.open_at)}</b></span>
+        <span><small>Đóng bài</small><b>${dbDateTime(e.close_at)}</b></span>
+        <span><small>Thời lượng · Số lượt</small><b>${h(e.duration_minutes)} phút · ${h(e.max_attempts)} lượt</b></span>
+        <span><small>Lượt làm</small><b>${att.length}${waiting ? ` · ${waiting} chờ chấm` : ''}</b></span>
+      </div></summary>
       <div class="work-actions">${dbBtn('Mở bài kiểm tra', 'go', { page: 'assessments', id: e.id }, 'light mini')}${dbBtn(pub ? 'Gỡ xuất bản' : 'Xuất bản', 'toggleAssessment', { id: e.id }, pub ? 'light mini' : 'mini db-work-publish')}${dbBtn('Sửa thông tin', 'go', { page: 'assessments', edit: e.id }, 'light mini')}${dbBtn('Xóa', 'deleteAssessment', { id: e.id }, 'light mini danger-soft')}</div>
     </details>`;
   });
@@ -86,6 +86,7 @@ function dbAssessmentForm(d, e) {
   const locked = !!e && d.attempts.some((t) => t.assessment_id === e.id);
   const lockAttr = locked ? 'disabled' : '';
   const open = e ? e.open_at : new Date(dbNow()).toISOString(), close = e ? e.close_at : new Date(dbNow() + 7 * 86400000).toISOString();
+  const minimum = !locked ? new Date(dbNow()).toISOString() : null;
   return `<section class="panel" aria-labelledby="db-h-ef">
     ${e ? dbAssessmentSteps(e, 1) : `<ol class="db-workflow-steps" aria-label="Các bước tạo bài kiểm tra"><li class="is-current" aria-current="step"><span><b>1</b> Thiết lập</span></li><li><span><b>2</b> Câu hỏi</span></li><li><span><b>3</b> Xem trước</span></li></ol>`}
     <h2 id="db-h-ef">${e ? 'Sửa bài kiểm tra' : 'Tạo bài kiểm tra'}</h2>
@@ -99,8 +100,8 @@ function dbAssessmentForm(d, e) {
         ${dbField('Số lượt làm tối đa', 'db-ef-att', `<input id="db-ef-att" name="attempts" type="number" min="1" max="20" step="1" value="${h(e ? e.max_attempts : 1)}" ${lockAttr} required>`, 'Có thể cấp lượt làm bù riêng cho từng học sinh sau này.')}
       </div>
       <div class="db-form-grid db-assessment-settings-grid db-assessment-time-grid">
-        ${dbField('Mở lúc', 'db-ef-open', `<input id="db-ef-open" name="open" type="datetime-local" value="${dbToLocalInput(open)}" ${lockAttr} required>`)}
-        ${dbField('Đóng lúc', 'db-ef-close', `<input id="db-ef-close" name="close" type="datetime-local" value="${dbToLocalInput(close)}" ${lockAttr} required>`, 'Lượt làm kết thúc theo mốc đến trước: hết thời lượng hoặc đến giờ đóng bài.')}
+        ${dbField('Mở lúc', 'db-ef-open', dbDatetimeField('db-ef-open', 'open', open, lockAttr, minimum))}
+        ${dbField('Đóng lúc', 'db-ef-close', dbDatetimeField('db-ef-close', 'close', close, lockAttr, minimum), 'Lượt làm kết thúc theo mốc đến trước: hết thời lượng hoặc đến giờ đóng bài.')}
       </div>
       ${dbFormError()}
       <div class="row db-form-actions">${dbBtn('Hủy', 'go', e ? { page: 'assessments', id: e.id } : { page: 'assessments' }, 'light')}<button type="submit" class="btn">${e ? 'Lưu thiết lập' : 'Tạo bản nháp và tiếp tục'}</button></div>
@@ -117,6 +118,11 @@ DB_ACT.saveAssessment = (form) => dbRun(form, async (v) => {
   if (!Number.isInteger(attempts) || attempts < 1 || attempts > 20) throw new Error('Số lượt làm phải là số nguyên từ 1 đến 20.');
   const open = settingsLocked ? current.open_at : dbFromLocalInput(v.open), close = settingsLocked ? current.close_at : dbFromLocalInput(v.close);
   if (!open || !close) throw new Error('Chọn thời điểm mở và đóng bài kiểm tra.');
+  if (!settingsLocked) {
+    const now = new Date(dbNow());
+    if (new Date(open) < now) throw new Error('Thời điểm mở bài kiểm tra không được ở quá khứ.');
+    if (new Date(close) < now) throw new Error('Thời điểm đóng bài kiểm tra không được ở quá khứ.');
+  }
   if (new Date(close) <= new Date(open)) throw new Error('Thời điểm đóng phải sau thời điểm mở.');
   const course = await dbEnsureCourse();
   const row = { title: String(v.title).trim(), lesson_id: settingsLocked ? current.lesson_id : (v.lesson_id || null), duration_minutes: duration, max_attempts: attempts, open_at: open, close_at: close };
@@ -203,8 +209,9 @@ function dbAssessmentTeacherPreview(d, e, aq) {
     const opts = Array.isArray(q.options) ? q.options : [];
     return `<article class="db-assessment-preview-question">
       <div class="row between"><h3>Câu ${i + 1}</h3><span class="pill plain">${dbNum(item.weight)} điểm · ${h(DB_QKIND[q.kind] || q.kind)}</span></div>
-      <div class="db-prose">${h(q.content)}</div>
+      <div class="db-prose">${q.kind === 'FILL_IN_BLANK' ? dbQuestionFillMarkup(q.content, q.id, null, 'preview', true) : h(q.content)}</div>
       ${opts.length ? `<ol class="db-options" type="A">${opts.map((option) => `<li>${h(option)}</li>`).join('')}</ol>` : ''}
+      ${q.kind === 'MATCHING' ? dbQuestionMatchingPreview(q.options) : ''}
       <details><summary>Đáp án / cách chấm cho giáo viên</summary><p class="muted">${h(dbAnswerKeyText(q))}</p></details>
     </article>`;
   });
@@ -314,6 +321,9 @@ DB_ACT.importAssessmentQuestions = (form) => dbRun(form, async (v) => {
       ${result.parsed.length > 8 ? `<p class="muted">Còn ${result.parsed.length - 8} câu khác trong tệp.</p>` : ''}
       ${result.skipped.length ? `<p class="muted db-hint">${result.skipped.slice(0, 5).map(h).join('<br>')}${result.skipped.length > 5 ? '<br>…' : ''}</p>` : ''}
       ${result.unknownCodes.length ? `<p class="muted db-hint">Không tìm thấy mã mục tiêu: ${result.unknownCodes.map(h).join(', ')}.</p>` : ''}
+      ${result.ambiguousCodes.length ? `<p class="muted db-hint">Mã mục tiêu trùng giữa nhiều bài học; hãy nhập đúng tên bài học ở cột Bài học: ${result.ambiguousCodes.map(h).join(', ')}.</p>` : ''}
+      ${result.unknownLessons.length ? `<p class="muted db-hint">Không tìm thấy bài học trong lớp hiện tại: ${result.unknownLessons.map(h).join(', ')}.</p>` : ''}
+      ${result.ambiguousLessons.length ? `<p class="muted db-hint">Tên bài học trùng nên chưa thể phân giải: ${result.ambiguousLessons.map(h).join(', ')}.</p>` : ''}
       <p class="muted">Câu mới sẽ vào ngân hàng và được thêm vào đề với trọng số ${dbNum(weight)} điểm mỗi câu. Bạn có thể đổi điểm từng câu sau khi nhập.</p>`,
     okLabel: `Nhập và thêm ${result.parsed.length} câu`,
     onOk: async () => {

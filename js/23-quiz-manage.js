@@ -1,6 +1,7 @@
 /* EducMind · js/23-quiz-manage.js
    Giáo viên dựng bài kiểm tra: tạo, sửa, xuất bản, thêm câu hỏi, xem lượt làm, chấm tay. */
 /* --- Bài tập: dựng, xuất bản, lượt làm, chấm tay (US-T06, T13, T14, T15) --- */
+const quizDayStart=()=>{const d=new Date(simNow());d.setHours(0,0,0,0);return d.getTime()};
 const quizErr=(v,minAtt)=>{
   const d=parseInt(v.d,10),a=parseInt(v.a,10);
   if(!v.n.trim())return 'Bài tập phải có tiêu đề.';
@@ -9,6 +10,8 @@ const quizErr=(v,minAtt)=>{
   if(!(a>=1))return 'Số lần làm tối đa phải từ 1 trở lên.';
   if(a<(minAtt||0))return 'Không đặt thấp hơn số lượt đã làm của học sinh ('+minAtt+' lượt).';
   if(!okD(v.o)||!okD(v.x))return 'Thời gian mở và đóng cần đúng dạng dd/mm/yyyy.';
+  if(dmy(v.o,0,0)<quizDayStart())return 'Thời điểm mở bài kiểm tra không được ở quá khứ.';
+  if(dmy(v.x,23,59)<simNow())return 'Thời điểm đóng bài kiểm tra không được ở quá khứ.';
   if(dmy(v.x,23,59)<=dmy(v.o,0,0))return 'Thời gian đóng phải sau thời gian mở.';
   return null;
 };
@@ -22,6 +25,11 @@ function editQuiz(){
 }
 function togglePubQ(){
   const c=selected(),q=c.quiz;
+  if(q.status==='Nháp'){
+    if(!okD(q.open)||!okD(q.close)){toast('Thời gian mở và đóng cần đúng dạng dd/mm/yyyy.');return}
+    if(dmy(q.open,0,0)<quizDayStart()){toast('Thời điểm mở bài kiểm tra không được ở quá khứ.');return}
+    if(dmy(q.close,23,59)<simNow()){toast('Thời điểm đóng bài kiểm tra không được ở quá khứ.');return}
+  }
   if(q.status==='Nháp'){if(!q.qs.length){toast('Bài tập chưa có câu hỏi nên không xuất bản được.');return}if(!(c.maxAtt>=1)){toast('Chưa xuất bản được: hãy cấu hình số lần làm tối đa cho bài kiểm tra (nút Sửa).');return}q.status='Đã xuất bản';notifyClass(c,'NEW_ASSESSMENT_PUBLISHED','Bài tập mới: '+q.name,{page:'assessments',c,ref:q});toast('Đã xuất bản bài kiểm tra và gửi thông báo cho '+c.students.length+' học sinh')}
   else{if(hasAtt(c)){toast('Bài đã có lượt làm nên không hủy xuất bản được.');return}q.status='Nháp';toast('Đã đưa bài kiểm tra về nháp')}
   q.upd=stamp();render();
@@ -77,7 +85,8 @@ function scopeOpts(c){
 function newQuiz(){
   const c=selected(),O=scopeOpts(c),NO='Không chọn';
   const tl=[NO].concat(O.filter(o=>o.kind==='topic').map(o=>o.label)),ll=[NO].concat(O.filter(o=>o.kind==='lesson').map(o=>o.label));
-  openDlg({title:'Tạo bài tập',text:'Bài mới ở trạng thái nháp, học sinh chưa thấy.',fields:[{k:'n',label:'Tiêu đề',val:''},{k:'p',label:'Phạm vi',val:'Cả lớp',sel:['Cả lớp','Một chủ đề','Một bài học']},{k:'d',label:'Thời lượng (phút)',val:'15'},{k:'a',label:'Số lần làm tối đa (bắt buộc, số nguyên từ 1 trở lên)',val:''},{k:'o',label:'Mở từ ngày (dd/mm/yyyy)',val:'01/11/2026'},{k:'x',label:'Đóng hết ngày (dd/mm/yyyy)',val:'15/11/2026'}],ok:v=>{
+  const openDefault=dmyStr(simNow()),closeDefault=dmyStr(simNow()+7*864e5);
+  openDlg({title:'Tạo bài tập',text:'Bài mới ở trạng thái nháp, học sinh chưa thấy.',fields:[{k:'n',label:'Tiêu đề',val:''},{k:'p',label:'Phạm vi',val:'Cả lớp',sel:['Cả lớp','Một chủ đề','Một bài học']},{k:'d',label:'Thời lượng (phút)',val:'15'},{k:'a',label:'Số lần làm tối đa (bắt buộc, số nguyên từ 1 trở lên)',val:''},{k:'o',label:'Mở từ ngày (dd/mm/yyyy)',val:openDefault},{k:'x',label:'Đóng hết ngày (dd/mm/yyyy)',val:closeDefault}],ok:v=>{
     const e=quizErr(v);if(e)return e;
     const ts=v.t!==NO,ls=v.l!==NO;let scope={type:'course'};
     if(ts&&ls)return 'Phạm vi chỉ được thuộc một cấp: không chọn đồng thời chủ đề và bài học.';

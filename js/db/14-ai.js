@@ -1,19 +1,17 @@
 /* EducMind · js/db/14-ai.js
    Trang “AI tạo câu hỏi nháp” (chỉ giáo viên):
-     - Gửi yêu cầu sinh câu hỏi theo mục tiêu bài học, có thể kèm giáo án đã được giáo viên đồng ý.
-       Gemini chạy trong hàng đợi nền ở Supabase Edge Function.
+     - Gửi yêu cầu sinh câu hỏi theo mục tiêu bài học. Gemini chạy trong hàng đợi nền ở Supabase Edge Function.
      - Bản nháp chưa ảnh hưởng điểm hay mức nắm vững; giáo viên duyệt / sửa-và-duyệt / từ chối
        trước khi câu hỏi thật sự vào ngân hàng (kèm mục tiêu đã chọn). */
 
 const DB_AI_MAX_Q = 20;
-const DB_AI_SOURCE_MAX = 10000;
 const DB_AI_ALL_LESSONS = 'ALL';
 const DB_AIRS = { PENDING_REVIEW: 'Chờ duyệt', APPROVED: 'Đã duyệt', REJECTED: 'Đã từ chối', EDITED_AND_APPROVED: 'Đã sửa và duyệt' };
 const DB_AIST = { PROCESSING: ['Đang xử lý', 'prog'], COMPLETED: ['Hoàn tất', 'good'], FAILED: ['Thất bại', 'need'] };
 let dbAiPollTimer = null, dbAiPollBusy = false, dbAiLastResume = 0;
 
 DB_PAGES.ai = {
-  title: 'AI tạo câu hỏi nháp',
+  title: 'AI tạo câu hỏi',
   sub: 'AI soạn sẵn câu hỏi nháp cho bài học; bạn duyệt, có thể sửa trước khi đưa vào ngân hàng. Bản nháp chưa ảnh hưởng điểm hay mức nắm vững.',
   async load() {
     if (!DB.classId) return {};
@@ -55,7 +53,7 @@ function dbAiForm(d) {
   const lessonSelected = lessons.some((l) => l.id === selectedLesson);
   return `<section class="panel" aria-labelledby="db-h-aif">
     <h2 id="db-h-aif">Tạo câu hỏi bằng AI</h2>
-    <p class="lead">Tải giáo án hoặc dán nội dung để Gemini tham khảo cùng mục tiêu bài học. Câu hỏi được lưu ở dạng bản nháp chờ giáo viên duyệt.</p>
+    <p class="lead">Chọn mục tiêu bài học để Gemini tạo câu hỏi nháp. Câu hỏi được lưu ở dạng bản nháp chờ giáo viên duyệt.</p>
     <p class="muted">Hãy lưu API key cá nhân tại Tài khoản → Quản lý API key Gemini. Ứng dụng không giới hạn số yêu cầu; hạn mức sử dụng do Gemini quyết định.</p>
     ${assignment ? `<div class="notice">${ic('info', 16)}<div>Các câu được duyệt từ yêu cầu này sẽ tự thêm vào bài tập nháp <b>${h(assignment.title)}</b>. Hãy duyệt câu hỏi trước khi xuất bản bài tập.</div></div>` : ''}
     <form data-act="aiGenerate" class="db-ai-form" novalidate data-assignment-id="${h(assignment ? assignment.id : '')}">
@@ -63,18 +61,6 @@ function dbAiForm(d) {
       <div class="field"><span id="db-ai-objective-label" class="db-label">${showAllObjectives ? 'Chọn mục tiêu cần sinh câu hỏi (có thể chọn từ nhiều bài)' : 'Mục tiêu cần sinh câu hỏi (bỏ trống = mọi mục tiêu của bài)'}</span>
         ${lessons.map((l) => `<div class="db-ai-objs" data-lesson="${h(l.id)}" ${showAllObjectives || (lessonSelected && l.id === selectedLesson) ? '' : 'hidden'}><b class="db-ai-obj-lesson">${h(l.title)}</b>${(objBy[l.id] || []).map((o) => `<label class="db-check"><input type="checkbox" name="obj" value="${h(o.id)}"> <span class="db-obj-code">${h(o.code)}</span> ${h(o.description)}</label>`).join('') || '<span class="muted">Bài học chưa có mục tiêu.</span>'}</div>`).join('')}
       </div>
-      <details class="db-ai-plan" ${DB.arg.source === 'plan' ? 'open' : ''}>
-        <summary>Thêm giáo án làm nguồn câu hỏi (không bắt buộc)</summary>
-        <p class="muted">Định dạng .docx, .txt, .md, .csv hoặc .xlsx. Phần văn bản trích xuất được gửi Gemini và lưu cùng yêu cầu AI trong Supabase.</p>
-        <div class="row db-source-actions">
-          ${dbBtn('Tải mẫu giáo án', 'downloadLessonPlanTemplate', {}, 'light')}
-          <label class="btn light" for="db-ai-plan-file">Chọn tệp giáo án</label>
-          <input id="db-ai-plan-file" class="sr" type="file" accept=".docx,.txt,.md,.csv,.xlsx" data-change="aiPlanFilePicked">
-          <span id="db-ai-plan-file-name" class="muted" role="status">Chưa chọn tệp.</span>
-        </div>
-        ${dbField('Hoặc dán nội dung giáo án', 'db-ai-plan-text', `<textarea id="db-ai-plan-text" name="source_document_text" rows="6" maxlength="${DB_AI_SOURCE_MAX}" placeholder="I. MỤC TIÊU BÀI HỌC&#10;- Trình bày được…&#10;II. NỘI DUNG&#10;…"></textarea>`)}
-        <label class="db-check db-ai-consent"><input type="checkbox" name="source_consent"> Tôi đã kiểm tra và đồng ý gửi nội dung giáo án lên Gemini, đồng thời lưu cùng yêu cầu AI trong Supabase. Không đưa tên, thông tin cá nhân hoặc dữ liệu học sinh vào tệp.</label>
-      </details>
       <div class="db-form-grid">
         ${dbField('Dạng câu hỏi', 'db-ai-kind', `<select id="db-ai-kind" name="kind"><option value="AUTO">Tự động</option>${Object.entries(DB_QKIND).map(([k, v]) => `<option value="${k}">${v}</option>`).join('')}</select>`)}
         ${dbField('Độ khó', 'db-ai-diff', `<select id="db-ai-diff" name="difficulty"><option value="AUTO">Tự động</option>${Object.entries(DB_QDIFF).map(([k, v]) => `<option value="${k}">${v}</option>`).join('')}</select>`)}
@@ -108,45 +94,6 @@ async function dbEnqueueAiRequest(lessonId, quantity, params, onCreated) {
   await dbInvokeAiRequest(req.id);
   return req;
 }
-DB_ACT.downloadLessonPlanTemplate = () => {
-  const text = [
-    'MẪU GIÁO ÁN DÙNG ĐỂ ĐỀ XUẤT CÂU HỎI',
-    '',
-    'Lưu ý: Không ghi tên, thông tin cá nhân hoặc dữ liệu học sinh.',
-    'Giữ nguyên các tiêu đề mục tiêu và nội dung để hệ thống trích xuất chính xác hơn.',
-    '',
-    'TÊN BÀI HỌC:',
-    '',
-    'I. MỤC TIÊU BÀI HỌC',
-    '- [Mã mục tiêu nếu có] Nội dung học sinh cần đạt',
-    '- [Mã mục tiêu nếu có] Nội dung học sinh cần đạt',
-    '',
-    'II. NỘI DUNG TRỌNG TÂM',
-    '- Khái niệm, sự kiện hoặc kiến thức chính:',
-    '- Ví dụ, dữ kiện hoặc cách giải thích:',
-    '',
-    'III. YÊU CẦU KHI TẠO CÂU HỎI (không bắt buộc)',
-    '- Nội dung cần ưu tiên:',
-    '- Nội dung cần tránh:',
-    '',
-    'IV. GHI CHÚ CHO GIÁO VIÊN (không bắt buộc)',
-    '- Kiểm tra lại độ chính xác, đáp án và mức độ phù hợp trước khi duyệt câu hỏi.',
-  ].join('\n');
-  DBTF.download(new Blob(['\ufeff', text], { type: 'text/plain;charset=utf-8' }), 'Mau_giao_an_tao_cau_hoi.txt');
-  toast('Đã tải mẫu giáo án.');
-};
-DB_ACT.aiPlanFilePicked = async (el) => {
-  const file = el.files && el.files[0];
-  if (!file) return;
-  if (file.size > 20 * 1024 * 1024) throw new Error('Tệp giáo án vượt giới hạn 20 MB.');
-  const text = await objPlanFileText(file);
-  if (!text.trim()) throw new Error('Không trích xuất được nội dung từ tệp giáo án.');
-  if (text.length > DB_AI_SOURCE_MAX) throw new Error('Giáo án vượt giới hạn ' + DB_AI_SOURCE_MAX.toLocaleString('vi-VN') + ' ký tự. Hãy rút gọn phần liên quan đến bài học.');
-  const form = el.closest('form'), textarea = form && form.querySelector('#db-ai-plan-text');
-  if (textarea) textarea.value = text;
-  const label = form && form.querySelector('#db-ai-plan-file-name');
-  if (label) label.textContent = `Đã đọc ${file.name} · ${text.length} ký tự.`;
-};
 /* Hiện danh sách mục tiêu của bài học đang chọn (không vẽ lại trang). */
 DB_ACT.aiLessonPick = (el) => {
   const label = document.getElementById('db-ai-objective-label');
@@ -184,7 +131,7 @@ function dbAiRow(o, byObj, byLesson, index) {
         }).join('')}</ul>` : ''}
         ${!hasOptionAnswers ? `<div class="db-ai-answer">${o.correct_answer == null
           ? '<b>Chấm điểm:</b> Giáo viên chấm tay (chưa có đáp án tham khảo).'
-          : `<b>Đáp án tham khảo:</b> ${h(dbAnswerKeyText(o))}`}</div>` : ''}
+          : `<b>${o.kind === 'FILL_IN_BLANK' || o.kind === 'MATCHING' ? 'Đáp án đúng' : 'Đáp án tham khảo'}:</b> ${h(dbAnswerKeyText(o))}`}</div>` : ''}
       </div>
     </div>
     <div class="db-ai-actions" role="group" aria-label="Thao tác bản nháp">
@@ -233,15 +180,6 @@ DB_ACT.aiGenerate = (form) => dbRun(form, async (v) => {
     if (!selectedLessonIds.length) throw new Error('Không xác định được bài học của mục tiêu đã chọn. Hãy tải lại trang rồi thử lại.');
     lessonId = selectedLessonIds[0];
   }
-  let sourceText = String(v.source_document_text || '').trim();
-  const sourceFile = form.querySelector('#db-ai-plan-file')?.files?.[0];
-  if (sourceFile && !sourceText) {
-    if (sourceFile.size > 20 * 1024 * 1024) throw new Error('Tệp giáo án vượt giới hạn 20 MB.');
-    sourceText = await objPlanFileText(sourceFile);
-    if (!sourceText.trim()) throw new Error('Không trích xuất được nội dung từ tệp giáo án.');
-  }
-  if (sourceText.length > DB_AI_SOURCE_MAX) throw new Error('Giáo án vượt giới hạn ' + DB_AI_SOURCE_MAX.toLocaleString('vi-VN') + ' ký tự.');
-  if (sourceText && !v.source_consent) throw new Error('Xác nhận đã kiểm tra và đồng ý gửi giáo án lên Gemini.');
   const assignmentId = form.dataset.assignmentId || '';
   if (assignmentId) {
     const assignment = (DB.data.assignments || []).find((a) => a.id === assignmentId);
@@ -258,7 +196,6 @@ DB_ACT.aiGenerate = (form) => dbRun(form, async (v) => {
     objectives: objectiveIds,
     kind: v.kind || 'AUTO', difficulty: v.difficulty || 'AUTO', bloom: v.bloom || 'AUTO',
   };
-  if (sourceText) params.source_document_text = sourceText;
   if (assignmentId) params.assignment_id = assignmentId;
   if (form.dataset.aiRequestId) await dbInvokeAiRequest(form.dataset.aiRequestId);
   else await dbEnqueueAiRequest(lessonId, qty, params, (id) => { form.dataset.aiRequestId = id; });
@@ -410,6 +347,8 @@ DB_ACT.aiEditApprove = (el) => {
   const request = DB.data.requests.find((r) => r.id === o.request_id);
   const assignment = (DB.data.assignments || []).find((a) => a.id === request?.parameters?.assignment_id);
   const opts = Array.isArray(o.options) ? o.options : [], choice = o.kind === 'SINGLE_CHOICE' || o.kind === 'MULTIPLE_CHOICE';
+  const matching = dbQuestionMatchingOptions(o.options);
+  const fillAnswers = o.kind === 'FILL_IN_BLANK' && Array.isArray(o.correct_answer) ? o.correct_answer : [];
   const ansLetters = o.kind === 'SINGLE_CHOICE' && o.correct_answer != null ? dbLetter(Number(o.correct_answer))
     : o.kind === 'MULTIPLE_CHOICE' && o.correct_answer != null ? [].concat(o.correct_answer).map((i) => dbLetter(Number(i))).join(', ')
     : o.kind === 'TRUE_FALSE' ? (o.correct_answer === true || String(o.correct_answer).toLowerCase() === 'true' ? 'Đúng' : 'Sai')
@@ -419,6 +358,8 @@ DB_ACT.aiEditApprove = (el) => {
     wide: true,
     body: `${dbField('Nội dung câu hỏi', 'db-ae-c', `<textarea id="db-ae-c" name="content" rows="3" required>${h(o.content)}</textarea>`)}
       ${choice ? dbField('Các lựa chọn (mỗi dòng một lựa chọn)', 'db-ae-o', `<textarea id="db-ae-o" name="options" rows="4">${h(opts.join('\n'))}</textarea>`) : ''}
+      ${o.kind === 'FILL_IN_BLANK' ? dbField('Đáp án theo thứ tự chỗ trống (mỗi dòng một đáp án)', 'db-ae-fill', `<textarea id="db-ae-fill" name="fill_answers" rows="4">${h(fillAnswers.join('\n'))}</textarea>`, 'Nội dung câu hỏi cần có đúng một cụm ___ cho mỗi dòng đáp án.') : ''}
+      ${o.kind === 'MATCHING' ? `<div class="db-form-grid">${dbField('Cột trái (mỗi dòng một mục)', 'db-ae-left', `<textarea id="db-ae-left" name="match_left" rows="4">${h(matching.left.join('\n'))}</textarea>`)}${dbField('Cột phải (mỗi dòng một mục)', 'db-ae-right', `<textarea id="db-ae-right" name="match_right" rows="4">${h(matching.right.join('\n'))}</textarea>`)}</div>` : ''}
       ${choice ? dbField(o.kind === 'TRUE_FALSE' ? 'Đáp án đúng' : 'Đáp án đúng (chữ cái, nhiều đáp án cách nhau bằng dấu phẩy)', 'db-ae-a', o.kind === 'TRUE_FALSE'
         ? `<select id="db-ae-a" name="answer"><option value="Đúng" ${ansLetters === 'Đúng' ? 'selected' : ''}>Đúng</option><option value="Sai" ${ansLetters === 'Sai' ? 'selected' : ''}>Sai</option></select>`
         : `<input id="db-ae-a" name="answer" maxlength="20" value="${h(ansLetters)}" placeholder="VD: A hoặc A, C">`) : ''}
@@ -457,6 +398,22 @@ function dbAiParseEdit(o, v) {
     const t = String(v.answer || '').trim().toLowerCase();
     if (t !== 'đúng' && t !== 'sai') throw new Error('Chọn đáp án Đúng hoặc Sai.');
     correct_answer = t === 'đúng';
+  } else if (o.kind === 'FILL_IN_BLANK') {
+    const blanks = dbQuestionBlankCount(content);
+    const answers = String(v.fill_answers || '').split(/\r?\n/).map((answer) => answer.trim());
+    if (!blanks || answers.length !== blanks || answers.some((answer) => !answer)) {
+      throw new Error('Nội dung cần đánh dấu mỗi chỗ trống bằng ___ và nhập đúng một đáp án cho mỗi chỗ.');
+    }
+    options = [];
+    correct_answer = answers;
+  } else if (o.kind === 'MATCHING') {
+    const left = String(v.match_left || '').split(/\r?\n/).map((item) => item.trim()).filter(Boolean);
+    const right = String(v.match_right || '').split(/\r?\n/).map((item) => item.trim()).filter(Boolean);
+    if (left.length < 2 || left.length !== right.length) throw new Error('Ghép đôi cần ít nhất hai cặp và hai cột phải có cùng số mục.');
+    if (new Set(left.map((item) => item.toLocaleLowerCase())).size !== left.length
+      || new Set(right.map((item) => item.toLocaleLowerCase())).size !== right.length) throw new Error('Mỗi cột ghép đôi không được có mục bị trùng.');
+    options = { left, right };
+    correct_answer = left.map((_, i) => i);
   }
   const grade = v.grade ? Number(v.grade) : null;
   if (grade != null && !educmindGradeIsValid(grade)) throw new Error(`Khối phải là số từ ${EDUCMIND_GRADE_MIN} đến ${EDUCMIND_GRADE_MAX}.`);

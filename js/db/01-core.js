@@ -28,6 +28,11 @@ const DB_ACT = {};     // tên thao tác -> hàm (phần tử, sự kiện)
 const dbActive = () => !!(logged && sess && sess.backend && DB.me);
 const dbIsTeacher = () => !!DB.me && DB.me.role === 'TEACHER';
 const dbClass = () => DB.classes.find((c) => c.id === DB.classId) || null;
+const dbTeacherSetupRequired = () => {
+  if (!dbIsTeacher()) return false;
+  const c = dbClass(), course = DB.course;
+  return !c || !String(c.name || '').trim() || !course || course.class_id !== c.id || !String(course.title || '').trim();
+};
 function dbResolveClassGrade(className, grade) {
   if (grade != null && grade !== '') {
     const value = Number(grade);
@@ -55,15 +60,190 @@ function dbDateTime(iso) {
 function dbToLocalInput(iso) {
   if (!iso) return '';
   const d = new Date(iso);
-  return isNaN(d) ? '' : `${d.getFullYear()}-${dbPad(d.getMonth() + 1)}-${dbPad(d.getDate())}T${dbPad(d.getHours())}:${dbPad(d.getMinutes())}`;
+  return isNaN(d) ? '' : `${d.getFullYear()}-${dbPad(d.getMonth() + 1)}-${dbPad(d.getDate())}T${dbPad(d.getHours())}:${dbPad(d.getMinutes())}:${dbPad(d.getSeconds())}`;
 }
 function dbFromLocalInput(v) {
   if (!v) return null;
   const d = new Date(v);
   return isNaN(d) ? null : d.toISOString();
 }
+/* Hai ô ngày/giờ thay cho datetime-local: kích thước ổn định, dễ thao tác và
+   vẫn gửi về form một giá trị local dạng YYYY-MM-DDTHH:mm. */
+function dbDatetimeField(id, name, iso, attr = '', minIso = null) {
+  const local = dbToLocalInput(iso);
+  const [date = '', time = ''] = local.split('T');
+  const d = date ? date.split('-') : ['', '', ''];
+  const dateText = d[0] && d[1] && d[2] ? `${dbPad(d[2])}/${dbPad(d[1])}/${d[0]}` : 'Chọn ngày';
+  const timeText = time || '--:--:--';
+  const disabled = /disabled/.test(attr) ? ' disabled' : '';
+  return `<span class="db-datetime" data-datetime="${h(id)}">
+    <input id="${h(id)}" name="${h(name)}" type="hidden" value="${h(local)}">
+    <input type="hidden" data-datetime-min data-datetime-min-now="${minIso ? 'true' : 'false'}" value="${h(minIso ? dbToLocalInput(minIso) : '')}">
+    <button type="button" class="db-datetime-trigger" data-db-datetime-open="${h(id)}"${disabled} aria-label="Chọn ngày và giờ">
+      <span class="db-datetime-icon">${ic('calendar', 22)}</span>
+      <span class="db-datetime-value"><b>${h(dateText)}</b><small>${h(timeText)}</small></span>
+      <span class="db-datetime-chevron" aria-hidden="true">⌄</span>
+    </button>
+  </span>`;
+}
+function dbSyncDatetime(el) {
+  const box = el.closest ? el.closest('[data-datetime]') : null;
+  if (!box) return;
+  const hidden = box.querySelector('input[type="hidden"]');
+  if (!hidden) return;
+  dbDatetimePaint(box, hidden.value);
+}
+function dbDatetimePaint(box, local) {
+  if (!box) return;
+  const hidden = box.querySelector('input[type="hidden"]');
+  if (hidden) hidden.value = local || '';
+  const trigger = box.querySelector('.db-datetime-trigger');
+  if (!trigger) return;
+  const [date = '', time = ''] = (local || '').split('T');
+  const p = date.split('-');
+  const dateText = p.length === 3 ? `${dbPad(p[2])}/${dbPad(p[1])}/${p[0]}` : 'Chọn ngày';
+  const value = trigger.querySelector('.db-datetime-value');
+  if (value) value.innerHTML = `<b>${h(dateText)}</b><small>${h(time || '--:--')}</small>`;
+}
+let dbDateTimePop = null;
+function dbDatetimeClose() {
+  if (dbDateTimePop?.el?.parentNode) dbDateTimePop.el.remove();
+  dbDateTimePop = null;
+  document.removeEventListener('mousedown', dbDatetimeOutside, true);
+  document.removeEventListener('keydown', dbDatetimeKey, true);
+}
+function dbDatetimeOutside(e) {
+  if (!dbDateTimePop) return;
+  if (dbDateTimePop.el.contains(e.target) || e.target.closest('[data-db-datetime-open]')) return;
+  dbDatetimeClose();
+}
+function dbDatetimeKey(e) {
+  if (e.key === 'Escape') dbDatetimeClose();
+}
+function dbDatetimeOpen(trigger) {
+  if (trigger.disabled) return;
+  if (dbDateTimePop?.trigger === trigger) { dbDatetimeClose(); return; }
+  dbDatetimeClose();
+  const box = trigger.closest('[data-datetime]');
+  const hidden = box.querySelector('input[type="hidden"]');
+  let [date = '', time = ''] = (hidden.value || '').split('T');
+  let d = date ? new Date(`${date}T00:00:00`) : new Date();
+  if (isNaN(d)) d = new Date();
+  const minInput = box.querySelector('[data-datetime-min]');
+  const minNow = minInput?.dataset.datetimeMinNow === 'true';
+  if (!time) time = '09:00:00';
+  else {
+    const parts = time.split(':');
+    time = `${dbPad(Number(parts[0] || 0))}:${dbPad(Number(parts[1] || 0))}:${dbPad(Number(parts[2] || 0))}`;
+  }
+  const minLocal = minNow ? dbToLocalInput(new Date(dbNow()).toISOString()) : minInput?.value || '';
+  dbDateTimePop = { trigger, box, hidden, y: d.getFullYear(), m: d.getMonth(), date, time, minLocal, minNow, el: null };
+  const el = document.createElement('div');
+  el.className = 'db-datetime-pop';
+  el.setAttribute('role', 'dialog');
+  el.setAttribute('aria-label', 'Chọn ngày và giờ');
+  document.body.appendChild(el);
+  dbDateTimePop.el = el;
+  dbDatetimePaintPop();
+  dbDatetimePlace();
+  document.addEventListener('mousedown', dbDatetimeOutside, true);
+  document.addEventListener('keydown', dbDatetimeKey, true);
+}
+function dbDatetimePlace() {
+  if (!dbDateTimePop) return;
+  const r = dbDateTimePop.trigger.getBoundingClientRect();
+  const el = dbDateTimePop.el;
+  const w = el.offsetWidth || 380;
+  const h = el.offsetHeight || 470;
+  const left = Math.max(8, Math.min(r.left, window.innerWidth - w - 8));
+  let top = r.bottom + 10;
+  if (top + h > window.innerHeight - 8) top = Math.max(8, r.top - h - 10);
+  el.style.left = `${Math.round(left)}px`;
+  el.style.top = `${Math.round(top)}px`;
+}
+function dbDatetimePaintPop() {
+  if (!dbDateTimePop) return;
+  const p = dbDateTimePop;
+  const min = dbDatetimeMinimum(p);
+  const minIso = min && !isNaN(min)
+    ? `${min.getFullYear()}-${dbPad(min.getMonth() + 1)}-${dbPad(min.getDate())}`
+    : '';
+  if (minIso && p.date && p.date < minIso) {
+    p.date = minIso;
+    p.time = `${dbPad(min.getHours())}:${dbPad(min.getMinutes())}:${dbPad(min.getSeconds())}`;
+    p.y = min.getFullYear();
+    p.m = min.getMonth();
+  }
+  const y = p.y, m = p.m;
+  const minDay = min && !isNaN(min)
+    ? new Date(min.getFullYear(), min.getMonth(), min.getDate()).getTime()
+    : -Infinity;
+  const first = new Date(y, m, 1);
+  const lead = (first.getDay() + 6) % 7;
+  const total = Math.ceil((lead + new Date(y, m + 1, 0).getDate()) / 7) * 7;
+  const dow = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'];
+  let cells = '';
+  if (p.date === minIso) {
+    const parts = p.time.split(':');
+    let h = Number(parts[0] || 0), minute = Number(parts[1] || 0), second = Number(parts[2] || 0);
+    const minH = min.getHours(), minM = min.getMinutes(), minS = min.getSeconds();
+    if (h * 3600 + minute * 60 + second < minH * 3600 + minM * 60 + minS) {
+      h = minH; minute = minM; second = minS;
+      p.time = `${dbPad(h)}:${dbPad(minute)}:${dbPad(second)}`;
+    }
+  }
+  for (let i = 0; i < total; i++) {
+    const day = i - lead + 1;
+    const d = new Date(y, m, day);
+    const iso = `${d.getFullYear()}-${dbPad(d.getMonth() + 1)}-${dbPad(d.getDate())}`;
+    const out = d.getMonth() !== m;
+    const disabled = d.getTime() < minDay;
+    cells += `<button type="button" class="db-dp-day${out ? ' is-out' : ''}${iso === p.date ? ' is-selected' : ''}${disabled ? ' is-disabled' : ''}" data-db-date="${iso}" aria-label="${dbPad(d.getDate())}/${dbPad(d.getMonth() + 1)}/${d.getFullYear()}${disabled ? ' — không thể chọn' : ''}"${disabled ? ' disabled' : ''}>${d.getDate()}</button>`;
+  }
+  const [hour = '09', minute = '00', second = '00'] = p.time.split(':');
+  const timeMinimum = p.minLocal ? new Date(p.minLocal) : null;
+  const timeMinIso = timeMinimum && !isNaN(timeMinimum)
+    ? `${timeMinimum.getFullYear()}-${dbPad(timeMinimum.getMonth() + 1)}-${dbPad(timeMinimum.getDate())}`
+    : '';
+  const isMinDate = !!timeMinIso && p.date === timeMinIso;
+  const hourMin = isMinDate && timeMinimum ? timeMinimum.getHours() : 0;
+  const minuteMin = isMinDate && timeMinimum && Number(hour) === timeMinimum.getHours() ? timeMinimum.getMinutes() : 0;
+  const secondMin = isMinDate && timeMinimum && Number(hour) === timeMinimum.getHours() && Number(minute) === timeMinimum.getMinutes() ? timeMinimum.getSeconds() : 0;
+  let canPrev = true;
+  if (timeMinimum) {
+    canPrev = y > timeMinimum.getFullYear() || (y === timeMinimum.getFullYear() && m > timeMinimum.getMonth());
+  }
+  p.el.innerHTML = `
+    <div class="db-dp-head">
+      <button type="button" class="db-dp-nav" data-db-month="-1" aria-label="Tháng trước"${canPrev ? '' : ' disabled'}>‹</button>
+      <b>Tháng ${m + 1} năm ${y}</b>
+      <button type="button" class="db-dp-nav" data-db-month="1" aria-label="Tháng sau">›</button>
+    </div>
+    <div class="db-dp-calendar">
+      ${dow.map((v) => `<span class="db-dp-dow">${v}</span>`).join('')}
+      ${cells}
+    </div>
+    <div class="db-dp-time">
+      <label><span>Giờ</span><input type="number" min="${hourMin}" max="23" value="${h(hour)}" data-db-hour inputmode="numeric"></label>
+      <label><span>Phút</span><input type="number" min="${minuteMin}" max="59" value="${h(minute)}" data-db-minute inputmode="numeric"></label>
+      <label><span>Giây</span><input type="number" min="${secondMin}" max="59" value="${h(second)}" data-db-second inputmode="numeric"></label>
+    </div>
+    <div class="db-dp-actions">
+      <button type="button" class="btn light" data-db-clear>Đặt lại</button>
+      <button type="button" class="btn" data-db-apply>Xong</button>
+    </div>`;
+  dbDatetimePlace();
+}
 /* Giờ máy chủ: đồng hồ của máy người dùng có thể sai, nên mọi so sánh hạn nộp / giờ làm bài dùng dbNow() (đã bù độ lệch đo lúc đăng nhập). */
 const dbNow = () => Date.now() + (DB.clockSkew || 0);
+function dbDatetimeMinimum(p) {
+  if (p.minNow) {
+    const min = new Date(Math.ceil(dbNow() / 1000) * 1000);
+    p.minLocal = dbToLocalInput(min.toISOString());
+    return min;
+  }
+  return p.minLocal ? new Date(p.minLocal) : null;
+}
 async function dbSyncClock() {
   try {
     const t0 = Date.now();
@@ -259,7 +439,12 @@ function dbShowError(e, el) {
 /* Chạy một thao tác ghi: khóa nút trong lúc chờ, báo lỗi ngay tại chỗ (giữ nguyên nội dung đã nhập), thành công thì nạp lại trang.
    work trả về false để tự xử lý việc vẽ lại (không nạp lại trang). */
 async function dbRun(el, work, okMsg) {
+  if (dbTeacherSetupRequired() && !DB.dialog?.teacherSetup) {
+    dbShowError(new Error('Hãy bổ sung Lớp và Môn học trong Tài khoản trước khi sử dụng chức năng giáo viên.'), el);
+    return;
+  }
   const scope = (el && (el.tagName === 'FORM' ? el : el.closest('form'))) || el;
+  if (scope) for (const part of scope.querySelectorAll('[data-datetime-part]')) dbSyncDatetime(part);
   const controls = scope ? [...(scope.matches('button, input, select, textarea') ? [scope] : scope.querySelectorAll('button, input, select, textarea'))].filter((x) => !x.disabled) : [];
   if (scope && scope.dataset.busy === '1') return;
   if (scope) scope.dataset.busy = '1';
@@ -352,12 +537,19 @@ function dbDispatch(name, el, ev) {
   if (!fn) { console.error('Chưa có thao tác:', name); return; }
   /* Hết hạn do không hoạt động: authGuard() trong render() sẽ đưa về màn hình đăng nhập, thao tác không được thực hiện. */
   if (Date.now() - sess.t > SESS_IDLE * 60000) { render(); return; }
+  const setupDialogSave = name === 'dialogOk' && DB.dialog?.teacherSetup;
+  if (dbTeacherSetupRequired() && !setupDialogSave && !['go', 'setClass', 'openAccount', 'dialogClose', 'reload'].includes(name)) {
+    dbShowError(new Error('Hãy bổ sung Lớp và Môn học trong Tài khoản trước khi sử dụng chức năng giáo viên.'), el);
+    return;
+  }
   sess.t = Date.now();
   try { const r = fn(el, ev); if (r && typeof r.catch === 'function') r.catch((e) => { dbLogError(e); dbShowError(e, el); }); }
   catch (e) { dbLogError(e); dbShowError(e, el); }
 }
 app.addEventListener('click', (ev) => {
   if (!dbActive()) return;
+  const dtOpen = ev.target.closest('[data-db-datetime-open]');
+  if (dtOpen) { ev.preventDefault(); dbDatetimeOpen(dtOpen); return; }
   const el = ev.target.closest('[data-act]');
   if (!el || el.tagName === 'FORM' || el.disabled) return;
   ev.preventDefault();
@@ -370,14 +562,107 @@ app.addEventListener('submit', (ev) => {
   ev.preventDefault();
   dbDispatch(form.dataset.act, form, ev);
 });
+/* Popup được gắn trực tiếp vào body nên nằm ngoài #app. Lắng nghe riêng
+   các thao tác của popup để chọn ngày, đổi tháng, đặt lại và xác nhận đều hoạt động. */
+document.addEventListener('click', (ev) => {
+  if (!dbDateTimePop) return;
+  const target = ev.target;
+  if (dbDateTimePop.el && dbDateTimePop.el.contains(target)) ev.preventDefault();
+
+  if (target.closest('[data-db-date]')) {
+    const day = target.closest('[data-db-date]');
+    if (day.disabled) return;
+    dbDateTimePop.date = day.dataset.dbDate;
+    dbDatetimePaintPop();
+    return;
+  }
+  if (target.closest('[data-db-month]')) {
+    const delta = Number(target.closest('[data-db-month]').dataset.dbMonth);
+    const m = dbDateTimePop.m + delta;
+    dbDateTimePop.y += m < 0 ? -1 : m > 11 ? 1 : 0;
+    dbDateTimePop.m = (m + 12) % 12;
+    dbDatetimePaintPop();
+    return;
+  }
+  if (target.closest('[data-db-clear]')) {
+    dbDatetimePaint(dbDateTimePop.box, '');
+    dbDatetimeClose();
+    return;
+  }
+  if (target.closest('[data-db-apply]')) {
+    const hour = dbDateTimePop.el.querySelector('[data-db-hour]');
+    const minute = dbDateTimePop.el.querySelector('[data-db-minute]');
+    const second = dbDateTimePop.el.querySelector('[data-db-second]');
+    const h = Math.max(0, Math.min(23, Number(hour?.value ?? 0)));
+    const m = Math.max(0, Math.min(59, Number(minute?.value ?? 0)));
+    const s = Math.max(0, Math.min(59, Number(second?.value ?? 0)));
+    dbDateTimePop.time = `${dbPad(h)}:${dbPad(m)}:${dbPad(s)}`;
+    if (!dbDateTimePop.date) {
+      const now = new Date(dbNow());
+      const maxDay = new Date(dbDateTimePop.y, dbDateTimePop.m + 1, 0).getDate();
+      const day = dbDateTimePop.y === now.getFullYear() && dbDateTimePop.m === now.getMonth()
+        ? Math.min(now.getDate(), maxDay)
+        : 1;
+      dbDateTimePop.date = `${dbDateTimePop.y}-${dbPad(dbDateTimePop.m + 1)}-${dbPad(day)}`;
+    }
+    if (dbDateTimePop.minLocal) {
+      const selected = new Date(`${dbDateTimePop.date}T${dbDateTimePop.time}`);
+      const minimum = dbDatetimeMinimum(dbDateTimePop);
+      if (!isNaN(selected) && !isNaN(minimum) && selected < minimum) {
+        toast('Thời gian phải từ ' + dbDateTime(minimum.toISOString()) + ' trở đi.');
+        return;
+      }
+    }
+    dbDatetimePaint(dbDateTimePop.box, `${dbDateTimePop.date}T${dbDateTimePop.time}`);
+    dbDatetimeClose();
+  }
+});
+document.addEventListener('input', (ev) => {
+  if (!dbDateTimePop) return;
+  const target = ev.target;
+  if (!target.matches('[data-db-hour],[data-db-minute],[data-db-second]')) return;
+  const hourInput = dbDateTimePop.el.querySelector('[data-db-hour]');
+  const minuteInput = dbDateTimePop.el.querySelector('[data-db-minute]');
+  const secondInput = dbDateTimePop.el.querySelector('[data-db-second]');
+  let h = Math.max(0, Math.min(23, Number(hourInput?.value || 0)));
+  let m = Math.max(0, Math.min(59, Number(minuteInput?.value || 0)));
+  let s = Math.max(0, Math.min(59, Number(secondInput?.value || 0)));
+  const minimum = dbDatetimeMinimum(dbDateTimePop);
+  const minIso = minimum && !isNaN(minimum)
+    ? `${minimum.getFullYear()}-${dbPad(minimum.getMonth() + 1)}-${dbPad(minimum.getDate())}`
+    : '';
+  if (minimum && dbDateTimePop.date === minIso) {
+    const selectedSeconds = h * 3600 + m * 60 + s;
+    const minSeconds = minimum.getHours() * 3600 + minimum.getMinutes() * 60 + minimum.getSeconds();
+    if (selectedSeconds < minSeconds) {
+      h = minimum.getHours();
+      m = minimum.getMinutes();
+      s = minimum.getSeconds();
+    }
+  }
+  hourInput.value = dbPad(h);
+  minuteInput.value = dbPad(m);
+  secondInput.value = dbPad(s);
+  dbDateTimePop.time = `${dbPad(h)}:${dbPad(m)}:${dbPad(s)}`;
+  const minuteMin = h === (minimum?.getHours() ?? -1) && dbDateTimePop.date === minIso
+    ? minimum.getMinutes()
+    : 0;
+  const secondMin = h === (minimum?.getHours() ?? -1) && m === (minimum?.getMinutes() ?? -1) && dbDateTimePop.date === minIso
+    ? minimum.getSeconds()
+    : 0;
+  minuteInput.min = String(minuteMin);
+  secondInput.min = String(secondMin);
+});
 app.addEventListener('change', (ev) => {
   if (!dbActive()) return;
+  if (ev.target.matches('[data-datetime-part]')) dbSyncDatetime(ev.target);
   const el = ev.target.closest('[data-change]');
   if (el) dbDispatch(el.dataset.change, el, ev);
 });
 app.addEventListener('input', (ev) => {
   if (!dbActive()) return;
   if (sess) sess.t = Date.now();
+  if (ev.target.matches('[data-datetime-part]')) dbSyncDatetime(ev.target);
   const el = ev.target.closest('[data-input]');
   if (el) dbDispatch(el.dataset.input, el, ev);
 });
@@ -414,6 +699,9 @@ function dbRender() {
   document.title = (typeof P.title === 'function' ? P.title() : P.title) + ' | EducMind';
 }
 function dbNoClassHtml() {
+  if (dbTeacherSetupRequired()) {
+    return `<section class="panel"><h2>Cần bổ sung thông tin giáo viên</h2><p class="lead">Nhập Lớp và Môn học trong Tài khoản trước khi tạo nội dung hoặc sử dụng chức năng giáo viên.</p>${dbBtn('Mở Tài khoản', 'openAccount')}</section>`;
+  }
   return dbIsTeacher()
     ? `<section class="panel"><h2>Chưa có lớp nào</h2><p class="lead">Hãy tạo lớp đầu tiên, sau đó thêm bài học, bài tập và mời học sinh vào lớp bằng mã lớp.</p>${dbBtn('Tạo lớp', 'go', { page: 'classes' })}</section>`
     : `<section class="panel"><h2>Em chưa vào lớp nào</h2><p class="lead">Nhập mã lớp do giáo viên cung cấp để vào lớp và xem bài học, bài tập.</p>${dbBtn('Vào lớp bằng mã', 'go', { page: 'classes' })}</section>`;
@@ -433,6 +721,10 @@ async function dbStart(profile) {
   dbStartNotifications();
   if (!DB.loadError) await dbLoad();
   render();
+  if (!DB.loadError && dbTeacherSetupRequired()) {
+    try { await DB_ACT.openAccount(); }
+    catch (e) { dbLogError(e); dbShowError(e, app); }
+  }
 }
 /* Xóa mọi dữ liệu của phiên khỏi bộ nhớ (đăng xuất, hết phiên). */
 function dbReset() {

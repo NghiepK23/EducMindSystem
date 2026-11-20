@@ -95,3 +95,32 @@ button:disabled,.btn[disabled],[role="button"][aria-disabled="true"]{cursor:not-
 #app .layout.has-dialog>.main{position:relative!important;z-index:2147483647!important}
 #app .layout.has-dialog .ov{z-index:2147483647!important}
 
+/* Keep the collapse handle in one fixed position while hovered or pressed.
+   The generic button hover rule must not replace the desktop centering transform. */
+@media(min-width:901px){
+  #app .layout>.side-toggle,
+  #app .layout>.side-toggle:hover,
+  #app .layout>.side-toggle:active{
+    transform:translateY(-50%)!important
+  }
+  #app .layout>.side-toggle:hover{
+    scale:1.06
+  }
+  #app .layout>.side-toggle:active{
+    scale:.96
+  }
+}
+@media(max-width:900px){
+  #app .layout>.side-toggle,
+  #app .layout>.side-toggle:hover,
+  #app .layout>.side-toggle:active{
+    transform:none!important
+  }
+  #app .layout>.side-toggle:hover{
+    scale:1.06
+  }
+  #app .layout>.side-toggle:active{
+    scale:.96
+  }
+}
+

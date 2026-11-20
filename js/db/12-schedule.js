@@ -25,7 +25,6 @@ DB_PAGES.schedule = {
   view(d) {
     if (!DB.classId) return `<section class="panel">${dbEmpty('Hãy chọn một lớp để xem lịch.')}</section>`;
     const items = (dbIsTeacher() ? dbSchedTeacher(d) : dbSchedStudent(d)).sort((x, y) => x.prio - y.prio || x.at - y.at);
-    // Sự kiện sử dụng thời điểm `at`, không có thuộc tính `day`.
     const visibleItems = DB_SCHED_SEL
       ? items.filter((x) => Number.isFinite(x.at) && dbSchedDay(x.at) === DB_SCHED_SEL)
       : items;
@@ -108,7 +107,7 @@ function dbSchedMoveMonth(delta) {
   const month = dbSchedVisibleMonth();
   const next = new Date(month.getFullYear(), month.getMonth() + delta, 1);
   DB_SCHED_MONTH = next.getFullYear() + '-' + String(next.getMonth() + 1).padStart(2, '0');
-  DB_SCHED_SEL = ''; // Không để ngày được chọn nằm ngoài tháng đang xem.
+  DB_SCHED_SEL = '';
   render();
 }
 function dbSchedCalendar(items) {

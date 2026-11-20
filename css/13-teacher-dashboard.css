@@ -1,8 +1,10 @@
 /* EducMind · teacher command center and shared data-backed dashboard components. */
-.teacher-dashboard{
+:root{
   --dash-blue:#3978f6;
   --dash-violet:#8a63df;
   --dash-cyan:#26a9bd;
+}
+.teacher-dashboard{
   display:grid;
   gap:16px;
   max-width:1440px;
@@ -223,7 +225,7 @@
 .sd-db-goal-status{display:flex;align-items:center;justify-content:flex-end;gap:10px;white-space:nowrap}
 .sd-db-goal-percent{min-width:4ch;color:var(--muted);font-size:.82rem;font-weight:650;text-align:right;font-variant-numeric:tabular-nums}
 .sd-db-goal>i{display:block;height:6px;overflow:hidden;border-radius:99px;background:var(--track)}
-.sd-db-goal>i>u{display:block;height:100%;border-radius:inherit;background:linear-gradient(90deg,var(--dash-blue),var(--dash-cyan));text-decoration:none}
+.sd-db-goal>i>u{display:block;height:100%;border-radius:inherit;background:linear-gradient(90deg,var(--prog-bar),var(--good-bar));text-decoration:none}
 .sd-db-recs{display:grid;gap:4px;margin-top:14px;padding-top:12px;border-top:1px solid var(--line)}
 .sd-db-recs> b{margin-bottom:3px;color:var(--ink);font-size:.72rem}
 .sd-db-rec{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:9px;padding:8px 0}

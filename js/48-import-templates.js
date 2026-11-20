@@ -19,7 +19,14 @@ const DOCXB64={questions:'UEsDBBQAAAAIAFUxZ131bniw+gAAAC0CAAATAAAAW0NvbnRlbnRfVH
 DOCXB64.asg=DOCXB64.questions;
 
 async function impTemplateWord(kind){
-  const S=IMPFMT[kind],b64=DOCXB64[kind]||DOCXB64.questions,name=S.file.replace(/\.xlsx$/,'.docx');
+  const S=IMPFMT[kind],name=S.file.replace(/\.xlsx$/,'.docx');
+  if(kind==='questions'){
+    if(typeof DBTF==='undefined'){toast('Không thể tạo mẫu Word trong phiên này.');return}
+    DBTF.exportWord(name,S.title,[{table:{headers:S.head,rows:S.rows,widths:S.w},note:S.note,landscape:true}],{footnote:''});
+    toast('Đã tải tệp mẫu Word: '+name);
+    return;
+  }
+  const b64=DOCXB64[kind]||DOCXB64.questions;
   if(!b64){toast('Chưa có tệp mẫu Word cho mục này.');return}
   try{const kb=dlBlob(name,DOCXMIME,b64);toast('Đã tải tệp mẫu Word: '+name+' · '+kb+' KB')}
   catch(e){toast('Trình duyệt chặn tải tệp ở khung xem thử — mở tệp HTML trực tiếp để tải mẫu.')}

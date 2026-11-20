@@ -122,6 +122,8 @@ function dbAssignmentSteps(a, active, creating = false) {
 }
 function dbAssignmentPreviewResponse(q) {
   const options = Array.isArray(q.options) ? q.options : [];
+  if (q.kind === 'FILL_IN_BLANK') return '';
+  if (q.kind === 'MATCHING') return dbQuestionMatchingPreview(q.options);
   if (q.kind === 'SINGLE_CHOICE' || q.kind === 'MULTIPLE_CHOICE') {
     const type = q.kind === 'SINGLE_CHOICE' ? 'radio' : 'checkbox';
     return `<div class="db-answers">${options.map((option, i) => `<label class="objrow"><input type="${type}" disabled><span class="db-assignment-choice-letter" aria-hidden="true">${dbLetter(i)}</span><span class="db-assignment-choice-text">${h(option)}</span></label>`).join('')}</div>`;
@@ -143,12 +145,10 @@ function dbAssignmentCreatePreview(form) {
   const source = form.querySelector('[name="content_source"]:checked')?.value || 'BANK';
   const questions = [...form.querySelectorAll('input[name="pick"]:checked')].map((input) => DB.data.questions.find((q) => q.id === input.value)).filter(Boolean);
   const questionPreview = questions.length
-    ? questions.map((q, i) => `<article class="db-assignment-preview-question"><h3>Câu ${i + 1} · ${h(DB_QKIND[q.kind] || q.kind)}</h3><div class="db-prose">${h(q.content)}</div>${dbAssignmentPreviewResponse(q)}</article>`).join('')
+    ? questions.map((q, i) => `<article class="db-assignment-preview-question"><h3>Câu ${i + 1} · ${h(DB_QKIND[q.kind] || q.kind)}</h3><div class="db-prose">${q.kind === 'FILL_IN_BLANK' ? dbQuestionFillMarkup(q.content, q.id, null, 'preview', true) : h(q.content)}</div>${dbAssignmentPreviewResponse(q)}</article>`).join('')
     : source === 'FILE'
       ? `<p class="muted">${h(form.querySelector('#db-af-file-preview')?.textContent || 'Chưa chọn tệp câu hỏi.')}</p>`
-      : source === 'PLAN'
-        ? '<p class="muted">Câu hỏi sẽ được đề xuất từ giáo án sau khi tạo bản nháp.</p>'
-        : '<p class="muted">Chưa chọn câu hỏi. Bạn có thể tiếp tục tạo bản nháp, nhưng cần thêm câu hỏi hoặc yêu cầu trước khi xuất bản.</p>';
+      : '<p class="muted">Chưa chọn câu hỏi. Bạn có thể tiếp tục tạo bản nháp, nhưng cần thêm câu hỏi hoặc yêu cầu trước khi xuất bản.</p>';
   return `<div class="facts db-key-facts">
       <div><span>Tên bài tập</span><b>${h(title)}</b></div><div><span>Bài học</span><b>${h(lesson)}</b></div>
       <div class="db-fact-time"><span>Hạn nộp</span><b>${h(due ? dbDateTime(dbFromLocalInput(due)) : 'Chưa chọn')}</b></div>
@@ -167,14 +167,14 @@ function dbAssignmentTeacherList(d) {
     const subs = subsBy[a.id] || [], waiting = subs.filter((s) => s.score == null).length, pub = a.status === 'PUBLISHED';
     const questionCount = (questionsBy[a.id] || []).length;
     return `<details class="work-card">
-      <summary><span class="work-detail"><b>${h(a.title)}</b> ${dbStatusPill(a.status)} <span class="pill prog">${questionCount ? questionCount + ' câu hỏi' : 'Chưa có câu hỏi'}</span>
-        <div class="db-work-meta">
-          <span><small>Bài học</small><b>${h(dbLessonTitle(d, a.lesson_id) || 'Chưa gắn bài học')}</b></span>
-          <span><small>Hạn nộp</small><b>${dbDateTime(a.due_at)}</b></span>
-          <span><small>Điểm tối đa</small><b>${dbNum(a.max_score)} điểm</b></span>
-          <span><small>Bài nộp</small><b>${subs.length}/${total} đã nộp${waiting ? ` · ${waiting} chờ chấm` : ''}</b></span>
-        </div>
-      </span><span class="pill plain">Mở thao tác</span></summary>
+      <summary><div class="work-summary-head"><span class="work-detail"><b>${h(a.title)}</b></span>
+        <span class="work-summary-actions"><span class="pill prog">${questionCount ? questionCount + ' câu hỏi' : 'Chưa có câu hỏi'}</span> ${dbStatusPill(a.status)} <span class="pill plain">Mở thao tác</span></span>
+      </div><div class="db-work-meta">
+        <span><small>Bài học</small><b>${h(dbLessonTitle(d, a.lesson_id) || 'Chưa gắn bài học')}</b></span>
+        <span><small>Hạn nộp</small><b>${dbDateTime(a.due_at)}</b></span>
+        <span><small>Điểm tối đa</small><b>${dbNum(a.max_score)} điểm</b></span>
+        <span><small>Bài nộp</small><b>${subs.length}/${total} đã nộp${waiting ? ` · ${waiting} chờ chấm` : ''}</b></span>
+      </div></summary>
       <div class="work-actions">${dbBtn('Mở bài tập', 'go', { page: 'assignments', id: a.id }, 'light mini')}${dbBtn(pub ? 'Gỡ xuất bản' : 'Xuất bản', 'toggleAssignment', { id: a.id }, pub ? 'light mini' : 'mini db-work-publish')}${dbBtn('Sửa thông tin', 'go', { page: 'assignments', edit: a.id }, 'light mini')}${dbBtn('Xóa', 'deleteAssignment', { id: a.id }, 'light mini danger-soft')}</div>
       ${a.description ? `<p class="muted">${h(a.description)}</p>` : ''}
     </details>`;
@@ -192,6 +192,7 @@ function dbAssignmentForm(d, a) {
   const linkedQuestions = new Set(a ? d.assignmentQuestions.filter((x) => x.assignment_id === a.id).map((x) => x.question_id) : []);
   const questionBank = d.questions.filter((q) => !linkedQuestions.has(q.id));
   const locked = a && d.submissions.some((s) => s.assignment_id === a.id);
+  const minimum = new Date(dbNow()).toISOString();
   /* Bài học của từng câu hỏi = bài học chứa các mục tiêu mà câu đó gắn. Câu chưa gắn mục tiêu thì không rõ thuộc bài nào. */
   const objById = dbById(d.objectives), qlinksBy = dbGroup(d.qlinks || [], 'question_id');
   const lessonsOfQ = (qid) => [...new Set((qlinksBy[qid] || []).map((x) => objById[x.objective_id]).filter(Boolean).map((o) => o.lesson_id))];
@@ -203,7 +204,6 @@ function dbAssignmentForm(d, a) {
       <div class="db-create-source db-create-source-compact">
         <label class="db-create-source-card"><input type="radio" name="content_source" value="BANK" checked data-change="assignmentSource"><span><b>Ngân hàng câu hỏi</b><small>Chọn câu đã có hoặc tạo thêm câu riêng.</small></span></label>
         <label class="db-create-source-card"><input type="radio" name="content_source" value="FILE" data-change="assignmentSource"><span><b>Excel hoặc Word</b><small>Tải tệp mẫu, nhập câu hỏi rồi xem lại.</small></span></label>
-        <label class="db-create-source-card"><input type="radio" name="content_source" value="PLAN" data-change="assignmentSource"><span><b>Giáo án với Gemini</b><small>Tạo câu hỏi nháp để duyệt trước khi lưu.</small></span></label>
       </div>
     </fieldset>` : '';
   const fileSource = !a ? `<section class="db-assignment-source" data-assignment-source-panel="FILE" hidden>
@@ -217,22 +217,7 @@ function dbAssignmentForm(d, a) {
       </div>
       <p class="muted db-hint" id="db-af-file-preview" role="status">Chưa chọn tệp.</p>
     </section>
-    <section class="db-assignment-source" data-assignment-source-panel="PLAN" hidden>
-      <h3>Tạo câu hỏi nháp từ giáo án</h3>
-      <p class="muted">Tạo bài tập nháp trước, sau đó Gemini đọc giáo án và đề xuất câu hỏi. Câu hỏi chỉ được thêm sau khi giáo viên duyệt.</p>
-      <p class="muted">Cần lưu API key cá nhân tại Tài khoản → Quản lý API key Gemini trước khi gửi yêu cầu.</p>
-      <div class="row db-source-actions">
-        ${dbBtn('Tải mẫu giáo án (.txt)', 'downloadLessonPlanTemplate', {}, 'light')}
-        <label class="btn light" for="db-af-plan-file">Chọn giáo án</label>
-        <input id="db-af-plan-file" class="sr" type="file" accept=".docx,.txt,.md,.csv,.xlsx" data-change="assignmentPlanFilePick">
-      </div>
-      <p class="muted db-hint" id="db-af-plan-file-name" role="status">Chưa chọn tệp; có thể dán nội dung vào ô bên dưới.</p>
-      <label class="db-label" for="db-af-plan-text">Nội dung giáo án</label>
-      <textarea id="db-af-plan-text" name="source_document_text" rows="6" maxlength="10000" placeholder="I. MỤC TIÊU BÀI HỌC&#10;- Trình bày được…&#10;II. NỘI DUNG&#10;…"></textarea>
-      <label class="db-check db-ai-consent"><input type="checkbox" name="source_consent"> Tôi đã kiểm tra và đồng ý gửi nội dung giáo án lên Gemini, đồng thời lưu cùng yêu cầu AI trong Supabase. Không đưa tên, thông tin cá nhân hoặc dữ liệu học sinh vào tệp.</label>
-      <label class="db-label" for="db-af-plan-qty">Số câu đề xuất</label>
-      <input id="db-af-plan-qty" name="source_quantity" type="number" min="1" max="20" value="5">
-    </section>` : '';
+    ` : '';
   return `<section class="panel" aria-labelledby="db-h-af">
     <h2 id="db-h-af">${a ? 'Sửa bài tập' : 'Tạo bài tập'}</h2>
     <p class="lead">${a ? 'Sửa thông tin bài tập và câu hỏi. Học sinh chỉ thấy bài sau khi xuất bản.' : 'Thiết lập bài tập, chọn câu hỏi rồi xem lại trước khi tạo bản nháp.'}</p>
@@ -243,12 +228,12 @@ function dbAssignmentForm(d, a) {
       ${dbField('Yêu cầu / hướng dẫn (không phải câu hỏi)', 'db-af-desc', `<textarea id="db-af-desc" name="description" rows="5" maxlength="5000">${h(a ? a.description : '')}</textarea>`)}
       <div class="db-form-grid">
         ${dbField('Bài học', 'db-af-lesson', `<select id="db-af-lesson" name="lesson_id" data-change="assignmentLessonPick" data-apply><option value="">Không gắn bài học</option>${d.lessons.map((l) => `<option value="${h(l.id)}" ${a && a.lesson_id === l.id ? 'selected' : ''}>${h(l.title)}</option>`).join('')}</select>`)}
-        ${dbField('Hạn nộp', 'db-af-due', `<input id="db-af-due" name="due" type="datetime-local" value="${dbToLocalInput(a ? a.due_at : defDue.toISOString())}" required>`)}
+        ${dbField('Hạn nộp', 'db-af-due', dbDatetimeField('db-af-due', 'due', a ? a.due_at : defDue.toISOString(), '', minimum))}
         ${dbField('Điểm tối đa', 'db-af-max', `<input id="db-af-max" name="max_score" type="number" min="0.5" step="0.5" value="${h(a ? a.max_score : 10)}" required>`)}
       </div>
       <div class="db-form-grid db-late-grid">
         <div class="field"><label class="db-check"><input type="checkbox" id="db-af-late" name="allow_late" ${a && a.allow_late ? 'checked' : ''}> Cho phép nộp muộn</label></div>
-        ${dbField('Nhận bài muộn đến', 'db-af-lateclose', `<input id="db-af-lateclose" name="late_close" type="datetime-local" value="${dbToLocalInput(a ? a.late_close_at : '')}">`, 'Chỉ dùng khi cho phép nộp muộn; phải sau hạn nộp.')}
+        ${dbField('Nhận bài muộn đến', 'db-af-lateclose', dbDatetimeField('db-af-lateclose', 'late_close', a ? a.late_close_at : '', '', minimum), 'Chỉ dùng khi cho phép nộp muộn; phải sau hạn nộp.')}
       </div>
       ${!a ? '</section><section class="db-assignment-step-panel" data-assignment-step-panel="2" aria-label="Chọn câu hỏi" hidden>' : ''}
       ${sourceChoices}
@@ -324,9 +309,11 @@ DB_ACT.assignmentStep = (el) => {
     const max = Number(form.elements.namedItem('max_score')?.value);
     if (!title) { toast('Nhập tên bài tập trước khi tiếp tục.'); form.querySelector('#db-af-title')?.focus(); return; }
     if (!due) { toast('Chọn hạn nộp hợp lệ trước khi tiếp tục.'); form.querySelector('#db-af-due')?.focus(); return; }
+    if (new Date(due) < new Date(dbNow())) { toast('Hạn nộp không được ở quá khứ.'); form.querySelector('#db-af-due')?.focus(); return; }
     if (!(max > 0)) { toast('Điểm tối đa phải lớn hơn 0.'); form.querySelector('#db-af-max')?.focus(); return; }
     if (form.querySelector('[name="allow_late"]')?.checked) {
       const lateClose = dbFromLocalInput(form.elements.namedItem('late_close')?.value);
+      if (new Date(lateClose) < new Date(dbNow())) { toast('Thời điểm ngừng nhận bài muộn không được ở quá khứ.'); form.querySelector('#db-af-lateclose')?.focus(); return; }
       if (!lateClose || new Date(lateClose) <= new Date(due)) { toast('Thời điểm ngừng nhận bài muộn phải sau hạn nộp.'); form.querySelector('#db-af-lateclose')?.focus(); return; }
     }
   }
@@ -364,24 +351,14 @@ DB_ACT.assignmentImportPreview = async (el) => {
   const sample = result.parsed.slice(0, 3).map((x, i) => `${i + 1}. ${x.row.content}`).join(' · ');
   const objectiveWarnings = [
     result.unknownCodes.length ? `Không nhận diện mã mục tiêu: ${result.unknownCodes.join(', ')}.` : '',
-    result.ambiguousCodes.length ? `Mã mục tiêu trùng giữa nhiều bài học, hãy chọn đúng bài học để phân giải: ${result.ambiguousCodes.join(', ')}.` : '',
+    result.ambiguousCodes.length ? `Mã mục tiêu trùng giữa nhiều bài học, hãy điền đúng tên bài học trong tệp để phân giải: ${result.ambiguousCodes.join(', ')}.` : '',
+    result.unknownLessons.length ? `Không nhận diện bài học: ${result.unknownLessons.join(', ')}.` : '',
+    result.ambiguousLessons.length ? `Tên bài học trùng, không thể phân giải: ${result.ambiguousLessons.join(', ')}.` : '',
   ].filter(Boolean).join(' ');
   preview.textContent = `Đọc được ${result.parsed.length} câu${result.skipped.length ? `; bỏ qua ${result.skipped.length} dòng lỗi` : ''}.${sample ? ` Ví dụ: ${sample}` : ''}${objectiveWarnings ? ' ' + objectiveWarnings : ''}`;
   form.dataset.importFileName = file.name;
   form.dataset.importFileSize = String(file.size);
   form.dataset.importFileModified = String(file.lastModified);
-};
-DB_ACT.assignmentPlanFilePick = async (el) => {
-  const file = el.files && el.files[0];
-  if (!file) return;
-  if (file.size > 20 * 1024 * 1024) throw new Error('Tệp giáo án vượt giới hạn 20 MB.');
-  const text = await objPlanFileText(file);
-  if (!text.trim()) throw new Error('Không trích xuất được nội dung từ tệp giáo án.');
-  if (text.length > 10000) throw new Error('Giáo án vượt giới hạn 10.000 ký tự. Hãy rút gọn phần mục tiêu và nội dung liên quan.');
-  const form = el.form, textarea = form.querySelector('#db-af-plan-text');
-  if (textarea) textarea.value = text;
-  const name = form.querySelector('#db-af-plan-file-name');
-  if (name) name.textContent = `Đã đọc ${file.name} · ${text.length} ký tự.`;
 };
 /* Cập nhật số mục tiêu đã chọn trên tiêu đề nhóm. */
 DB_ACT.objGroupCount = (el) => {
@@ -410,34 +387,20 @@ DB_ACT.saveAssignment = (form) => dbRun(form, async (v) => {
   if (!v.title) throw new Error('Nhập tên bài tập.');
   const due = dbFromLocalInput(v.due);
   if (!due) throw new Error('Chọn hạn nộp.');
+  if (new Date(due) < new Date(dbNow())) throw new Error('Hạn nộp không được ở quá khứ.');
   const max = Number(v.max_score);
   if (!(max > 0)) throw new Error('Điểm tối đa phải lớn hơn 0.');
-  let importDraft = null, planText = '';
+  let importDraft = null;
   if (isNewAssignment && source === 'FILE') {
     const file = form.querySelector('#db-af-file')?.files?.[0];
     if (!file) throw new Error('Chọn tệp câu hỏi Excel hoặc Word trước khi lưu.');
     importDraft = await dbReadQuestionImport(file, v.lesson_id);
   }
-  if (isNewAssignment && source === 'PLAN') {
-    if (!v.lesson_id) throw new Error('Chọn bài học để gắn mục tiêu cho câu hỏi do Gemini tạo.');
-    if (!DB.data.objectives.some((o) => o.lesson_id === v.lesson_id)) throw new Error('Bài học này chưa có mục tiêu học tập để tạo câu hỏi.');
-    planText = String(v.source_document_text || '').trim();
-    const file = form.querySelector('#db-af-plan-file')?.files?.[0];
-    if (file && !planText) {
-      if (file.size > 20 * 1024 * 1024) throw new Error('Tệp giáo án vượt giới hạn 20 MB.');
-      planText = await objPlanFileText(file);
-      if (!planText.trim()) throw new Error('Không trích xuất được nội dung từ tệp giáo án.');
-    }
-    if (!planText) throw new Error('Tải tệp giáo án lên hoặc dán nội dung vào ô giáo án.');
-    if (planText.length > 10000) throw new Error('Giáo án vượt giới hạn 10.000 ký tự. Hãy rút gọn nội dung.');
-    if (!v.source_consent) throw new Error('Xác nhận đã kiểm tra và đồng ý gửi giáo án lên Gemini.');
-    const quantity = Number(v.source_quantity);
-    if (!Number.isInteger(quantity) || quantity < 1 || quantity > 20) throw new Error('Số câu đề xuất phải từ 1 đến 20.');
-  }
   let lateClose = null;
   if (v.allow_late) {
     lateClose = dbFromLocalInput(v.late_close);
     if (!lateClose) throw new Error('Chọn thời điểm ngừng nhận bài muộn.');
+    if (new Date(lateClose) < new Date(dbNow())) throw new Error('Thời điểm ngừng nhận bài muộn không được ở quá khứ.');
     if (new Date(lateClose) <= new Date(due)) throw new Error('Thời điểm ngừng nhận bài muộn phải sau hạn nộp.');
   }
   const course = await dbEnsureCourse();
@@ -502,27 +465,9 @@ DB_ACT.saveAssignment = (form) => dbRun(form, async (v) => {
     : [];
   const assignmentObjectives = new Set([].concat(v.objectives || []));
   if (importDraft) importDraft.parsed.forEach((item) => item.objectiveIds.forEach((objectiveId) => assignmentObjectives.add(objectiveId)));
-  if (source === 'PLAN') {
-    const lessonObjectives = DB.data.objectives.filter((o) => o.lesson_id === v.lesson_id).map((o) => o.id);
-    if (!lessonObjectives.some((objectiveId) => assignmentObjectives.has(objectiveId))) {
-      lessonObjectives.forEach((objectiveId) => assignmentObjectives.add(objectiveId));
-    }
-  }
   await dbSyncLinks(current, [...assignmentObjectives],
     (add) => dbCall(EducMindDB.addAssignmentObjectives(add.map((o) => ({ assignment_id: a.id, objective_id: o })))),
     (rem) => dbCall(EducMindDB.removeAssignmentObjectives(a.id, rem)));
-  if (isNewAssignment && source === 'PLAN') {
-    const params = {
-      objectives: DB.data.objectives.filter((o) => o.lesson_id === v.lesson_id && assignmentObjectives.has(o.id)).map((o) => o.id),
-      kind: 'AUTO', difficulty: 'AUTO', bloom: 'AUTO',
-      assignment_id: a.id,
-      source_document_text: planText,
-    };
-    if (form.dataset.aiRequestId) await dbInvokeAiRequest(form.dataset.aiRequestId);
-    else await dbEnqueueAiRequest(a.lesson_id, Number(v.source_quantity), params, (requestId) => { form.dataset.aiRequestId = requestId; });
-    await dbGo('ai', { source: 'plan', lesson_id: a.lesson_id, assignment_id: a.id });
-    return false;
-  }
   toast(id ? `Đã lưu bài tập${addedQuestions ? ' và thêm ' + addedQuestions + ' câu hỏi' : ''}.` : `Đã tạo bài tập (bản nháp)${addedQuestions ? ' và thêm ' + addedQuestions + ' câu hỏi' : ''}. Hãy hoàn thiện nội dung trước khi xuất bản.`);
   await dbGo('assignments', { id: a.id, ...(!id ? { tab: 'preview' } : {}) });
   return false;
@@ -636,7 +581,7 @@ function dbAssignmentTeacherPreview(d, a) {
     const q = questions[link.question_id];
     if (!q) return `<article class="db-assignment-preview-question"><h3>Câu ${i + 1}</h3><p class="muted">Câu hỏi không còn trong ngân hàng.</p></article>`;
     return `<article class="db-assignment-preview-question"><div class="row between"><h3>Câu ${i + 1} · ${h(DB_QKIND[q.kind] || q.kind)}</h3></div>
-      <div class="db-prose">${h(q.content)}</div>${dbAssignmentPreviewResponse(q)}
+      <div class="db-prose">${q.kind === 'FILL_IN_BLANK' ? dbQuestionFillMarkup(q.content, q.id, null, 'preview', true) : h(q.content)}</div>${dbAssignmentPreviewResponse(q)}
     </article>`;
   });
   return `<section class="panel db-assignment-preview" aria-labelledby="db-h-ap">
@@ -821,7 +766,7 @@ function dbAssignmentStudentQuestions(d, submission, editable, presentation) {
   const items = questions.map((q, i) => {
     const saved = answers[q.question_id], answer = saved ? saved.answer_content : null, options = Array.isArray(q.options) ? q.options : [], name = 'db-asg-' + q.question_id;
     const hasAnswer = !dbAssignmentAnswerBlank(answer);
-    let response;
+    let response, questionContent = h(q.content);
     if (!editable) {
       if (q.kind === 'SINGLE_CHOICE' || q.kind === 'MULTIPLE_CHOICE') {
         const selected = new Set(answer == null || answer === '' ? [] : [].concat(answer).map(Number));
@@ -844,12 +789,20 @@ function dbAssignmentStudentQuestions(d, submission, editable, presentation) {
       response = `<div class="muted db-hint">Chọn mọi đáp án đúng.</div>` + options.map((option, k) => `<label class="objrow" data-choice="${k}"><input type="checkbox" name="${h(name)}" value="${k}" data-change="assignmentAnswerChanged" data-assignment-answer="${h(q.question_id)}" ${selected.has(k) ? 'checked' : ''}><span class="db-assignment-choice-letter" aria-hidden="true">${dbLetter(k)}</span><span class="db-assignment-choice-text">${h(option)}</span></label>`).join('');
     } else if (q.kind === 'TRUE_FALSE') {
       response = [['true', 'Đúng', '✓'], ['false', 'Sai', '×']].map(([value, label, icon]) => `<label class="objrow"><input type="radio" name="${h(name)}" value="${value}" data-change="assignmentAnswerChanged" data-assignment-answer="${h(q.question_id)}" ${answer != null && String(answer) === value ? 'checked' : ''}><span class="db-assignment-choice-letter" aria-hidden="true">${icon}</span><span class="db-assignment-choice-text">${label}</span></label>`).join('');
+    } else if (q.kind === 'FILL_IN_BLANK') {
+      if (editable) questionContent = dbQuestionFillMarkup(q.content, q.question_id, answer, 'assignment');
+      const text = saved ? dbAnswerText(q, answer) : '';
+      response = editable ? '' : `<div class="db-assignment-review-answer"><b>Câu trả lời</b><div>${text ? h(text) : '<span class="muted">Chưa trả lời</span>'}</div></div>`;
+    } else if (q.kind === 'MATCHING') {
+      response = editable
+        ? dbQuestionMatchingMarkup(q.question_id, q.options, answer, 'assignment')
+        : `<div class="db-assignment-review-answer"><b>Câu trả lời</b><div>${hasAnswer ? h(dbAnswerText(q, answer)) : '<span class="muted">Chưa trả lời</span>'}</div></div>`;
     } else if (q.kind === 'SHORT_ANSWER') {
       response = `<label class="sr" for="${h(name)}">Câu trả lời câu ${i + 1}</label><input id="${h(name)}" type="text" maxlength="1000" value="${h(answer == null ? '' : answer)}" data-input="assignmentAnswerChanged" data-assignment-answer="${h(q.question_id)}" placeholder="Câu trả lời của em">`;
     } else {
       response = `<label class="sr" for="${h(name)}">Bài làm câu ${i + 1}</label><textarea id="${h(name)}" rows="5" maxlength="20000" data-input="assignmentAnswerChanged" data-assignment-answer="${h(q.question_id)}" placeholder="Bài làm của em">${h(answer == null ? '' : answer)}</textarea>`;
     }
-    return `<fieldset class="field db-question db-assignment-game-question${hasAnswer ? ' answered' : ''}" data-game-question="${i}" tabindex="-1" ${i !== current ? 'hidden' : ''}><legend><span class="db-assignment-q-number">${String(i + 1).padStart(2, '0')}</span><span><b>Câu ${i + 1}</b><small>${h(DB_QKIND[q.kind] || q.kind)}</small></span></legend><div class="db-prose">${h(q.content)}</div><div class="db-answers">${response}</div></fieldset>`;
+    return `<fieldset class="field db-question db-assignment-game-question${hasAnswer ? ' answered' : ''}" data-game-question="${i}" tabindex="-1" ${i !== current ? 'hidden' : ''}><legend><span class="db-assignment-q-number">${String(i + 1).padStart(2, '0')}</span><span><b>Câu ${i + 1}</b><small>${h(DB_QKIND[q.kind] || q.kind)}</small></span></legend><div class="db-prose">${questionContent}</div><div class="db-answers">${response}</div></fieldset>`;
   }).join('');
   const progress = Math.round(answered / questions.length * 100);
   const progressHeader = `<div class="db-assignment-game-progress">
@@ -1036,12 +989,14 @@ function dbReadAssignmentAnswers(form, questions) {
     else if (q.kind === 'TRUE_FALSE') {
       const checked = controls.find((x) => x.checked);
       answer = checked ? checked.value === 'true' : '';
-    } else answer = controls[0] ? controls[0].value : '';
+    } else if (q.kind === 'FILL_IN_BLANK') answer = controls.map((x) => x.value);
+    else if (q.kind === 'MATCHING') answer = controls.map((x) => x.value === '' ? null : Number(x.value));
+    else answer = controls[0] ? controls[0].value : '';
     return [q.question_id, answer];
   }));
 }
 function dbAssignmentAnswerBlank(value) {
-  return value == null || value === '' || (Array.isArray(value) && !value.length) || (typeof value === 'string' && !value.trim());
+  return value == null || value === '' || (Array.isArray(value) && !value.some((item) => item != null && String(item).trim() !== '')) || (typeof value === 'string' && !value.trim());
 }
 function dbAssignmentStudentDetail(d, a) {
   const s = d.submissions.find((x) => x.assignment_id === a.id), w = dbAssignmentWindow(a), graded = s && s.score != null;

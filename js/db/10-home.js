@@ -178,7 +178,7 @@ function dbHomeTeacher(d) {
   const dueRows = upcoming.slice(0, 3).map((a) => `<div class="td-deadline-row"><span class="td-deadline-icon">${ic('calendar', 16)}</span><span><b>${h(a.title)}</b><small>Hạn ${dbDateTime(a.due_at)} · ${(subsBy[a.id] || []).length}/${d.members.length} đã nộp</small></span>${dbBtn('Mở', 'go', { page: 'assignments', id: a.id }, 'light mini')}</div>`).join('')
     + openExams.slice(0, 2).map((e) => `<div class="td-deadline-row"><span class="td-deadline-icon is-violet">${ic('assessments', 16)}</span><span><b>${h(e.title)}</b><small>Đang mở · đóng ${dbDateTime(e.close_at)}</small></span>${dbBtn('Mở', 'go', { page: 'assessments', id: e.id, tab: 'attempts' }, 'light mini')}</div>`).join('');
   return `<div class="teacher-dashboard">
-    <section class="td-welcome"><div class="td-welcome-copy"><span class="td-eyebrow">TEACHER COMMAND CENTER · ${h(dbClass()?.name || 'LỚP ĐANG CHỌN')}</span><h2>${dashboardGreeting()}, ${h(dbName(DB.me))}</h2><p>Toàn cảnh hoạt động dạy học và những việc cần ưu tiên trong lớp của thầy/cô.</p>
+    <section class="td-welcome"><div class="td-welcome-copy"><span class="td-eyebrow">TRUNG TÂM QUẢN LÝ GIẢNG DẠY · ${h(dbClass()?.name || 'LỚP ĐANG CHỌN')}</span><h2>${dashboardGreeting()}, ${h(dbName(DB.me))}</h2><p>Toàn cảnh hoạt động dạy học và những việc cần ưu tiên trong lớp của thầy/cô.</p>
       <div class="td-welcome-actions">${dbBtn(ic('assignments', 17) + 'Tạo bài tập', 'go', { page: 'assignments', edit: 'new' })}${dbBtn(ic('lessons', 17) + 'Soạn bài', 'go', { page: 'content' }, 'light')}</div></div><span class="td-welcome-art" aria-hidden="true"><img src="assets/student-characters.png" alt=""></span></section>
     <section class="td-metrics" aria-label="Tổng quan giảng dạy">
       <article class="td-metric"><span class="td-metric-icon">${ic('classes', 19)}</span><span class="td-metric-label">Lớp phụ trách</span><b>${DB.classes.length}</b><small>${h(dbClass()?.name || 'Chưa chọn lớp')}</small></article>
@@ -187,14 +187,14 @@ function dbHomeTeacher(d) {
       <article class="td-metric"><span class="td-metric-icon is-warn">${ic('students', 19)}</span><span class="td-metric-label">Học sinh cần hỗ trợ</span><b>${studentsToSupport}</b><small>Theo các mục tiêu đang mở</small></article>
     </section>
     <div class="td-dashboard-grid">
-      <section class="panel td-panel td-analytics"><header class="td-section-head"><div><span class="td-eyebrow">LEARNING ANALYTICS</span><h3>Tiến độ và kết quả lớp học</h3></div>${dbBtn('Báo cáo chi tiết', 'go', { page: 'report' }, 'light mini')}</header>
+      <section class="panel td-panel td-analytics"><header class="td-section-head"><div><span class="td-eyebrow">PHÂN TÍCH HỌC TẬP</span><h3>Tiến độ và kết quả lớp học</h3></div>${dbBtn('Báo cáo chi tiết', 'go', { page: 'report' }, 'light mini')}</header>
         <div class="td-analytics-summary"><div><span>Bài tập đã giao</span><b>${activeAssignments.length}</b></div><div><span>Tổng lượt đã nộp</span><b>${completedPairs.size}</b></div><div><span>Mức nắm vững TB</span><b>${d.mastery.length ? dbPct(avg) : '—'}</b></div><div><span>Lượt kiểm tra đã chấm</span><b>${gradedTests.length}</b></div></div>
         <div class="td-trend-head"><h4>Hoạt động học tập</h4><span class="td-period">${ic('calendar', 14)}7 ngày qua</span></div>
         <div class="td-chart-legend"><span><i class="is-assignment"></i>Bài tập nộp</span><span><i class="is-assessment"></i>Bài kiểm tra nộp</span></div>
         ${dbHomeTrendChart(d)}
         <div class="td-assignment-breakdown"><h4>Tỷ lệ nộp theo bài tập</h4>${completionRows || `<div class="td-empty">Chưa có bài tập đã xuất bản để phân tích.</div>`}</div>
       </section>
-      <section class="panel td-panel td-insights"><header class="td-section-head"><div><span class="td-eyebrow">TEACHING INSIGHTS</span><h3>Điểm nổi bật</h3></div>${dbBtn('Phân tích', 'go', { page: 'gaps' }, 'light mini')}</header>
+      <section class="panel td-panel td-insights"><header class="td-section-head"><div><span class="td-eyebrow">PHÂN TÍCH GIẢNG DẠY</span><h3>Điểm nổi bật</h3></div>${dbBtn('Phân tích', 'go', { page: 'gaps' }, 'light mini')}</header>
         ${highlightRows || `<div class="td-empty">Chưa có dữ liệu nổi bật để phân tích.</div>`}
         ${supportRows ? `<div class="td-support-list"><h4>Học sinh cần theo dõi</h4>${supportRows}</div>` : ''}
         ${!strongestObjective ? `<p class="td-panel-note">Phân tích mức nắm vững sẽ xuất hiện khi có thêm kết quả học tập.</p>` : ''}
@@ -268,10 +268,10 @@ function dbHomeStudent(d) {
         <div class="sd-chart-legend"><span><i></i>Điểm bài tập đã chấm</span></div>${progressChart}
         <div class="sd-goal-breakdown"><header class="td-section-head"><div><span class="td-eyebrow">MỤC TIÊU HỌC TẬP</span><h3>Mức nắm vững</h3></div>${dbBtn('Xem tất cả', 'go', { page: 'progress' }, 'light mini')}</header>${masteryView}</div>
       </section>
-      <section class="panel sd-db-panel sd-db-gaps"><header class="td-section-head"><div><span class="td-eyebrow">KNOWLEDGE GAPS</span><h3>Điểm cần củng cố</h3></div><span class="td-count">${openGaps.length}</span></header>
+      <section class="panel sd-db-panel sd-db-gaps"><header class="td-section-head"><div><span class="td-eyebrow">MỤC TIÊU CẦN CỦNG CỐ</span><h3>Điểm cần củng cố</h3></div><span class="td-count">${openGaps.length}</span></header>
         <div class="sd-subsection-title">Phân bố mục tiêu học tập</div>${masteryChart}
         ${gapRows || `<div class="td-empty">Chưa ghi nhận mục tiêu nào cần ôn tập.</div>`}
-        ${recs.length ? `<div class="sd-db-recs"><b>Gợi ý dành cho em</b>${recs.map((r) => `<div class="sd-db-rec"><span><b>${h(r.kind.replace(/_/g, ' '))}</b><small>${h(r.reason || 'Gợi ý từ tiến độ học tập của em')}</small></span>${dbBtn('Xem gợi ý', 'go', { page: 'recommend' }, 'light mini')}</div>`).join('')}</div>` : ''}
+        ${recs.length ? `<div class="sd-db-recs"><b>Gợi ý dành cho em</b>${recs.map((r) => `<div class="sd-db-rec"><span><b>${h(DB_REC_KIND[r.kind] || r.kind)}</b><small>${h(r.reason || 'Gợi ý từ tiến độ học tập của em')}</small></span>${dbBtn('Xem gợi ý', 'go', { page: 'recommend' }, 'light mini')}</div>`).join('')}</div>` : ''}
       </section>
       <section class="panel sd-db-panel sd-db-recent"><header class="td-section-head"><div><h3>Hoạt động gần đây</h3></div></header>${dbHomeEventRows(d)}</section>
       <section class="panel sd-db-panel sd-db-tasks"><header class="td-section-head"><div><span class="td-eyebrow">ƯU TIÊN TIẾP THEO</span><h3>Việc em cần làm</h3></div><span class="td-count">${todoAsg.length + todoEx.length}</span></header>

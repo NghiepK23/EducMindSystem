@@ -11,8 +11,7 @@ let asgStepN=1,asgSrc='BANK',asgFind='',asgFT='all',asgFD='all',asgAutoN='2';
 const ASGSRC={
   BANK:{t:'Từ Ngân hàng câu hỏi',d:'Chọn bài học, hệ thống liệt kê câu hỏi có sẵn của bài đó theo từng mục tiêu. Giáo viên chỉ việc tick câu phù hợp.'},
   UPLOAD:{t:'Tải lên tệp Excel hoặc Word',d:'Dùng đúng mẫu của Ngân hàng câu hỏi. Hệ thống đọc tệp, dựng giao diện làm bài, chấm và ghi nhận kết quả.'},
-  FILE:{t:'Học sinh nộp tệp hoặc bài tự luận',d:'Giao đề bài, học sinh nộp bài viết hoặc tệp đính kèm, giáo viên chấm tay theo rubric của mình.'},
-  PLAN:{t:'Từ giáo án (AI đề xuất)',d:'Tải giáo án đã soạn sẵn: hệ thống đọc phần Mục tiêu và nội dung, soạn sẵn câu hỏi bám mục tiêu để giáo viên duyệt rồi tạo bài tập.'}};
+  FILE:{t:'Học sinh nộp tệp hoặc bài tự luận',d:'Giao đề bài, học sinh nộp bài viết hoặc tệp đính kèm, giáo viên chấm tay theo rubric của mình.'}};
 const asgCur=c=>asgDraft&&asgDraft.cid===c.id?asgDraft:(asgQ!=null?c.assignments[asgQ]||null:null);
 const dmyStr=ms=>{const d=new Date(ms);return String(d.getDate()).padStart(2,'0')+'/'+String(d.getMonth()+1).padStart(2,'0')+'/'+d.getFullYear()};
 const asgScopes=c=>c.lessonsData.map(l=>'Bài học: '+l.name).concat(c.topics.map(t=>'Chủ đề: '+t.title),['Cả lớp']);
@@ -32,7 +31,7 @@ function asgModeSet(v){const c=selected(),a=asgCur(c);if(!a||!asgIsQ(a))return;i
 /* tiêu đề được đặt sẵn theo bài học đã chọn để giáo viên không phải gõ; chỉ áp dụng khi chưa tự sửa */
 function asgAutoName(){const d=asgDraft;if(!d||!d.autoName)return;d.name='Bài tập · '+String(d.scopeSel||'').replace(/^Bài học: /,'').replace(/^Chủ đề: /,'')}
 function asgKind(k){if(!asgDraft)return;asgSetSrc(k==='FILE'?'FILE':(asgSrc==='UPLOAD'?'UPLOAD':'BANK'))}
-function asgSetSrc(s){if(!asgDraft)return;asgSrc=s;asgDraft.kind=s==='FILE'?'FILE':'QUIZ';asgStepN=2;focusId=s==='FILE'?'h-af':'h-ap';render();window.scrollTo(0,0)}
+function asgSetSrc(s){if(!asgDraft||!Object.prototype.hasOwnProperty.call(ASGSRC,s))return;asgSrc=s;asgDraft.kind=s==='FILE'?'FILE':'QUIZ';asgStepN=2;focusId=s==='FILE'?'h-af':'h-ap';render();window.scrollTo(0,0)}
 function asgScopeSet(v){if(!asgDraft)return;asgDraft.scopeSel=v;asgLes=lesOfScope(v);asgAutoName();render()}
 
 function asgCancel(){asgDraft=null;asgQ=null;asgStepN=1;asgSrc='BANK';asgFind='';asgFT='all';asgFD='all';render()}
@@ -116,8 +115,10 @@ function asgSaveNew(pub){
   const err=!d.name.trim()?'Hãy nhập tiêu đề bài tập.':
     (!isQ&&!d.desc.trim())?'Loại Nộp tệp cần có đề bài để học sinh biết phải làm gì.':
     !okD(d.due)?'Hạn nộp cần đúng dạng dd/mm/yyyy.':
+    dmy(d.due,23,59)<simNow()?'Hạn nộp không được ở quá khứ.':
     (!isQ&&!(m>0))?'Điểm tối đa phải lớn hơn 0.':
     (d.late&&(!okD(d.lc)||dmy(d.lc,23,59)<=dmy(d.due,23,59)))?'Cho phép nộp trễ thì phải đặt thời điểm đóng nộp trễ sau hạn nộp.':
+    (d.late&&dmy(d.lc,23,59)<simNow())?'Thời điểm ngừng nộp trễ không được ở quá khứ.':
     (!/^\d+$/.test(String(d.tries).trim())||+d.tries<1)?'Số lần làm tối đa phải là số nguyên từ 1 trở lên.':
     (isQ&&pub&&!d.qs.length)?'Chưa có câu hỏi nào: hãy chọn câu từ ngân hàng hoặc nhập từ tệp.':null;
   if(err){toast(err);return}

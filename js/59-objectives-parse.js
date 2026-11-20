@@ -1,13 +1,12 @@
 /* EducMind · js/59-objectives-parse.js
    Nhập mục tiêu từ văn bản: tách dòng, làm sạch, đánh mã mục tiêu. */
 /* ==========================================================================
-   THAY ĐỔI 39 — Nhập mục tiêu bằng nhiều cách + soạn đề từ giáo án
+   Nhập mục tiêu bằng nhiều cách.
    1) Dán văn bản theo cú pháp “Mã, Nội dung mục tiêu” (mỗi dòng một mục tiêu)
    2) Tải tệp Excel/Word có bảng “Mã mục tiêu | Nội dung mục tiêu”
    3) Tải giáo án (.docx/.txt) — hệ thống tự tìm phần Mục tiêu và trích xuất
-   4) Trong trình tạo bài tập/bài kiểm tra: nguồn “Từ giáo án (AI đề xuất)”
    ========================================================================== */
-let OBJIMP=null, asgPlan=null;
+let OBJIMP=null;
 const OBJ_START=/^(muc tieu|yeu cau can dat)/;
 const OBJ_STOP=/^(noi dung|hoat dong|tien trinh|thiet bi|tai lieu|chuan bi|kien thuc trong tam|ket luan|cung co|dan do|bai tap ve nha|rut kinh nghiem|phu luc|ghi chu|danh gia|kiem tra|hinh thuc|phuong phap|san pham|to chuc)/;
 const OBJ_SUB=/^(ve |i{1,3}\.|[0-9]\.)\s*(kien thuc|nang luc|pham chat|thai do|ky nang)/;
