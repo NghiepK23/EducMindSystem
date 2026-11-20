@@ -1,0 +1,26 @@
+/* EducMind · US-52 lộ trình học cá nhân hóa (chỉ giao diện, không ghi dữ liệu) */
+.lp-wrap { margin-bottom: 18px; }
+.lp-head, .lp-line, .lp-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; }
+.lp-head { justify-content: space-between; }
+.lp-head h2 { margin: 0 0 8px; }
+.lp-count { padding: 8px 12px; border-radius: 999px; background: rgba(59,130,246,.10); color: var(--text, inherit); font-weight: 650; font-size: .87rem; }
+.lp-summary { display: flex; flex-wrap: wrap; gap: 12px; margin: 14px 0; }
+.lp-summary span { display: inline-flex; align-items: baseline; gap: 7px; border: 1px solid var(--border, rgba(120,130,150,.25)); border-radius: 14px; padding: 10px 14px; }
+.lp-summary b { font-size: 1.3rem; }
+.lp-caveat { font-size: .87rem; line-height: 1.6; }
+.lp-list { list-style: none; padding: 0; margin: 14px 0 0; display: grid; gap: 12px; }
+.lp-step { display: flex; gap: 14px; border: 1px solid var(--border, rgba(120,130,150,.25)); border-radius: 15px; padding: 16px; min-width: 0; }
+.lp-index { flex: 0 0 32px; height: 32px; display: grid; place-items: center; border-radius: 50%; font-weight: 750; background: rgba(59,130,246,.10); color: var(--text, inherit); }
+.lp-content { min-width: 0; flex: 1; }
+.lp-line { justify-content: space-between; gap: 10px; }
+.lp-line strong { overflow-wrap: anywhere; }
+.lp-meta { margin-top: 6px; font-size: .9rem; opacity: .85; }
+.lp-reason { margin: 10px 0 0; line-height: 1.6; }
+.lp-actions { margin-top: 12px; }
+.lp-complete summary { cursor: pointer; padding: 5px 0; }
+@media (max-width: 600px) {
+  .lp-wrap { padding: 15px; }
+  .lp-step { padding: 12px; gap: 9px; }
+  .lp-index { flex-basis: 26px; height: 26px; }
+  .lp-line { align-items: flex-start; }
+}
