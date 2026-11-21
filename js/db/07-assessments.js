@@ -18,7 +18,9 @@ DB_PAGES.assessments = {
   sub: () => (dbIsTeacher() ? 'Soạn đề từ ngân hàng câu hỏi; phần trắc nghiệm được chấm tự động khi học sinh nộp bài.' : 'Bài kiểm tra có giới hạn thời gian. Đồng hồ chạy liên tục từ lúc em bắt đầu.'),
   async load() {
     const content = await dbLoadContent();
-    const assessments = DB.course ? await dbCall(EducMindDB.listAssessments(DB.course.id)) : [];
+    const activeAssessments = DB.course ? await dbCall(EducMindDB.listAssessments(DB.course.id)) : [];
+    const deletedAssessments = DB.course && !dbIsTeacher() ? await dbCall(EducMindDB.listDeletedAssessments(DB.course.id)) : [];
+    const assessments = [...activeAssessments, ...deletedAssessments];
     const ids = assessments.map((e) => e.id);
     /* Lượt đã hết giờ mà chưa nộp được máy chủ tự nộp trước khi đọc danh sách lượt làm. */
     await EducMindDB.finalizeExpiredAttempts(dbIsTeacher() ? DB.arg.id || null : null).then(({ error }) => error && console.warn('finalize_expired_attempts:', error.message));
@@ -134,6 +136,8 @@ DB_ACT.saveAssessment = (form) => dbRun(form, async (v) => {
 DB_ACT.toggleAssessment = (el) => dbRun(el, async () => {
   const e = DB.data.assessments.find((x) => x.id === el.dataset.id), pub = e.status === 'PUBLISHED';
   if (pub) {
+    const attempts = DB.data.attempts.filter((t) => t.assessment_id === e.id);
+    if (attempts.length) throw new Error('Không thể gỡ xuất bản bài kiểm tra đã có lượt làm. Dữ liệu lượt làm phải được giữ nguyên.');
     await dbCall(EducMindDB.updateAssessment(e.id, { status: 'DRAFT' }));
     toast('Đã gỡ xuất bản bài kiểm tra.');
     return;
@@ -472,7 +476,8 @@ function dbExtraOf(d, assessmentId) {
 }
 function dbAssessmentStudentList(d) {
   const attBy = dbGroup(d.attempts, 'assessment_id');
-  const cards = d.assessments.map((e) => {
+  const liveAssessments = d.assessments.filter((e) => !e.deleted_at);
+  const cards = liveAssessments.map((e) => {
     const att = attBy[e.id] || [], w = dbAssessmentWindow(e), live = att.find((t) => t.status === 'IN_PROGRESS');
     const graded = att.filter((t) => t.status === 'GRADED'), best = graded.length ? Math.max(...graded.map((t) => Number(t.total_score))) : null;
     const questions = (d.aq || []).filter((x) => x.assessment_id === e.id), total = questions.reduce((s, x) => s + Number(x.weight || 0), 0);
@@ -492,9 +497,10 @@ function dbAssessmentStudentList(d) {
     </article>`;
   }).join('');
   return `<section class="panel" aria-labelledby="db-h-se"><h2 id="db-h-se">Bài kiểm tra của lớp</h2>
-    <p class="lead">${d.assessments.length} bài kiểm tra</p>${cards || dbEmpty('Chưa có bài kiểm tra nào.')}</section>`;
+    <p class="lead">${liveAssessments.length} bài kiểm tra</p>${cards || dbEmpty('Chưa có bài kiểm tra nào.')}</section>`;
 }
 function dbAssessmentStudentDetail(d, e) {
+  const deleted = !!e.deleted_at;
   const att = d.attempts.filter((t) => t.assessment_id === e.id).sort((a, b) => a.attempt_number - b.attempt_number), w = dbAssessmentWindow(e);
   const extra = dbExtraOf(d, e.id), live = att.find((t) => t.status === 'IN_PROGRESS'), left = e.max_attempts + extra - att.length;
   const aq = (d.aq || []).filter((x) => x.assessment_id === e.id), total = aq.reduce((s, x) => s + Number(x.weight || 0), 0);
@@ -502,8 +508,8 @@ function dbAssessmentStudentDetail(d, e) {
       <td>${t.total_score == null ? '<span class="muted">—</span>' : '<b>' + dbNum(t.total_score) + '</b>'}</td>
       <td class="db-cell-actions">${t.status === 'IN_PROGRESS' ? dbBtn('Làm tiếp', 'startExam', { id: e.id, resume: 1 }, 'mini') : dbBtn('Xem bài làm', 'go', { page: 'assessments', id: e.id, attempt: t.id }, 'light mini')}</td></tr>`);
   return `<section class="panel db-student-assessment-detail" aria-labelledby="db-h-sx">
-    <div class="row between"><div><h2 id="db-h-sx">${h(e.title)}</h2><p class="lead">${dbWindowText(e)} · ${w === 'SOON' ? 'Chưa mở' : w === 'CLOSED' ? 'Đã đóng' : 'Đang mở'}</p></div>
-      <div class="row">${dbBtn('Về danh sách', 'go', { page: 'assessments' }, 'light')}${!live && w === 'OPEN' && left > 0 ? dbBtn(att.length ? 'Làm lại' : 'Bắt đầu làm bài', 'startExam', { id: e.id }) : ''}</div></div>
+    <div class="row between"><div><h2 id="db-h-sx">${h(e.title)}</h2><p class="lead">${deleted ? 'Đã xóa mềm · chỉ đọc' : dbWindowText(e) + ' · ' + (w === 'SOON' ? 'Chưa mở' : w === 'CLOSED' ? 'Đã đóng' : 'Đang mở')}</p></div>
+      <div class="row">${dbBtn('Về danh sách', 'go', { page: 'assessments' }, 'light')}${!deleted && !live && w === 'OPEN' && left > 0 ? dbBtn(att.length ? 'Làm lại' : 'Bắt đầu làm bài', 'startExam', { id: e.id }) : ''}</div></div>
     <div class="facts db-key-facts db-student-assessment-facts">
       <div class="db-fact-time"><span>Mở bài</span><b>${dbDateTime(e.open_at)}</b></div><div class="db-fact-time"><span>Đóng bài</span><b>${dbDateTime(e.close_at)}</b></div>
       <div><span>Thời lượng mỗi lượt</span><b>${h(e.duration_minutes)} phút</b></div><div><span>Lượt đã dùng</span><b>${att.length} / ${h(e.max_attempts + extra)}${extra ? ' (gồm ' + extra + ' bù)' : ''}</b></div>

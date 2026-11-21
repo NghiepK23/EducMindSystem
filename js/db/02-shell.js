@@ -210,8 +210,7 @@ DB_ACT.openAccount = async () => {
     body: `<div class="facts"><div><span>Email</span><b>${h(DB.me.email)}</b></div><div><span>Vai trò</span><b>${dbIsTeacher() ? 'Giáo viên' : 'Học sinh'}</b></div></div>
       ${teacherFields}
       ${dbField('Họ và tên', 'db-acc-name', `<input id="db-acc-name" name="full_name" maxlength="120" value="${h(DB.me.full_name)}" autocomplete="name">`)}
-      ${dbField('Mật khẩu mới', 'db-acc-pw', `<input id="db-acc-pw" name="pw" type="password" autocomplete="new-password">`, `Để trống nếu không đổi. Tối thiểu ${PW_MIN} ký tự.`)}
-      ${dbField('Nhập lại mật khẩu mới', 'db-acc-pw2', `<input id="db-acc-pw2" name="pw2" type="password" autocomplete="new-password">`)}
+      <div class="field"><span class="db-label">Mật khẩu</span>${dbBtn('Đổi mật khẩu', 'changePassword', {}, 'light')}</div>
       ${dbIsTeacher() ? `<div class="field"><span class="db-label">Tạo câu hỏi bằng AI</span>${dbBtn('Quản lý API key Gemini', 'aiKeySettings', {}, 'light')}</div>` : ''}`,
     onOk: async (v) => {
       if (!v.full_name) throw new Error('Nhập họ và tên.');
@@ -222,12 +221,7 @@ DB_ACT.openAccount = async () => {
         if (!subject) throw new Error('Nhập tên Môn học.');
         if (subject.length > 120) throw new Error('Tên Môn học tối đa 120 ký tự.');
       }
-      if (v.pw || v.pw2) {
-        if (v.pw.length < PW_MIN) throw new Error('Mật khẩu mới cần ít nhất ' + PW_MIN + ' ký tự.');
-        if (v.pw !== v.pw2) throw new Error('Hai lần nhập mật khẩu không khớp.');
-      }
       if (v.full_name !== DB.me.full_name) DB.me = await dbCall(EducMindDB.renameMe(v.full_name));
-      if (v.pw) { const { error } = await supabaseClient.auth.updateUser({ password: v.pw }); if (error) throw new Error('Không đổi được mật khẩu: ' + dbErrText(error)); }
       let joinCode = '';
       if (dbIsTeacher()) {
         if (accountClass) {
@@ -247,6 +241,31 @@ DB_ACT.openAccount = async () => {
         await dbLoadCourse();
       }
       toast(joinCode ? `Đã lưu thông tin và tạo lớp ${className}. Mã lớp: ${joinCode}.` : 'Đã lưu thông tin tài khoản, lớp và môn học.');
+    },
+  });
+};
+
+DB_ACT.changePassword = () => {
+  dbOpenDialog({
+    title: 'Đổi mật khẩu',
+    okLabel: 'Lưu mật khẩu mới',
+    body: `<p class="muted">Nhập mật khẩu hiện tại để xác nhận đây là tài khoản của bạn.</p>
+      ${dbField('Mật khẩu hiện tại', 'db-cpw-old', `<input id="db-cpw-old" name="old_pw" type="password" autocomplete="current-password" required>`)}
+      ${dbField('Mật khẩu mới', 'db-cpw-new', `<input id="db-cpw-new" name="new_pw" type="password" autocomplete="new-password" required>`, `Tối thiểu ${PW_MIN} ký tự.`)}
+      ${dbField('Nhập lại mật khẩu mới', 'db-cpw-new2', `<input id="db-cpw-new2" name="new_pw2" type="password" autocomplete="new-password" required>`)}`,
+    onOk: async (v) => {
+      const oldPw = String(v.old_pw || '');
+      const newPw = String(v.new_pw || '');
+      const newPw2 = String(v.new_pw2 || '');
+      if (!oldPw) throw new Error('Nhập mật khẩu hiện tại.');
+      if (newPw.length < PW_MIN) throw new Error('Mật khẩu mới cần ít nhất ' + PW_MIN + ' ký tự.');
+      if (newPw !== newPw2) throw new Error('Hai lần nhập mật khẩu mới không khớp.');
+      if (newPw === oldPw) throw new Error('Mật khẩu mới phải khác mật khẩu hiện tại.');
+      const verified = await supabaseClient.auth.signInWithPassword({ email: DB.me.email, password: oldPw });
+      if (verified.error) throw new Error('Mật khẩu hiện tại không đúng.');
+      const { error } = await supabaseClient.auth.updateUser({ password: newPw });
+      if (error) throw new Error('Không đổi được mật khẩu: ' + dbErrText(error));
+      toast('Đã đổi mật khẩu thành công.');
     },
   });
 };

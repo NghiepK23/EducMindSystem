@@ -141,7 +141,8 @@
     sideScrollbarThumb.className = 'lg-side-scrollbar-thumb';
     sideScrollbarThumb.setAttribute('aria-hidden', 'true');
     sideScrollbar.appendChild(sideScrollbarThumb);
-    document.body.appendChild(sideScrollbar);
+    var layout = document.querySelector('#app .layout');
+    (layout || document.body).appendChild(sideScrollbar);
 
     sideScrollbar.addEventListener('pointerdown', function (event) {
       if (event.button !== 0 || sideScrollDrag) return;
@@ -204,6 +205,8 @@
     }
     if (!sideScrollTarget) return;
     if (!sideScrollbar) createSideScrollbar();
+    var layout = document.querySelector('#app .layout');
+    if (layout && sideScrollbar.parentElement !== layout) layout.appendChild(sideScrollbar);
     sideScrollbar.setAttribute('aria-controls', sideScrollTarget.id);
     renderSideScrollbar();
   }

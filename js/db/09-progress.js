@@ -12,14 +12,21 @@ const DB_GAP_STATE = { OPEN: ['Đang mở', 'need'], RESOLVED: ['Đã khắc ph�
 async function dbLoadProgress() {
   const content = await dbLoadContent();
   const objIds = content.objectives.map((o) => o.id);
-  const [mastery, gaps, recsAll, assessments, roster] = await Promise.all([
+  const [mastery, gaps, recsAll, activeAssessments, deletedAssessments, activeAssignments, deletedAssignments, evidence, roster] = await Promise.all([
     dbCallIn(EducMindDB.listMastery, objIds), dbCallIn(EducMindDB.listGaps, objIds), dbCall(EducMindDB.listRecommendations()),
-    DB.course ? dbCall(EducMindDB.listAssessments(DB.course.id)) : [], dbIsTeacher() ? dbLoadRoster() : { members: [], profiles: {} },
+    DB.course ? dbCall(EducMindDB.listAssessments(DB.course.id)) : [],
+    DB.course ? dbCall(EducMindDB.listDeletedAssessments(DB.course.id)) : [],
+    DB.course ? dbCall(EducMindDB.listAssignments(DB.course.id)) : [],
+    DB.course ? dbCall(EducMindDB.listDeletedAssignmentRows(DB.course.id)) : [],
+    dbCallIn(EducMindDB.listEvidence, objIds),
+    dbIsTeacher() ? dbLoadRoster() : { members: [], profiles: {} },
   ]);
+  const assessments=[...activeAssessments,...deletedAssessments];
+  const assignments=[...activeAssignments,...deletedAssignments];
   /* Gợi ý của lớp đang chọn: gắn với một mục tiêu hoặc một bài kiểm tra của lớp này. */
   const objSet = new Set(objIds), exSet = new Set(assessments.map((e) => e.id));
   const recs = recsAll.filter((r) => (r.objective_id && objSet.has(r.objective_id)) || (r.assessment_id && exSet.has(r.assessment_id)));
-  return { ...content, mastery, gaps, recs, assessments, ...roster };
+  return { ...content, mastery, gaps, recs, assessments, assignments, evidence, ...roster };
 }
 const dbMean = (list) => (list.length ? list.reduce((s, x) => s + x, 0) / list.length : null);
 const dbPct = (v) => (v == null ? '—' : pct(v) + '%');
@@ -224,6 +231,8 @@ function dbMasteryTeacher(d, c) {
 function dbMasteryStudent(d, c) {
   const { st, f, objs, groups } = c;
   const mine = Object.fromEntries(d.mastery.map((m) => [m.objective_id, m]));
+  const assignmentById = dbById(d.assignments || []);
+  const assessmentById = dbById(d.assessments || []);
   const score = (o) => (mine[o.id] ? Number(mine[o.id].mastery_score) : null);
   const vals = objs.map(score).filter((v) => v != null), avg = dbMean(vals);
   const scopeNote = f.active ? ' (trong phần đang hiển thị)' : '';
@@ -233,9 +242,17 @@ function dbMasteryStudent(d, c) {
     ${groups.map((g, i) => {
       const gv = g.items.map(score).filter((v) => v != null);
       const inner = g.items.map((o) => { const m = mine[o.id], v = score(o);
+        const evidence = (d.evidence || []).filter((e) => e.objective_id === o.id).sort((a,b) => new Date(b.observed_at)-new Date(a.observed_at)).slice(0,8);
+        const evidenceRows = evidence.map((e) => {
+          const source = e.source_type === 'ASSIGNMENT'
+            ? (assignmentById[e.source_id] ? 'Bài tập: ' + assignmentById[e.source_id].title : 'Bài tập đã xóa')
+            : (assessmentById[e.source_id] ? 'Bài kiểm tra: ' + assessmentById[e.source_id].title : 'Bài kiểm tra đã xóa');
+          return `<div class="db-evidence-row"><span>${h(source)}</span><b>${pct(Number(e.score))}%</b><small>${dbDateTime(e.observed_at)}</small></div>`;
+        }).join('');
         return `<div class="db-mrow"><div class="db-mrow-text"><span class="db-obj-code">${h(o.code)}</span> ${h(o.description)}</div>
           <div class="db-mrow-bar">${v == null ? '' : bar(v, tier(v) === 'good' ? 'good' : tier(v) === 'need' ? 'need' : '', 'Mức nắm vững ' + pct(v) + '%')}</div>
-          <div class="db-mrow-val">${dbMasteryPill(v)}${m ? `<span class="muted"> · ${m.evidence_count} kết quả</span>` : ''}</div></div>`; }).join('');
+          <div class="db-mrow-val">${dbMasteryPill(v)}${m ? `<span class="muted"> · ${m.evidence_count} kết quả</span>` : ''}</div>
+          ${evidenceRows ? `<details class="db-evidence-detail"><summary>Xem bằng chứng gần đây</summary>${evidenceRows}</details>` : `<div class="muted">Chưa có bằng chứng cho mục tiêu này.</div>`}</div>`; }).join('');
       return dbPfGroup('progress', g.key, g.title, i, dbPfOpen(st, g.key, i, f), g.items.length + ' mục tiêu · ' + gv.length + ' có kết quả', gv.length ? dbMasteryPill(dbMean(gv)) : '', inner, 'm');
     }).join('')}
   </section>`;

@@ -31,7 +31,6 @@ function recsOf(c,s){
   const r=[];
   c.goals.forEach((g,j)=>{const m=s.mastery[j];if(m==null||delGoal(c,j))return;
     const type=m<.4?'Ôn lại nội dung':m<.7?'Luyện tập có mục tiêu':'Hoạt động nâng cao',t=recTarget(c,s,j,type);
-    if(!t&&type!=='Hoạt động nâng cao')return;
     r.push([type,m<.4?'need':m<.7?'prog':'good',g,'Mức nắm vững '+pct(m)+(m<.4?'% (dưới 40%)':m<.7?'% (40–69%)':'% (từ 70%)'),t])});
   if(!c.quiz.deleted&&c.quiz.status==='Đã xuất bản'&&scopeLive(c,c.quiz)&&s.att.used>0&&s.att.last<.65&&s.att.used<c.maxAtt&&s.gaps.some(g=>g.status==='OPEN'))
     r.unshift(['Làm lại bài kiểm tra','need',c.quiz.name,'Lượt gần nhất '+pct(s.att.last)+'% (dưới 65%), còn '+(c.maxAtt-s.att.used)+' lượt, có lỗ hổng đang mở',{kind:'assessment',label:'Bài tập “'+c.quiz.name+'”'}]);

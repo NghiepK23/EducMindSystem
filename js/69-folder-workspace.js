@@ -1,7 +1,9 @@
 /* EducMind · js/69-folder-workspace.js
    Thư mục học tập: tiêu đề, đường dẫn, chọn chủ đề / bài học, khung làm việc. */
 function folderTitle(){
-  const c=selected(),t=c&&c.topics.find(x=>x.id===folderTopicId),l=t&&c.lessonsData.find(x=>x.name===folderLessonName&&x.tid===t.id);
+  const c=selected();
+  if(!c)return 'Thư mục học tập';
+  const t=(c.topics||[]).find(x=>x.id===folderTopicId),l=t&&(c.lessonsData||[]).find(x=>x.name===folderLessonName&&x.tid===t.id);
   if(!t)return 'Thư mục học tập';if(!l)return t.title;return l.name;
 }
 function folderCrumb(c,t,l){return `<nav class='folder-crumb' aria-label='Vị trí thư mục'><button onclick='folderGoRoot()'>Chủ đề</button>${t?`<span>›</span><button onclick='folderGoTopic()'>${esc(t.title)}</button>`:''}${l?`<span>›</span><b>${esc(l.name)}</b>`:''}</nav>`}
@@ -30,7 +32,8 @@ function folderSelectModule(k){
   render();window.scrollTo(0,0);
 }
 function folderResolve(c){
-  let t=c.topics.find(x=>x.id===folderTopicId);
+  if(!c)return {t:null,l:null};
+  let t=(c.topics||[]).find(x=>x.id===folderTopicId);
   if(!t){folderTopicId=null;folderLessonName=null;return {t:null,l:null}}
   let l=folderLessonName&&c.lessonsData.find(x=>x.name===folderLessonName&&x.tid===t.id);
   if(folderLessonName&&!l)folderLessonName=null;
@@ -88,7 +91,9 @@ function folderTopicAccordion(c,t,ti,forceOpen){
   return `<details class='topic-folder' ${open}><summary><span class='topic-mark'>${String(ti+1).padStart(2,'0')}</span><span class='topic-title'>${esc(t.title)}</span><span class='pill plain'>${lessons.length} bài học</span><span class='topic-actions'><button type='button' class='topic-icon-btn' title='Thêm bài học' aria-label='Thêm bài học vào ${esc(t.title)}' onclick='event.preventDefault();event.stopPropagation();newLesson(${ti})'>${ic('plus',16)}</button><button type='button' class='topic-icon-btn' title='Sửa chủ đề' aria-label='Sửa chủ đề ${esc(t.title)}' onclick='event.preventDefault();event.stopPropagation();editTopic(${ti})'>${ic('edit',16)}</button><button type='button' class='topic-icon-btn danger-soft' title='Xoá chủ đề' aria-label='Xoá chủ đề ${esc(t.title)}' onclick='event.preventDefault();event.stopPropagation();folderDeleteTopic(${ti})'>${ic('trash',16)}</button></span></summary><div class='topic-lessons'>${lessons.length?lessons.map(l=>`<button class='folder-lesson-row' onclick="folderPickLesson('${esc(l.name)}','${esc(t.id)}')"><span class='lesson-name'><b>${esc(l.name)}</b><small>${(l.objs||[]).length} mục tiêu cần đạt · ${esc(l.status)}</small></span>${ic('arrow',17)}</button>`).join(''):`<div class='folder-empty'>Chưa có bài học. Dùng nút + để thêm bài học.</div>`}</div></details>`;
 }
 function folderWorkspace(){
-  const c=selected(),{t,l}=folderResolve(c);
+  const c=selected();
+  if(!c)return `<div class='folder-wrap'><div class='folder-empty'>Chưa có lớp nào để hiển thị.</div></div>`;
+  const {t,l}=folderResolve(c);
   if(!t){
     return `<div class='folder-wrap'><div class='folder-add-row'><button type='button' class='btn icon-only folder-add-only' onclick='newTopic()' aria-label='Thêm chủ đề' title='Thêm chủ đề'>${ic('plus',18)}</button></div>${c.topics.map((x,i)=>folderTopicAccordion(c,x,i,false)).join('')||`<div class='folder-empty'>Chưa có chủ đề. Bấm “Thêm chủ đề” để bắt đầu.</div>`}</div>`;
   }

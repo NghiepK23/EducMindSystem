@@ -185,7 +185,7 @@ function examHtml(c,a,b,R,first,pv){
       ${a.desc?`<p class='assignment-practice-instructions'><b>Hướng dẫn:</b> ${esc(a.desc)}</p>`:''}
       ${prev?`<p class='assignment-practice-previous'>${prev}</p>`:''}
       <div class='assignment-practice-questions'>${questions}</div>
-      ${pv?'':`<div class='assignment-practice-actions'><span class='assignment-practice-save-note'>Câu trả lời được lưu tự động.</span><div class='row'><button class='btn light' onclick='rdPause()'>Tạm dừng</button><button class='btn assignment-practice-submit' onclick='rdSubmit()'>Nộp bài ${ic('arrow',17)}</button></div></div>`}
+      ${pv?'':`<div class='assignment-practice-actions'><span class='assignment-practice-save-note'>Câu trả lời được lưu tự động.</span><div class='row'><button class='btn light' onclick='rdPause()'>Tạm dừng</button><button class='btn assignment-practice-submit' onclick='rdSubmit()'>${first?'Nộp bài':'Nộp lại'} ${ic('arrow',17)}</button></div></div>`}
     </div>
   </section>`;
 }

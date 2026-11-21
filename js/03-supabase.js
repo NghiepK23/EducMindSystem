@@ -123,16 +123,19 @@ const EducMindDB=(()=>{
     listAssignmentObjectives:(assignmentIds)=>from('assignment_objectives').select('assignment_id,objective_id').in('assignment_id',assignmentIds),
     addAssignmentObjectives:(rows)=>from('assignment_objectives').insert(rows).select(),
     removeAssignmentObjectives:(assignmentId,objectiveIds)=>from('assignment_objectives').delete().eq('assignment_id',assignmentId).in('objective_id',objectiveIds).select(),
-    listSubmissions:(assignmentIds)=>from('assignment_submissions').select('id,assignment_id,student_id,text_content,storage_path,file_name,status,score,feedback,graded_at,is_edited,submitted_at').in('assignment_id',assignmentIds),
+    listSubmissions:(assignmentIds)=>from('assignment_submissions').select('id,assignment_id,student_id,text_content,storage_path,file_name,status,score,feedback,graded_at,is_edited,submitted_at,deleted_at,question_grading_enabled').in('assignment_id',assignmentIds).is('deleted_at',null),
     /* Học sinh nộp hoặc sửa bài: một bài nộp cho mỗi (bài tập, học sinh). status: SUBMITTED trước hạn, LATE sau hạn (khi bài cho nộp muộn). */
-    submitAssignment:(row)=>from('assignment_submissions').upsert({...row,student_id:me()},{onConflict:'assignment_id,student_id'}).select().single(),
+    submitAssignment:(row)=>from('assignment_submissions').upsert({...row,student_id:me(),deleted_at:null},{onConflict:'assignment_id,student_id'}).select().single(),
+    deleteUngradedSubmission:(submissionId)=>rpc('delete_ungraded_submission',{p_submission:submissionId}),
     gradeSubmission:(id,row)=>from('assignment_submissions').update({...row,graded_by:me(),graded_at:now()}).eq('id',id).select().single(),
-    listAssignmentQuestions:(assignmentIds)=>from('assignment_questions').select('assignment_id,question_id,display_order').in('assignment_id',assignmentIds).order('display_order'),
+    listAssignmentQuestions:(assignmentIds)=>from('assignment_questions').select('assignment_id,question_id,display_order,weight').in('assignment_id',assignmentIds).order('display_order'),
     addAssignmentQuestions:(rows)=>from('assignment_questions').insert(rows).select(),
+    updateAssignmentQuestion:(assignmentId,questionId,row)=>from('assignment_questions').update(row).eq('assignment_id',assignmentId).eq('question_id',questionId).select(),
     removeAssignmentQuestion:(assignmentId,questionId)=>from('assignment_questions').delete().eq('assignment_id',assignmentId).eq('question_id',questionId).select(),
     listAssignmentQuestionDetails:(courseId)=>from('questions').select('id,course_id,content,kind,options,correct_answer,difficulty,grade,bloom_level,deleted_at').eq('course_id',courseId),
-    listAssignmentAnswers:(submissionIds)=>from('assignment_submission_answers').select('submission_id,question_id,answer_content').in('submission_id',submissionIds),
+    listAssignmentAnswers:(submissionIds)=>from('assignment_submission_answers').select('submission_id,question_id,answer_content,score,feedback,graded_by,graded_at').in('submission_id',submissionIds),
     saveAssignmentAnswers:(rows)=>from('assignment_submission_answers').upsert(rows,{onConflict:'submission_id,question_id'}).select(),
+    gradeAssignmentAnswer:(submission,question,score,feedback)=>rpc('grade_assignment_answer',{p_submission:submission,p_question:question,p_score:score,p_feedback:feedback}),
     getAssignmentQuestions:(assignmentId)=>rpc('student_assignment_questions',{x:assignmentId}),
 
     /* ----- Rubric (thang điểm chi tiết của bài tập) -----
@@ -149,8 +152,11 @@ const EducMindDB=(()=>{
     listDeletedTopics:(courseId)=>from('course_topics').select('id,title,deleted_at').eq('course_id',courseId).not('deleted_at','is',null),
     listDeletedLessons:(courseId)=>from('lessons').select('id,topic_id,title,deleted_at').eq('course_id',courseId).not('deleted_at','is',null),
     listDeletedAssignments:(courseId)=>from('assignments').select('id,title,deleted_at').eq('course_id',courseId).not('deleted_at','is',null),
+    listDeletedAssignmentRows:(courseId)=>from('assignments').select('id,course_id,topic_id,lesson_id,title,description,due_at,allow_late,late_close_at,max_score,status,deleted_at,created_at').eq('course_id',courseId).not('deleted_at','is',null),
+    listDeletedAssessments:(courseId)=>from('assessments').select('id,course_id,topic_id,lesson_id,title,duration_minutes,max_attempts,open_at,close_at,status,deleted_at,created_at').eq('course_id',courseId).not('deleted_at','is',null),
     listDeletedQuestions:(courseId)=>from('questions').select('id,content,deleted_at').eq('course_id',courseId).not('deleted_at','is',null),
-    restoreTopic:(id)=>from('course_topics').update({deleted_at:null}).eq('id',id).select('id'),
+    softDeleteTopic:(id)=>rpc('soft_delete_topic',{p_topic:id}),
+    restoreTopic:(id)=>rpc('restore_topic',{p_topic:id}),
     restoreLesson:(id)=>from('lessons').update({deleted_at:null}).eq('id',id).select('id'),
     restoreAssignment:(id)=>from('assignments').update({deleted_at:null}).eq('id',id).select('id'),
     restoreQuestion:(id)=>from('questions').update({deleted_at:null}).eq('id',id).select('id'),
@@ -160,7 +166,7 @@ const EducMindDB=(()=>{
     /* ----- Ngân hàng câu hỏi -----
        options: mảng chuỗi lựa chọn. correct_answer: SINGLE_CHOICE = số thứ tự lựa chọn (từ 0); MULTIPLE_CHOICE = mảng số thứ tự;
        TRUE_FALSE = true/false; SHORT_ANSWER, ESSAY = null hoặc đáp án tham khảo (giáo viên chấm tay). */
-    listQuestions:(courseId)=>from('questions').select('id,course_id,content,kind,options,correct_answer,difficulty,grade,bloom_level').eq('course_id',courseId).is('deleted_at',null),
+    listQuestions:(courseId)=>from('questions').select('id,course_id,content,kind,options,correct_answer,explain,difficulty,grade,bloom_level').eq('course_id',courseId).is('deleted_at',null),
     /* Nhập hàng loạt từ tệp Excel/CSV. */
     createQuestions:(rows)=>from('questions').insert(rows.map((r)=>({...r,created_by:me()}))).select('id'),
     createQuestion:(row)=>from('questions').insert({...row,created_by:me()}).select().single(),

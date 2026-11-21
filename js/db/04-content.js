@@ -570,9 +570,8 @@ DB_ACT.editTopic = (el) => {
 };
 DB_ACT.deleteTopic = (el) => {
   const t = DB.data.topics.find((x) => x.id === el.dataset.id);
-  if (DB.data.lessons.some((l) => l.topic_id === t.id)) return toast('Hãy xóa hoặc chuyển các bài học trong chủ đề này trước.');
-  dbConfirm('Xóa chủ đề?', `Chủ đề “${h(t.title)}” sẽ bị ẩn khỏi lớp.`, 'Xóa chủ đề', async () => {
-    await dbCall(EducMindDB.updateTopic(t.id, { deleted_at: new Date().toISOString() }));
+  dbConfirm('Xóa chủ đề?', `Chủ đề “${h(t.title)}” và mọi bài học bên trong sẽ bị ẩn khỏi lớp. Bài tập, bài kiểm tra, điểm và bằng chứng đã có sẽ được giữ.`, 'Xóa chủ đề', async () => {
+    await dbCall(EducMindDB.softDeleteTopic(t.id));
     if (DB.arg.topicId === t.id) DB.arg = {};
     toast('Đã xóa chủ đề.');
   }, true);
@@ -620,14 +619,22 @@ DB_ACT.createObjective = (form) => dbRun(form, async (v) => {
   if (DB.data.objectives.some((x) => x.lesson_id === lessonId && x.code === o.code)) throw new Error('Mã ' + o.code + ' đã có trong bài học này.');
   await dbCall(EducMindDB.createObjective({ lesson_id: lessonId, ...o }));
 }, 'Đã thêm mục tiêu.');
-DB_ACT.editObjective = (el) => {
+DB_ACT.editObjective = async (el) => {
   const o = DB.data.objectives.find((x) => x.id === el.dataset.id);
+  let evidenceLocked = false;
+  try {
+    const evidence = await dbCall(EducMindDB.listEvidence([o.id]));
+    evidenceLocked = evidence.length > 0;
+  } catch (_) {
+    evidenceLocked = false;
+  }
   dbOpenDialog({
     title: 'Sửa mục tiêu', okLabel: 'Lưu thay đổi',
-    body: dbField('Mã', 'db-eo-code', `<input id="db-eo-code" name="code" maxlength="20" value="${h(o.code)}" required>`)
+    body: dbField('Mã', 'db-eo-code', `<input id="db-eo-code" name="code" maxlength="20" value="${h(o.code)}" required ${evidenceLocked ? 'disabled' : ''}>`, evidenceLocked ? 'Mã mục tiêu đã khóa vì đã có bằng chứng học tập. Có thể sửa mô tả.' : '')
       + dbField('Nội dung mục tiêu', 'db-eo-desc', `<textarea id="db-eo-desc" name="description" rows="3" maxlength="500" required>${h(o.description)}</textarea>`),
     onOk: async (v) => {
-      const x = dbReadObjective(v);
+      if (!v.description) throw new Error('Nhập nội dung mục tiêu.');
+      const x = evidenceLocked ? { code: o.code, description: v.description } : dbReadObjective(v);
       if (DB.data.objectives.some((y) => y.lesson_id === o.lesson_id && y.id !== o.id && y.code === x.code)) throw new Error('Mã ' + x.code + ' đã có trong bài học này.');
       await dbCall(EducMindDB.updateObjective(o.id, x));
       toast('Đã lưu mục tiêu.');

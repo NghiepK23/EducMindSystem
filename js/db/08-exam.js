@@ -38,15 +38,16 @@ DB_PAGES.exam = {
   view(d) {
     if (d.missing || !DBX) return `<section class="panel">${dbEmpty('Không có lượt làm nào đang mở ở đây.')}${dbBtn('Về danh sách bài kiểm tra', 'go', { page: 'assessments' }, 'light')}</section>`;
     const X = DBX, total = X.questions.reduce((s, q) => s + Number(q.weight), 0);
+    const submitLabel = X.attempt.attempt_number > 1 ? 'Nộp lại' : 'Nộp bài';
     return `<section class="panel db-exam-bar" aria-label="Thời gian và tiến độ">
       <div class="row between">
         <div><b>${X.questions.length} câu · ${dbNum(total)} điểm</b><div class="muted" id="db-exam-progress">${dbExamProgressText()}</div></div>
         <div class="db-timer" id="db-exam-timer" role="timer" aria-label="Thời gian còn lại">${dbExamClock()}</div>
-        ${dbBtn('Nộp bài', 'examSubmit')}
+        ${dbBtn(submitLabel, 'examSubmit')}
       </div>
     </section>
     ${X.questions.map((q, i) => dbExamQuestion(q, i)).join('')}
-    <div class="row db-form-actions">${dbBtn('Nộp bài', 'examSubmit')}</div>`;
+    <div class="row db-form-actions">${dbBtn(submitLabel, 'examSubmit')}</div>`;
   },
   /* Rời trang làm bài: lưu nốt câu đang gõ dở và dừng đồng hồ trên màn hình (đồng hồ ở máy chủ vẫn chạy). */
   leave() { dbExamStop(true); },
@@ -180,8 +181,9 @@ async function dbExamFinish(reason) {
 }
 DB_ACT.examSubmit = () => {
   if (!DBX) return;
+  const submitLabel = DBX.attempt.attempt_number > 1 ? 'Nộp lại' : 'Nộp bài';
   const blank = DBX.questions.filter((q) => dbExamBlank(DBX.answers[q.question_id])).length;
-  dbConfirm('Nộp bài?', (blank ? `Em còn <b>${blank}</b> câu chưa trả lời. ` : 'Em đã trả lời mọi câu. ') + 'Sau khi nộp, em không sửa được lượt làm này.', 'Nộp bài', async () => {
+  dbConfirm(submitLabel + '?', (blank ? `Em còn <b>${blank}</b> câu chưa trả lời. ` : 'Em đã trả lời mọi câu. ') + 'Sau khi nộp, em không sửa được lượt làm này.', submitLabel, async () => {
     const X = DBX;
     if (!X || X.finishing) return false;
     const pending = await dbExamFlush(X);

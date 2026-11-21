@@ -110,11 +110,18 @@ function applyConfirm(c,ai,si,val){
   if(val.rubricScores)b.rubricScores=val.rubricScores;
   if(isQ){
     (b.qa||[]).forEach((x,i)=>{x.got=val.per[i]==null?x.got:val.per[i];if(val.pfb&&val.pfb[i]!=null)x.fb=val.pfb[i]});
-    if(!asgFinal(c,ai,si)){
+    const done=asgFinal(c,ai,si);
+    if(!done){
       const tw=(b.qa||[]).reduce((n,x)=>n+(x.w||1),0),tg=(b.qa||[]).reduce((n,x)=>n+(x.got||0),0);
       b.score=Math.round(tg/Math.max(tw,1)*a.max*10)/10;
     }
-    if(val.score!=null)b.score=val.score;
+    if(val.score!=null){
+      b.score=val.score;
+      (a.objs||[]).forEach(j=>{if(!s.ev[j])s.ev[j]=[];const key='A'+a.aid,r=val.score/a.max,x=s.ev[j].find(e=>e.key===key);
+        if(x){x.s=r;x.day=today}else s.ev[j].push({s:r,day:today,src:'Bài tập',key});
+        recalcPair(s,j)});
+      recalcClass(c);
+    }
     if(val.fb!=null)b.fb=val.fb;
   }else{
     const key='A'+a.aid,before=s.mastery.slice();

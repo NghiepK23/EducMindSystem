@@ -311,7 +311,7 @@ html[data-lg-scrolled="1"] .top{
   .layout>.side.lg-custom-scrollbar{scrollbar-width:none!important;scrollbar-color:transparent transparent!important}
   .layout>.side.lg-custom-scrollbar::-webkit-scrollbar{display:none!important}
   .lg-side-scrollbar{
-    position:fixed;z-index:2147483647;width:4px;
+    position:fixed;z-index:2147483646;width:4px;
     overflow:hidden;border-radius:8px;background:transparent;
     touch-action:none;user-select:none;
   }

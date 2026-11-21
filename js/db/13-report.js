@@ -61,7 +61,16 @@ DB_PAGES.report = {
   async load() {
     if (!DB.classId) return {};
     const content = await dbLoadContent();
-    const [assignments, assessments] = DB.course ? await Promise.all([dbCall(EducMindDB.listAssignments(DB.course.id)), dbCall(EducMindDB.listAssessments(DB.course.id))]) : [[], []];
+    const [activeAssignments, deletedAssignments, activeAssessments, deletedAssessments] = DB.course
+      ? await Promise.all([
+          dbCall(EducMindDB.listAssignments(DB.course.id)),
+          dbCall(EducMindDB.listDeletedAssignmentRows(DB.course.id)),
+          dbCall(EducMindDB.listAssessments(DB.course.id)),
+          dbCall(EducMindDB.listDeletedAssessments(DB.course.id)),
+        ])
+      : [[], [], [], []];
+    const assignments = [...activeAssignments, ...deletedAssignments];
+    const assessments = [...activeAssessments, ...deletedAssessments];
     const objIds = content.objectives.map((o) => o.id);
     const [submissions, attempts, mastery, gaps, evidence, roster] = await Promise.all([
       dbCallIn(EducMindDB.listSubmissions, assignments.map((a) => a.id)), dbCallIn(EducMindDB.listAttempts, assessments.map((e) => e.id)),

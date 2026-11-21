@@ -216,6 +216,7 @@ function dbQuestionForm(d, q) {
       ${matchingRows}
       <div class="db-only" data-for="TRUE_FALSE">${dbField('Đáp án đúng', 'db-qf-tf', `<select id="db-qf-tf" name="tf"><option value="">Chọn đáp án</option><option value="true" ${tf === 'true' ? 'selected' : ''}>Đúng</option><option value="false" ${tf === 'false' ? 'selected' : ''}>Sai</option></select>`)}</div>
       <div class="db-only" data-for="SHORT_ANSWER ESSAY">${dbField('Đáp án tham khảo (không bắt buộc)', 'db-qf-ref', `<textarea id="db-qf-ref" name="ref" rows="2" maxlength="2000">${h(ref)}</textarea>`, 'Câu trả lời ngắn và tự luận do giáo viên chấm tay. Học sinh không nhìn thấy đáp án tham khảo.')}</div>
+      ${dbField('Giải thích đáp án (tùy chọn)', 'db-qf-explain', `<textarea id="db-qf-explain" name="explain" rows="3" maxlength="2000">${h(q ? q.explain || '' : '')}</textarea>`, 'Hiển thị sau khi trả lời trong chế độ Đua tốc độ và Sinh tồn.') }
       <div class="field"><span class="db-label">Mục tiêu mà câu hỏi đánh giá</span>${objectivePicker}</div>
       ${dbFormError()}
       <div class="row db-form-actions">${dbBtn('Hủy', 'go', cancelTarget, 'light')}<button type="submit" class="btn">${q ? 'Lưu thay đổi' : returnToAssessment ? 'Lưu và thêm vào bài kiểm tra' : 'Thêm câu hỏi'}</button></div>
@@ -229,7 +230,7 @@ function dbReadQuestion(v) {
   if (!v.content) throw new Error('Nhập nội dung câu hỏi.');
   const grade = v.grade ? Number(v.grade) : null;
   if (grade != null && !educmindGradeIsValid(grade)) throw new Error(`Khối phải là số từ ${EDUCMIND_GRADE_MIN} đến ${EDUCMIND_GRADE_MAX}.`);
-  const row = { content: v.content, kind: v.kind, difficulty: v.difficulty || 'MEDIUM', options: [], correct_answer: null, grade, bloom_level: v.bloom_level || null };
+  const row = { content: v.content, kind: v.kind, difficulty: v.difficulty || 'MEDIUM', options: [], correct_answer: null, explain: String(v.explain || '').trim(), grade, bloom_level: v.bloom_level || null };
   if (v.kind === 'SINGLE_CHOICE' || v.kind === 'MULTIPLE_CHOICE') {
     const right = [];
     for (let i = 0; i < DB_QOPTIONS; i++) {
@@ -410,7 +411,7 @@ function dbParseQuestionImportRows(rows, lessonId) {
         return resolved.values().next().value;
       }).filter(Boolean))];
       parsed.push({
-        row: { course_id: DB.course.id, content, kind, difficulty, grade, bloom_level: bloom, options, correct_answer },
+        row: { course_id: DB.course.id, content, kind, difficulty, grade, bloom_level: bloom, options, correct_answer, explain: dbQuestionImportPick(o, ['giải thích đáp án', 'giải thích', 'explain']) },
         objectiveIds,
       });
     } catch (e) {
@@ -492,9 +493,9 @@ DB_ACT.exportQuestions = () => {
       ? q.correct_answer.join('\n')
       : dbAnswerKeyText(q);
     return [lessons, q.content, DB_QKIND[q.kind] || q.kind, DB_QDIFF[q.difficulty] || q.difficulty, q.grade == null ? '' : q.grade, DB_QBLOOM[q.bloom_level] || q.bloom_level || '',
-      options, answer, codes];
+      options, answer, codes, q.explain || ''];
   });
-  DBTF.exportExcel(dbExportName('ngan-hang-cau-hoi', 'xlsx'), [{ name: 'Câu hỏi', headers: ['Bài học', 'Nội dung', 'Dạng', 'Độ khó', 'Khối', 'Bloom', 'Lựa chọn', 'Đáp án', 'Mục tiêu'], rows }]);
+  DBTF.exportExcel(dbExportName('ngan-hang-cau-hoi', 'xlsx'), [{ name: 'Câu hỏi', headers: ['Bài học', 'Nội dung', 'Dạng', 'Độ khó', 'Khối', 'Bloom', 'Lựa chọn', 'Đáp án', 'Mục tiêu', 'Giải thích đáp án'], rows }]);
   toast('Đã xuất ngân hàng câu hỏi ra tệp Excel.');
 };
 /* Đọc tệp Excel/CSV/Word và hỏi xác nhận trước khi nhập vào ngân hàng hoặc gắn vào bài tập. */
