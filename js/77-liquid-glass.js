@@ -34,6 +34,7 @@
     if (!t || !t.target || !t.target.closest) return;
     var el = t.target.closest(GLASS);
     if (!el) return;
+    if (el.closest('.login-wrap')) return;
     var r = el.getBoundingClientRect();
     if (!r.width || !r.height) return;
     var x = Math.max(0, Math.min(r.width, t.clientX - r.left));
@@ -54,6 +55,7 @@
     document.addEventListener('focusin', function (e) {
       var el = e.target && e.target.closest && e.target.closest(GLASS);
       if (!el) return;
+      if (el.closest('.login-wrap')) return;
       el.style.setProperty('--lg-mx', '50%');
       el.style.setProperty('--lg-my', '0%');
     }, true);
@@ -69,6 +71,157 @@
   }
   window.addEventListener('scroll', onScroll, { passive: true });
   onScroll();
+
+  var sideScrollTarget = null;
+  var sideScrollbar = null;
+  var sideScrollbarThumb = null;
+  var sideScrollbarFrame = 0;
+  var sideScrollbarSyncFrame = 0;
+  var sideScrollDrag = null;
+
+  function renderSideScrollbar() {
+    if (!sideScrollTarget || !sideScrollbar) return;
+
+    var maxScroll = sideScrollTarget.scrollHeight - sideScrollTarget.clientHeight;
+    var rect = sideScrollTarget.getBoundingClientRect();
+    var trackHeight = Math.max(0, rect.height - 80);
+    if (maxScroll <= 0 || trackHeight < 18) {
+      sideScrollTarget.classList.remove('lg-custom-scrollbar');
+      sideScrollbar.hidden = true;
+      return;
+    }
+
+    sideScrollTarget.classList.add('lg-custom-scrollbar');
+    sideScrollbar.hidden = false;
+    sideScrollbar.style.top = (rect.top + 40) + 'px';
+    sideScrollbar.style.left = (rect.right - 4 - sideScrollbar.offsetWidth) + 'px';
+    sideScrollbar.style.height = trackHeight + 'px';
+
+    // Keep the full scroll range while rendering a 20% shorter handle.
+    var thumbHeight = Math.max(18, trackHeight * sideScrollTarget.clientHeight / sideScrollTarget.scrollHeight * .8);
+    thumbHeight = Math.min(trackHeight, thumbHeight);
+    var thumbTravel = trackHeight - thumbHeight;
+    var progress = maxScroll ? sideScrollTarget.scrollTop / maxScroll : 0;
+    sideScrollbarThumb.style.height = thumbHeight + 'px';
+    sideScrollbarThumb.style.top = (thumbTravel * progress) + 'px';
+    sideScrollbar.setAttribute('aria-valuemax', String(Math.round(maxScroll)));
+    sideScrollbar.setAttribute('aria-valuenow', String(Math.round(sideScrollTarget.scrollTop)));
+  }
+
+  function scheduleSideScrollbarRender() {
+    if (sideScrollbarFrame) return;
+    sideScrollbarFrame = requestAnimationFrame(function () {
+      sideScrollbarFrame = 0;
+      renderSideScrollbar();
+    });
+  }
+
+  function setSideScrollFromPointer(clientY, offset) {
+    if (!sideScrollTarget || !sideScrollbar || sideScrollbar.hidden) return;
+    var rect = sideScrollbar.getBoundingClientRect();
+    var travel = rect.height - sideScrollbarThumb.offsetHeight;
+    if (travel <= 0) return;
+    var position = Math.max(0, Math.min(travel, clientY - rect.top - offset));
+    var maxScroll = sideScrollTarget.scrollHeight - sideScrollTarget.clientHeight;
+    sideScrollTarget.scrollTop = position / travel * maxScroll;
+    renderSideScrollbar();
+  }
+
+  function createSideScrollbar() {
+    sideScrollbar = document.createElement('div');
+    sideScrollbar.className = 'lg-side-scrollbar';
+    sideScrollbar.setAttribute('role', 'scrollbar');
+    sideScrollbar.setAttribute('aria-label', 'Cuộn thanh điều hướng');
+    sideScrollbar.setAttribute('aria-orientation', 'vertical');
+    sideScrollbar.setAttribute('aria-valuemin', '0');
+    sideScrollbar.tabIndex = 0;
+    sideScrollbar.hidden = true;
+
+    sideScrollbarThumb = document.createElement('div');
+    sideScrollbarThumb.className = 'lg-side-scrollbar-thumb';
+    sideScrollbarThumb.setAttribute('aria-hidden', 'true');
+    sideScrollbar.appendChild(sideScrollbarThumb);
+    document.body.appendChild(sideScrollbar);
+
+    sideScrollbar.addEventListener('pointerdown', function (event) {
+      if (event.button !== 0 || sideScrollDrag) return;
+      event.preventDefault();
+      var thumbRect = sideScrollbarThumb.getBoundingClientRect();
+      var onThumb = event.target === sideScrollbarThumb;
+      sideScrollDrag = {
+        pointerId: event.pointerId,
+        offset: onThumb ? event.clientY - thumbRect.top : thumbRect.height / 2
+      };
+      sideScrollbar.setPointerCapture(event.pointerId);
+      if (!onThumb) setSideScrollFromPointer(event.clientY, sideScrollDrag.offset);
+    });
+    sideScrollbar.addEventListener('pointermove', function (event) {
+      if (!sideScrollDrag || sideScrollDrag.pointerId !== event.pointerId) return;
+      setSideScrollFromPointer(event.clientY, sideScrollDrag.offset);
+    });
+    function stopSideScrollDrag(event) {
+      if (sideScrollDrag && sideScrollDrag.pointerId === event.pointerId) sideScrollDrag = null;
+    }
+    sideScrollbar.addEventListener('pointerup', stopSideScrollDrag);
+    sideScrollbar.addEventListener('pointercancel', stopSideScrollDrag);
+    sideScrollbar.addEventListener('lostpointercapture', function () {
+      sideScrollDrag = null;
+    });
+    sideScrollbar.addEventListener('keydown', function (event) {
+      if (!sideScrollTarget) return;
+      var maxScroll = sideScrollTarget.scrollHeight - sideScrollTarget.clientHeight;
+      var step = Math.max(40, sideScrollTarget.clientHeight * .15);
+      var nextScroll = null;
+      switch (event.key) {
+        case 'ArrowDown': nextScroll = sideScrollTarget.scrollTop + step; break;
+        case 'ArrowUp': nextScroll = sideScrollTarget.scrollTop - step; break;
+        case 'PageDown': nextScroll = sideScrollTarget.scrollTop + sideScrollTarget.clientHeight * .9; break;
+        case 'PageUp': nextScroll = sideScrollTarget.scrollTop - sideScrollTarget.clientHeight * .9; break;
+        case 'Home': nextScroll = 0; break;
+        case 'End': nextScroll = maxScroll; break;
+        default: return;
+      }
+      event.preventDefault();
+      sideScrollTarget.scrollTop = Math.max(0, Math.min(maxScroll, nextScroll));
+      renderSideScrollbar();
+    });
+  }
+
+  function syncSideScrollbar() {
+    var nextTarget = window.innerWidth > 900 ? document.querySelector('#app .layout>.side') : null;
+    if (nextTarget !== sideScrollTarget) {
+      if (sideScrollTarget) {
+        sideScrollTarget.removeEventListener('scroll', scheduleSideScrollbarRender);
+        sideScrollTarget.classList.remove('lg-custom-scrollbar');
+      }
+      sideScrollTarget = nextTarget;
+      if (sideScrollTarget) {
+        if (!sideScrollTarget.id) sideScrollTarget.id = 'lg-sidebar-scroll-target';
+        sideScrollTarget.addEventListener('scroll', scheduleSideScrollbarRender, { passive: true });
+      } else if (sideScrollbar) {
+        sideScrollbar.hidden = true;
+      }
+    }
+    if (!sideScrollTarget) return;
+    if (!sideScrollbar) createSideScrollbar();
+    sideScrollbar.setAttribute('aria-controls', sideScrollTarget.id);
+    renderSideScrollbar();
+  }
+
+  var appForScrollbar = document.getElementById('app');
+  if (appForScrollbar) {
+    var sidebarObserver = new MutationObserver(scheduleSideScrollbarSync);
+    function scheduleSideScrollbarSync() {
+      if (sideScrollbarSyncFrame) return;
+      sideScrollbarSyncFrame = requestAnimationFrame(function () {
+        sideScrollbarSyncFrame = 0;
+        syncSideScrollbar();
+      });
+    }
+    sidebarObserver.observe(appForScrollbar, { childList: true, characterData: true, subtree: true });
+    window.addEventListener('resize', scheduleSideScrollbarSync, { passive: true });
+    scheduleSideScrollbarSync();
+  }
 
   /* Khi chuyển sáng/tối, trả các điểm sáng về mặc định để không bị lệch */
   var mo = new MutationObserver(function () {

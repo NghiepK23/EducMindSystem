@@ -60,15 +60,15 @@
   --lg-inner-glow:rgba(255,255,255,.55);
 
   /* Điều hướng (đảo nổi) */
-  --lg-nav-ink:rgba(22,27,38,.82);
+  --lg-nav-ink:rgba(22,27,38,.96);
   --lg-nav-ink-strong:#0b1220;
-  --lg-nav-ic:rgba(22,27,38,.52);
+  --lg-nav-ic:rgba(22,27,38,.76);
   --lg-nav-hover:rgba(255,255,255,.62);
   --lg-nav-active-a:rgba(255,255,255,.96);
   --lg-nav-active-b:rgba(255,255,255,.62);
   --lg-nav-active-ink:var(--brand-ink);
   --lg-nav-active-rim:inset 0 1px 0 #fff,inset 0 0 0 1px rgba(255,255,255,.7),0 1px 1.5px rgba(16,24,40,.08),0 8px 18px -12px rgba(11,60,120,.5);
-  --lg-nav-section:rgba(70,80,100,.62);
+  --lg-nav-section:rgba(54,65,84,.8);
 
   /* Quầng sáng nền */
   --lg-aurora-1:color-mix(in srgb,#2f7bff 40%,transparent);
@@ -140,15 +140,15 @@
   --lg-edge:rgba(255,255,255,.11);
   --lg-inner-glow:rgba(255,255,255,.12);
 
-  --lg-nav-ink:rgba(232,238,255,.86);
+  --lg-nav-ink:rgba(250,252,255,.97);
   --lg-nav-ink-strong:#fff;
-  --lg-nav-ic:rgba(214,226,255,.62);
-  --lg-nav-hover:rgba(255,255,255,.09);
-  --lg-nav-active-a:rgba(255,255,255,.26);
+  --lg-nav-ic:rgba(238,244,255,.9);
+  --lg-nav-hover:rgba(255,255,255,.15);
+  --lg-nav-active-a:rgba(255,255,255,.2);
   --lg-nav-active-b:rgba(255,255,255,.12);
   --lg-nav-active-ink:#fff;
   --lg-nav-active-rim:inset 0 1px 0 rgba(255,255,255,.4),inset 0 0 0 1px rgba(255,255,255,.2),0 1px 2px rgba(0,0,0,.4),0 10px 22px -14px rgba(0,0,0,.8);
-  --lg-nav-section:rgba(190,205,235,.5);
+  --lg-nav-section:rgba(211,224,248,.82);
 
   --lg-aurora-1:color-mix(in srgb,#1a63ff 52%,transparent);
   --lg-aurora-2:color-mix(in srgb,#7a3cff 46%,transparent);
@@ -282,12 +282,50 @@ html[data-lg-scrolled="1"] .top{
   box-shadow:var(--lg-chrome-rim),var(--lg-chrome-shadow);
   transition:box-shadow .5s var(--ease),background-color .5s var(--ease),transform .5s var(--ease);
 }
+.layout>.side{
+  isolation:isolate;
+  background-image:
+    radial-gradient(120% 60% at 12% -10%,rgba(255,255,255,.2),transparent 60%),
+    linear-gradient(158deg,rgba(255,255,255,.84),rgba(255,255,255,.76)),
+    url("../assets/background_login.png");
+  background-position:center;
+  background-size:cover;
+  background-repeat:no-repeat;
+}
+.layout>.side>*,
+.layout>.side .nav{position:relative;z-index:1}
+:root[data-theme="dark"] #app .layout>.side{
+  background-image:
+    radial-gradient(120% 60% at 12% -10%,rgba(255,255,255,.12),transparent 60%),
+    linear-gradient(158deg,rgba(32,34,42,.88),rgba(20,22,28,.8)),
+    url("../assets/background_login.png");
+}
 @media(min-width:901px){
   .layout>.side{
     border-radius:30px;
     box-shadow:var(--lg-chrome-rim),var(--lg-chrome-shadow),0 0 0 1px rgba(255,255,255,.12);
   }
   .layout.sidebar-collapsed>.side{border-radius:26px}
+  .layout>.side{scrollbar-color:rgba(99,148,210,.9) transparent}
+  .layout>.side::-webkit-scrollbar-track{background:transparent;border-radius:8px;margin:40px 4px}
+  .layout>.side.lg-custom-scrollbar{scrollbar-width:none!important;scrollbar-color:transparent transparent!important}
+  .layout>.side.lg-custom-scrollbar::-webkit-scrollbar{display:none!important}
+  .lg-side-scrollbar{
+    position:fixed;z-index:2147483647;width:4px;
+    overflow:hidden;border-radius:8px;background:transparent;
+    touch-action:none;user-select:none;
+  }
+  .lg-side-scrollbar[hidden]{display:none}
+  .lg-side-scrollbar:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
+  .lg-side-scrollbar-thumb{
+    position:absolute;top:0;left:0;right:0;min-height:18px;
+    border-radius:8px;background:rgba(99,148,210,.9);cursor:grab;
+  }
+  .lg-side-scrollbar:hover .lg-side-scrollbar-thumb{background:rgba(78,130,196,1)}
+  .lg-side-scrollbar:active .lg-side-scrollbar-thumb{cursor:grabbing}
+}
+@media(max-width:900px){
+  .lg-side-scrollbar{display:none!important}
 }
 
 /* Nhãn nhóm */
@@ -320,7 +358,7 @@ html[data-lg-scrolled="1"] .top{
   background-color:transparent!important;
   color:var(--lg-nav-active-ink)!important;
   box-shadow:var(--lg-nav-active-rim)!important;
-  font-weight:650;
+  font-weight:700;
 }
 #app .layout>.side .items .nav[aria-current="page"] .ic{color:var(--lg-nav-active-ink)!important}
 
@@ -335,6 +373,17 @@ html[data-lg-scrolled="1"] .top{
       radial-gradient(90% 160% at 10% -40%,var(--lg-spec-2),var(--lg-spec-3) 60%),
       linear-gradient(180deg,var(--lg-chrome-a),var(--lg-chrome-b));
   }
+  #app .layout>.side{
+    background-image:
+      radial-gradient(120% 60% at 12% -10%,rgba(255,255,255,.12),transparent 60%),
+      linear-gradient(158deg,rgba(25,42,72,.9),rgba(20,30,55,.84)),
+      url("../assets/background_login.png");
+    background-position:center;
+    background-size:cover;
+    background-repeat:no-repeat;
+  }
+  #app .layout>.side .items .nav{color:rgba(249,251,255,.98)!important}
+  #app .layout>.side .items .nav .ic{color:rgba(239,244,255,.94)!important}
   /* Dock điều hướng: lưới 3 cột, mọi ô cùng chiều cao, không lệch hàng */
   #app .layout>.side,
   #app .layout.teacher-layout>.side,
@@ -805,7 +854,7 @@ input[type="file"]::file-selector-button:active{transform:scale(.97)}
 .login::before{
   content:"";position:absolute;inset:0;z-index:-1;pointer-events:none;border-radius:inherit;
   background-image:
-    radial-gradient(420px circle at 50% 0%,rgba(255,255,255,.7),rgba(255,255,255,0) 66%),
+    radial-gradient(420px circle at var(--lg-mx,50%) var(--lg-my,0%),rgba(255,255,255,.7),rgba(255,255,255,0) 66%),
     linear-gradient(168deg,rgba(255,255,255,.72),rgba(255,255,255,.62)),
     var(--login-card-bg-image);
   background-position:center;
@@ -822,12 +871,118 @@ input[type="file"]::file-selector-button:active{transform:scale(.97)}
 }
 .login.login-dark::before{
   background-image:
-    radial-gradient(420px circle at 50% 0%,rgba(255,255,255,.16),rgba(255,255,255,0) 66%),
+    radial-gradient(420px circle at var(--lg-mx,50%) var(--lg-my,0%),rgba(255,255,255,.16),rgba(255,255,255,0) 66%),
     linear-gradient(168deg,rgba(34,36,44,.78),rgba(18,20,26,.68)),
     var(--login-card-bg-image);
 }
 .login .btn.light{background-image:linear-gradient(180deg,rgba(255,255,255,.72),rgba(255,255,255,.44))}
 .login.login-dark .btn.light{background-image:linear-gradient(180deg,rgba(255,255,255,.14),rgba(255,255,255,.07))}
+.login-theme-toggle{
+  width:44px;
+  height:44px;
+  border-radius:14px;
+  background-image:linear-gradient(180deg,rgba(255,255,255,.96),rgba(245,247,250,.82));
+  background-color:rgba(255,255,255,.92);
+  color:#1d1d1f;
+  border:1px solid rgba(15,23,42,.14);
+  box-shadow:inset 0 1px 0 #fff,0 8px 18px -8px rgba(15,23,42,.32);
+}
+.login-theme-toggle svg{width:21px;height:21px;stroke:currentColor}
+.login-theme-toggle:hover{
+  background-image:linear-gradient(180deg,#fff,rgba(232,242,253,.96));
+  color:#005bb8;
+}
+.login.login-dark .login-theme-toggle{
+  background-image:linear-gradient(180deg,rgba(70,74,86,.88),rgba(38,40,48,.86));
+  background-color:#30323a;
+  color:#fff;
+  border:1px solid rgba(255,255,255,.24);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.24),0 10px 22px -10px rgba(0,0,0,.9);
+}
+.login.login-dark .login-theme-toggle:hover{
+  background-image:linear-gradient(180deg,rgba(82,86,100,.95),rgba(48,50,60,.92));
+  color:#fff;
+}
+.login:not(.login-dark) .login-theme-toggle,
+.login:not(.login-dark) .login-theme-toggle:hover{
+  background-image:linear-gradient(180deg,rgba(255,255,255,.96),rgba(245,247,250,.82));
+  background-color:rgba(255,255,255,.92);
+  border:1px solid rgba(15,23,42,.14);
+  box-shadow:inset 0 1px 0 #fff,0 8px 18px -8px rgba(15,23,42,.32);
+  color:#1d1d1f;
+}
+.login:not(.login-dark) .login-theme-toggle svg{color:#1d1d1f}
+.login .field input:not([type="radio"]),
+.login .field textarea,
+.login .field select{
+  background-image:linear-gradient(180deg,rgba(255,255,255,.88),rgba(248,250,252,.82));
+  background-color:rgba(255,255,255,.84);
+  color:#1d1d1f;
+  border:1px solid rgba(15,23,42,.16);
+  box-shadow:inset 0 1px 3px rgba(15,23,42,.08),inset 0 0 0 1px rgba(255,255,255,.72),0 4px 12px -8px rgba(15,23,42,.22);
+}
+.login .field input::placeholder,
+.login .field textarea::placeholder{color:#777b82;opacity:1}
+.login.login-dark .field input:not([type="radio"]),
+.login.login-dark .field textarea,
+.login.login-dark .field select{
+  background-image:none;
+  background-color:#4a5060;
+  color:#f7f8fb;
+  border:2px solid #98a4b8;
+  box-shadow:inset 0 2px 6px rgba(0,0,0,.28),0 8px 16px -8px rgba(0,0,0,.88),0 0 0 1px rgba(255,255,255,.08);
+  min-height:52px;
+  border-radius:15px;
+}
+.login.login-dark .field input:not([type="radio"]):-webkit-autofill,
+.login.login-dark .field textarea:-webkit-autofill{
+  -webkit-text-fill-color:#fff;
+  box-shadow:inset 0 2px 6px rgba(0,0,0,.28),0 8px 16px -8px rgba(0,0,0,.88),0 0 0 1000px #4a5060 inset;
+  caret-color:#fff;
+}
+.login.login-dark .field input:not([type="radio"]):invalid,
+.login.login-dark .field textarea:invalid,
+.login.login-dark .field select:invalid,
+.login.login-dark .field input:not([type="radio"]):-moz-ui-invalid,
+.login.login-dark .field textarea:-moz-ui-invalid,
+.login.login-dark .field select:-moz-ui-invalid{
+  border-color:#98a4b8;
+  box-shadow:inset 0 2px 6px rgba(0,0,0,.28),0 8px 16px -8px rgba(0,0,0,.88),0 0 0 1px rgba(255,255,255,.08);
+  outline:none;
+}
+.login.login-dark .field input:not([type="radio"]):hover,
+.login.login-dark .field textarea:hover,
+.login.login-dark .field select:hover{
+  background-color:#555c6d;
+  border-color:#bcc7d8;
+}
+.login.login-dark .field input:not([type="radio"]):focus,
+.login.login-dark .field textarea:focus,
+.login.login-dark .field select:focus,
+.login.login-dark .field input:not([type="radio"]):focus-visible,
+.login.login-dark .field textarea:focus-visible,
+.login.login-dark .field select:focus-visible{
+  background-color:#30343f;
+  border-color:#76baff;
+  box-shadow:inset 0 2px 5px rgba(0,0,0,.34),0 0 0 3px rgba(10,132,255,.28);
+  outline:2px solid #76baff;
+  outline-offset:2px;
+}
+.login.login-dark .field input::placeholder,
+.login.login-dark .field textarea::placeholder{color:rgba(225,230,240,.58)}
+.login.login-dark .field label,
+.login.login-dark .su-role legend,
+.login.login-dark .muted{color:rgba(238,242,250,.72)}
+.login.login-dark .su-role label{
+  background:rgba(255,255,255,.08);
+  color:#f5f7ff;
+  border:1px solid rgba(255,255,255,.12);
+}
+.login.login-dark .su-role label:has(input:checked){
+  background:rgba(10,132,255,.28);
+  box-shadow:0 0 0 2px #0a84ff;
+  color:#fff;
+}
 .login-bg-trigger,.app-bg-trigger,.login-theme-toggle{
   background-image:linear-gradient(180deg,var(--lg-chrome-a),var(--lg-chrome-b));
   background-color:transparent;
